@@ -6,11 +6,11 @@ Waifu and Lite share source management, date ranges, Codex quotas, usage trends,
 
 ## Time ranges and quotas
 
-Today, This Week, This Month, All, and custom dates use the **server machine's local timezone**, even if the browser is elsewhere. This Week is a calendar week; Last Month and Last Year cover complete calendar periods; This Year runs from January 1 to the present.
+Today, Week, Month, All, and custom dates use the **server machine's local timezone**, even if the browser is elsewhere. Week is a calendar week; Last Month and Last Year cover complete calendar periods; This Year runs from January 1 to the present.
 
 Select a start and then an end in the date control. Reverse selection, clearing, and `Escape` are supported. Longer ranges automatically combine time buckets; hover details show the dates actually covered.
 
-`5h / week` selects the current Codex five-hour or weekly quota window; “Previous 5h” and “Previous 7d” use the previous actual quota cycle. These are not rolling five hours or a calendar week. Without a trustworthy boundary the window is unavailable; reset times are not guessed.
+`5h / 7d` selects the current Codex five-hour or weekly quota window; “Last 5h” and “Last 7d” use the previous actual quota cycle. These are not rolling five hours or a calendar week. Without a trustworthy boundary the window is unavailable; reset times are not guessed.
 
 Quota ranges include eligible Codex subscription usage and exclude explicit API and external sources and identifiable paid credits top-ups. Free `codex-auto-review` usage remains included. When historical authentication/routing evidence is missing, known models provide a fallback estimate. Ordinary date ranges retain all selected sources. Raw Codex quota percentages are not recalculated from the filtered tokens.
 

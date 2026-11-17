@@ -31,9 +31,9 @@ Windows command examples use PowerShell 7 (`pwsh`).
 
 ## Import sources
 
-Open source management and scan common directories. Select the sources found and choose “Import selected”; if a source is missing, use “Add other location” to select its data directory. Select a directory, rather than an individual log or database file.
+Open source management and scan common directories. Select the sources found and choose “Import selected”; if a source is missing, use “Add another location” to select its data directory. Select a directory, rather than an individual log or database file.
 
-Import reads records, builds statistics, verifies them, and updates the dashboard. Closing the dialog does not cancel the import; refresh the page to reconnect to its progress. Choose Today, This Week, This Month, or another range when it finishes. Both editions interpret dates in the server machine's local timezone.
+Import reads records, builds statistics, verifies them, and updates the dashboard. Closing the dialog does not cancel the import; refresh the page to reconnect to its progress. Choose Today, Week, Month, or another range when it finishes. Both editions interpret dates in the server machine's local timezone.
 
 The dashboard counts confirmed sources only. It checks for new records every 60 seconds by default. Pause auto-refresh to freeze the current data while continuing to change ranges. See [data sources](10-data-sources.en.md) for directories and the [dashboard guide](12-dashboard.en.md) for interface details.
 

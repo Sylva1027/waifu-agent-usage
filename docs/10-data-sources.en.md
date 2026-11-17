@@ -60,7 +60,7 @@ When details conflict with a usable total, the total is retained and untrustwort
 
 ## Ranges and quota windows
 
-Today, This Week, This Month, All, and custom ranges cover all selected sources. Dates use the server machine's local timezone.
+Today, Week, Month, All, and custom ranges cover all selected sources. Dates use the server machine's local timezone.
 
 The current and previous Codex 5-hour and weekly quota windows include only eligible Codex usage; boundaries come from actual quota records. Eligibility is determined by source type: other tools do not qualify by using GPT models or naming a channel Codex. See the [dashboard guide](12-dashboard.en.md#time-ranges-and-quotas) for filtering and optional completion.
 
