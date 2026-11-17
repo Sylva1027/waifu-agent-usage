@@ -4,6 +4,8 @@
 
 Bring usage from your AI coding tools into one local dashboard. See where your tokens go, follow usage trends, and make it your own with character skins, share cards, and achievements.
 
+Supported harnesses: Codex, Claude Code, OpenCode, ZCode, DSH, WorkBuddy, and Hermes.
+
 ![Claude light dashboard in English and ChatGPT light dashboard in Chinese, sample data](docs/images/dashboard-bilingual.png)
 
 ## Let your agent install it

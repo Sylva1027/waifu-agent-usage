@@ -4,6 +4,8 @@
 
 把多个 AI 编程工具的用量汇总到一个本地看板，看清 Token 消耗、模型分布和使用趋势。角色皮肤、分享卡片与成就，让每天的使用记录也能有自己的风格。
 
+支持的 harness：Codex、Claude Code、OpenCode、ZCode、DSH、WorkBuddy 和 Hermes。
+
 ![Claude 浅色英文与 ChatGPT 浅色中文看板，示例数据](docs/images/dashboard-bilingual.png)
 
 ## 让 Agent 帮你安装
