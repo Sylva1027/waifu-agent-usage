@@ -4,7 +4,7 @@
 
 Bring usage from your AI coding tools into one local dashboard. See where your tokens go, follow usage trends, and make it your own with character skins, share cards, and achievements.
 
-![Waifu dashboard: DeepSeek light skin with sample data](docs/images/dashboard-deepseek-light-en.png)
+![Claude light dashboard in English and ChatGPT light dashboard in Chinese, sample data](docs/images/dashboard-bilingual.png)
 
 ## Let your agent install it
 
@@ -37,15 +37,20 @@ Open [http://127.0.0.1:3765/](http://127.0.0.1:3765/) and use source management 
 
 **Cost estimates.** Estimate usage costs at model API rates in USD or CNY. Prices and exchange rates update automatically and can also be adjusted manually.
 
+![Cost estimate and model pricing settings](docs/images/pricing.png)
+
 **Characters and themes.** Choose from ten character skins with light and dark palettes, plus visibility and opacity controls. The interface supports English and Chinese.
 
 **Share cards.** Turn your usage into a 3:4 portrait or 4:3 landscape image. Pick the metrics and charts, then copy or save it with one click.
 
+![Landscape share card preview](docs/images/share-landscape.png)
+
 **Achievement badges.** Mark your milestones with 42 achievements: follow your progress, collect badges, and look back at when you earned them. See the [achievement guide](docs/achievements.en.md).
+
+![Achievements and badges](docs/images/achievements.png)
 
 **Sources and history.** Scan local logs or import another directory, refresh automatically, or pause the current view. Back up, import, and restore history to keep your records over time and move them between machines.
 
-<img src="docs/images/share-card-deepseek-light-en.png" alt="Waifu share image: DeepSeek light theme with sample data" width="360" />
 
 ## Download
 

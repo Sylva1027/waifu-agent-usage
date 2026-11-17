@@ -4,7 +4,7 @@
 
 把多个 AI 编程工具的用量汇总到一个本地看板，看清 Token 消耗、模型分布和使用趋势。角色皮肤、分享卡片与成就，让每天的使用记录也能有自己的风格。
 
-![Waifu 看板：DeepSeek 浅色皮肤，示例数据](docs/images/dashboard-deepseek-light.png)
+![Claude 浅色英文与 ChatGPT 浅色中文看板，示例数据](docs/images/dashboard-bilingual.png)
 
 ## 让 Agent 帮你安装
 
@@ -37,15 +37,20 @@ node src/cli.js run
 
 **费用估算。** 按模型 API 单价估算用量对应的费用，以美元或人民币查看。价目与汇率自动更新，也可手动调整。
 
+![费用估算与模型价格设置](docs/images/pricing.png)
+
 **角色与主题。** 十款角色皮肤搭配深浅配色，可调整角色显示与透明度，选择自己喜欢的看板风格。界面支持中英文。
 
 **分享卡片。** 将当前用量生成 3:4 竖版或 4:3 横版图片，自选指标与图形，一键复制或保存。
 
+![横版分享卡片预览](docs/images/share-landscape.png)
+
 **成就徽章。** 42 项成就记录你的使用里程碑，查看进度、收集徽章，回顾每次达成的日期。详见[成就说明](docs/achievements.md)。
+
+![成就与徽章](docs/images/achievements.png)
 
 **来源与历史。** 扫描本机日志或导入其他目录，自动刷新，也可暂停当前视图。支持历史备份、导入与恢复，方便长期保留和转移使用记录。
 
-<img src="docs/images/share-card-deepseek-light.png" alt="Waifu 用量分享图：DeepSeek 浅色主题，示例数据" width="360" />
 
 ## 下载
 
