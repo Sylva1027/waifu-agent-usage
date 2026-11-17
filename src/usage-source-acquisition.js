@@ -93,6 +93,7 @@ export class UsageSourceAcquisition {
   }
 
   invalidate() {
+    if (!this.store.database.prepare("SELECT 1 FROM usage_source_catalog WHERE path='' AND ready=1").get()) return;
     this.store.database.prepare("UPDATE usage_source_catalog SET ready=0 WHERE path='' AND ready=1").run();
   }
 

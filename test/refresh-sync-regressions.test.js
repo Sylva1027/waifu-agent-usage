@@ -94,6 +94,8 @@ test("refresh sync: failed final metadata cannot acknowledge missing paths", asy
   try {
     await store.sync({ options: fixture.reportOptions });
     const before = publishedFacts(store);
+    const publication = () => [store.homes, store.generatedAt, store.fingerprint, store.checkedAt, store.warnings];
+    const lastPublication = publication();
     unlinkSync(fixture.rolloutFiles[1]);
     store.writeMeta = function (key, value) {
       if (key === "generated_at") throw new Error("refresh injected final metadata failure");
@@ -106,6 +108,7 @@ test("refresh sync: failed final metadata cannot acknowledge missing paths", asy
     store.writeMeta = writeMeta;
     assert.equal(store.publishedFileWarningsView, null);
     assert.deepEqual(publishedFacts(store), before);
+    assert.deepEqual(publication(), lastPublication);
 
     const retry = await store.sync({ options: fixture.reportOptions });
     assert.ok(retry.missingSources.some((source) => source.path === fixture.rolloutFiles[1]));

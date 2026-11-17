@@ -521,7 +521,9 @@ export function createDashboardRuntime(context, hooks = {}) {
         data = await response.json().catch(() => null);
         if (loadId !== state.usageLoadId) return;
         if (response.status === 409 && data?.code === "SOURCE_UPDATE_PENDING") {
-          if (++pendingAttempts >= 30) throw new Error(localizeServerError(data, response.status));
+          pendingAttempts++;
+          const followWriter = state.autoRefreshEnabled && !activity && !requiredSourceVersion;
+          if (!followWriter && pendingAttempts >= 30) throw new Error(localizeServerError(data, response.status));
           updateRuntimeTask(task, "source-pending");
           skipCheck = false;
           await new Promise((resolve) => {
@@ -530,7 +532,7 @@ export function createDashboardRuntime(context, hooks = {}) {
               if (cancelUsageRetry === wake) cancelUsageRetry = null;
               resolve();
             };
-            const timer = window.setTimeout(wake, 1000);
+            const timer = window.setTimeout(wake, followWriter ? Math.min(pendingAttempts, 5) * 1000 : 1000);
             cancelUsageRetry = wake;
           });
           if (loadId !== state.usageLoadId) return;
@@ -643,9 +645,15 @@ export function createDashboardRuntime(context, hooks = {}) {
       const response = await fetch(`/api/status${since ? `?since=${encodeURIComponent(since)}` : ""}`, {
         headers: runtimeRequestHeaders(task),
       });
-      if (!response.ok) throw new Error(`API ${response.status}`);
+      if (!response.ok && response.status !== 409) throw new Error(`API ${response.status}`);
       const status = await response.json();
       if (!state.autoRefreshEnabled || runId !== state.autoRefreshRunId || loadId !== state.usageLoadId) return;
+      if (!response.ok) {
+        if (status?.code !== "SOURCE_UPDATE_PENDING") throw new Error(`API ${response.status}`);
+        updateRuntimeTask(task, "source-pending");
+        await reloadSyncedUsage(null, { skipCheck: false });
+        return;
+      }
       if (status.importTask && ["running", "ready"].includes(status.importTask.status)) {
         void context.pollImportTask();
         return;

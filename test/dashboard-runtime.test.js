@@ -320,6 +320,32 @@ test("pending retries wake once, retain completion and stop cleanly on dispose",
   assert.equal(waiting.state.runtimeTasks.length, 0);
 });
 
+test("a pending status check keeps the displayed dashboard until the next publication", async (t) => {
+  let locked = false;
+  const h = fixture({
+    route: () =>
+      locked
+        ? { status: 409, payload: { code: "SOURCE_UPDATE_PENDING" } }
+        : { payload: usage(h.calls.render ? "v2" : "v1") },
+  });
+  t.after(h.runtime.dispose);
+  await h.runtime.loadUsage();
+  locked = true;
+  const check = h.runtime.checkForUpdates();
+  await flush();
+  for (let attempt = 0; attempt < 32; attempt++) {
+    h.advance(5000);
+    await flush();
+  }
+  assert.equal(h.state.fingerprint, "f-v1");
+  assert.deepEqual(h.state.runtimeErrors, []);
+  locked = false;
+  h.advance(5000);
+  await check;
+  assert.equal(h.state.fingerprint, "f-v2");
+  assert.deepEqual(h.state.runtimeErrors, []);
+});
+
 test("SSE reconnect coalesces behind an active load and status confirmation cannot advance an unpainted version", async (t) => {
   const gate = deferred();
   let calls = 0;

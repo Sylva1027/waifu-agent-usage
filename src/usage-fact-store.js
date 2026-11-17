@@ -1,4 +1,5 @@
 import { removeLegacyUsageRecordTriggers } from "./usage-record-migration.js";
+import { isSqliteBusy } from "./sqlite-busy.js";
 import { sourceFactIdentity } from "./usage-fact-identity.js";
 import {
   publishedUsageEventFromRow,
@@ -1427,11 +1428,11 @@ export function createUsageFactStoreClass(QueryOwner) {
       this.database = new DatabaseSync(
         this.databaseFile === ":memory:" ? this.databaseFile : path.toNamespacedPath(this.databaseFile),
       );
+      this.database.exec("PRAGMA busy_timeout = 5000");
       removeLegacyUsageRecordTriggers(this.database);
       this.registerReadFunctions();
       this.database.exec(`
       PRAGMA foreign_keys = ON;
-      PRAGMA busy_timeout = 5000;
       PRAGMA journal_mode = WAL;
       PRAGMA journal_size_limit = 67108864;
       CREATE TABLE IF NOT EXISTS store_meta (
@@ -4207,7 +4208,8 @@ export function createUsageFactStoreClass(QueryOwner) {
             acceptSource(file, outcome);
           } catch (error) {
             if (plan) throw error;
-            if (file.relocatedFrom || needsReparse || error.code === "LIVE_SOURCE_CHANGED") throw error;
+            if (file.relocatedFrom || needsReparse || error.code === "LIVE_SOURCE_CHANGED" || isSqliteBusy(error))
+              throw error;
             if (canonicalizeKind(file.source.kind) === "codex" && (Number(error?.errcode) & 0xff) === 19) throw error;
             warnings.push(`无法索引 ${file.filePath}: ${error.message}`);
           }
@@ -4399,16 +4401,11 @@ export function createUsageFactStoreClass(QueryOwner) {
             await buildUsageFingerprint({ ...syncOptions, homes, scannedFiles: files, failedHomes }),
           );
       }
-      this.homes = homes;
-      this.generatedAt = new Date().toISOString();
-      this.fingerprint = status.fingerprint;
-      this.checkedAt = status.checkedAt;
-      this.warnings = warnings;
-
+      const generatedAt = new Date().toISOString();
       this.database.exec("BEGIN IMMEDIATE");
       try {
-        this.writeMeta("generated_at", this.generatedAt);
-        this.writeMeta("fingerprint", this.fingerprint);
+        this.writeMeta("generated_at", generatedAt);
+        this.writeMeta("fingerprint", status.fingerprint);
         if (!plan) this.writeMeta("usage_file_fingerprints", JSON.stringify(nextFingerprints));
         if (this.readMetaRaw("perf_file_warnings") !== publishedFileWarningsSnapshot) {
           this.writeMeta("perf_file_warnings", publishedFileWarningsSnapshot);
@@ -4419,6 +4416,11 @@ export function createUsageFactStoreClass(QueryOwner) {
         this.database.exec("ROLLBACK");
         throw error;
       }
+      this.homes = homes;
+      this.generatedAt = generatedAt;
+      this.fingerprint = status.fingerprint;
+      this.checkedAt = status.checkedAt;
+      this.warnings = warnings;
 
       if (usageDerivedChanged || homeSetChanged || this.storeRevision !== this.derivedRevision) {
         this.metadataCache = null;

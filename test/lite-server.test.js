@@ -1,11 +1,88 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { writeFile } from "node:fs/promises";
+import { appendFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
+import { setTimeout as delay } from "node:timers/promises";
 import { promisify } from "node:util";
 import { createLiteEditionFixture } from "../test-support/lite-edition-fixture.mjs";
 import { createLiteBoundaryProbe } from "../test-support/lite-boundary-probe.mjs";
+import { listenOnFetchPort } from "../test-support/fetch-port.mjs";
+import { createUsageServer } from "../src/server-lite.js";
+
+test("a locked Lite summary cache serves fresh usage and resumes caching after unlock", async () => {
+  const fixture = createLiteEditionFixture();
+  const writer = new DatabaseSync(`${fixture.options.databaseFile}.lite.summaries.sqlite`);
+  const server = createUsageServer(fixture.options);
+  try {
+    writer.exec("BEGIN EXCLUSIVE");
+    await listenOnFetchPort(server);
+    const url = `http://127.0.0.1:${server.address().port}/api/usage?preset=all&view=dashboard`;
+    async function readDashboard() {
+      const response = await fetch(url);
+      const body = await response.json();
+      assert.equal(response.status, 200, body.error);
+      assert.deepEqual(body.summary.totals, fixture.expected.totals);
+      return response.headers.get("x-summary-cache");
+    }
+    assert.equal(await readDashboard(), "miss");
+    writer.exec("ROLLBACK");
+    assert.equal(await readDashboard(), "miss");
+    assert.equal(await readDashboard(), "hit");
+  } finally {
+    writer.close();
+    await server.close();
+    fixture.close();
+  }
+});
+
+test("two Lite dashboard requests recover all new usage after another writer releases the index", async () => {
+  const fixture = createLiteEditionFixture();
+  const server = createUsageServer(fixture.options);
+  let writer;
+  try {
+    await listenOnFetchPort(server);
+    const url = `http://127.0.0.1:${server.address().port}/api/usage?view=dashboard`;
+    const first = await fetch(url);
+    const initial = await first.json();
+    assert.equal(first.status, 200, initial.error);
+    assert.equal(initial.summary.totals.total, 310);
+    await appendFile(
+      fixture.rolloutFiles[0],
+      `${JSON.stringify({
+        type: "event_msg",
+        timestamp: "2026-11-16T12:59:00Z",
+        payload: { type: "token_count", info: { last_token_usage: { total_tokens: 37, input_tokens: 37 } } },
+      })}\n`,
+    );
+    writer = new DatabaseSync(fixture.options.databaseFile);
+    writer.exec("BEGIN IMMEDIATE");
+    const tabs = await Promise.all([fetch(url), fetch(url)]);
+    for (const response of tabs) {
+      const data = await response.json();
+      assert.equal(response.status, 409, data.error);
+      assert.equal(data.code, "SOURCE_UPDATE_PENDING");
+    }
+    writer.exec("ROLLBACK");
+    for (let attempt = 0; ; attempt++) {
+      const response = await fetch(url);
+      const data = await response.json();
+      if (response.ok) {
+        assert.equal(data.summary.totals.total, 347);
+        assert.deepEqual(data.metadata.warnings, []);
+        break;
+      }
+      assert.equal(data.code, "SOURCE_UPDATE_PENDING");
+      assert.ok(attempt < 50, "index publication did not recover");
+      await delay(100);
+    }
+  } finally {
+    writer?.close();
+    await server.close();
+    fixture.close();
+  }
+});
 
 test("Lite HTTP, refresh, full report and freeze run without Waifu modules in either process", async (t) => {
   const fixture = createLiteEditionFixture();

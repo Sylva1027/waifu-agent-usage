@@ -5,12 +5,17 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
 import { renderDatePickerHtml, selectDateRange } from "../public/calendar.js";
+import { assignChartPatternSlots } from "../public/lite/app.js";
 import {
   filterPeriodComparisonRows,
   nextComparisonSort,
   renderPeriodComparisonTableHtml,
 } from "../public/dashboard-render.js";
 import { renderHomesHtml, renderSourceOptionsHtml } from "../public/source-view.js";
+import { resolveBrowserRuntime } from "../scripts/skin-palette/capture.mjs";
+import { createUsageServer } from "../src/server-lite.js";
+import { listenOnFetchPort } from "../test-support/fetch-port.mjs";
+import { createLiteEditionFixture } from "../test-support/lite-edition-fixture.mjs";
 
 const root = fileURLToPath(new URL("../public/", import.meta.url));
 const read = (name) => fs.readFileSync(path.join(root, name), "utf8");
@@ -148,11 +153,83 @@ test("first frame fixes dark and preserves only the locale preference", () => {
 
 test("CSS and canvas palette are flat grayscale; pointer handling retains tooltip behavior", () => {
   assertFlatGray(css);
-  assertFlatGray(app.match(/const GRAYS = \[([^\]]+)\]/)[1]);
+  assertFlatGray(app.match(/#[\da-f]{6}\b/gi).join(" "));
   assert.match(css, /-webkit-text-stroke:/);
   assert.match(css, /prefers-reduced-motion/);
   assert.match(app, /timelineChart\.addEventListener\("pointermove"/);
   assert.match(app, /showTimelineTooltip\(row, event\)/);
+});
+
+test("visible series use distinct patterns even when filters bring back previously colliding names", () => {
+  const slots = new Map();
+  const names = Array.from({ length: 19 }, (_, i) => `model-${i}`);
+  assignChartPatternSlots(names, slots);
+  assert.equal(new Set(names.slice(0, 16).map((name) => slots.get(name))).size, 16);
+  assert.equal(slots.get(names[0]), slots.get(names[16]));
+  const active = ["new", names[16], names[0], names[12]];
+  const remembered = slots.get(names[12]);
+  assignChartPatternSlots(active, slots);
+  assert.equal(new Set(active.map((name) => slots.get(name))).size, active.length);
+  assert.equal(slots.get(names[12]), remembered);
+  const previous = new Map(slots);
+  assignChartPatternSlots([...active].reverse(), slots);
+  assert.deepEqual(slots, previous);
+});
+
+test("Lite uses matching patterns in narrow stacked bars, legend and details and can trace one model", async (t) => {
+  const runtime = await resolveBrowserRuntime();
+  if (!runtime) {
+    assert.ok(!process.env.CI, "CI requires a browser runtime");
+    return t.skip("No local browser runtime");
+  }
+  const fixture = createLiteEditionFixture();
+  let browser;
+  const server = createUsageServer(fixture.options);
+  t.after(async () => {
+    await browser?.close();
+    await server.close();
+    fixture.close();
+  });
+  for (const [index, file] of fixture.rolloutFiles.entries()) {
+    const lines = fs.readFileSync(file, "utf8").trim().replace("gpt-6-sol", `model-${index}`).split("\n");
+    const event = lines.pop();
+    for (let day = 1; day <= 16; day++) lines.push(event.replace("11-16", `11-${String(day).padStart(2, "0")}`));
+    fs.writeFileSync(file, `${lines.join("\n")}\n`);
+  }
+  await listenOnFetchPort(server);
+  browser = await runtime.chromium.launch({ executablePath: runtime.executablePath, headless: true });
+  const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
+  await page.goto(`http://127.0.0.1:${server.address().port}/`);
+  await page.locator('[data-preset="all"]').click();
+  await page.locator('[data-timeline-mode="model"]').click();
+  await page.waitForFunction(() => document.querySelectorAll("#timelineLegend button").length === 4);
+  const { legend, details } = await page.evaluate(() => ({
+    legend: Array.from(document.querySelectorAll(".timeline-legend-swatch"), (node) => node.style.background),
+    details: Array.from(document.querySelectorAll(".bar-fill"), (node) => node.style.background),
+  }));
+  assert.equal(new Set(legend).size, 4);
+  assert.deepEqual(legend, details);
+  const canvas = page.locator("#timelineChart");
+  const barShades = await canvas.evaluate((node) => {
+    const ratio = node.width / node.clientWidth;
+    const pixels = node
+      .getContext("2d")
+      .getImageData(66 * ratio, 20 * ratio, node.width - 86 * ratio, node.height - 64 * ratio).data;
+    const shades = new Set();
+    for (let i = 0; i < pixels.length; i += 4) if (pixels[i + 3] === 255) shades.add(pixels[i]);
+    return [...shades];
+  });
+  for (const shade of [0xde, 0x73, 0xf5, 0x40]) assert.ok(barShades.includes(shade), `missing fill/ink level ${shade}`);
+  const pixels = () => canvas.evaluate((node) => node.toDataURL());
+  const before = await pixels();
+  const key = page.locator("#timelineLegend button").nth(1);
+  await key.press("Enter");
+  assert.equal(await key.getAttribute("aria-pressed"), "true");
+  assert.equal(await page.locator("#detailList .series-muted").count(), 3);
+  assert.notEqual(await pixels(), before);
+  await key.press("Space");
+  assert.equal(await pixels(), before);
+  assert.equal(await page.locator("#detailList .series-muted").count(), 0);
 });
 
 test("style guard rejects color, shadow, gradient and material image counterexamples", () => {
