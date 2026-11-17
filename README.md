@@ -65,7 +65,7 @@ node src/cli.js run
 | **Waifu 完整版** | 完整体验，包含费用估算、角色皮肤、分享与成就。 | [下载 Waifu](https://github.com/Sylva1027/waifu-agent-usage/releases/download/v1.0/1.0-waifu.zip) |
 | **Lite 轻量版** | 专注用量统计与趋势，简洁的深色界面，保留历史管理。 | [下载 Lite](https://github.com/Sylva1027/waifu-agent-usage/releases/download/v1.0/1.0-lite.zip) |
 
-[查看所有版本](https://github.com/Sylva1027/waifu-agent-usage/releases) · [使用指南](docs/01-getting-started.md) · [数据来源](docs/10-data-sources.md) · [备份与转移](docs/history-retention.md) · [升级说明](docs/15-delivery-upgrade.md) · [开发文档](docs/03-development.md)
+[查看所有版本](https://github.com/Sylva1027/waifu-agent-usage/releases) · [使用指南](docs/01-getting-started.md) · [数据来源](docs/10-data-sources.md) · [备份与转移](docs/history-retention.md) · [升级说明](docs/15-delivery-upgrade.md) · [开发文档](docs/03-development.md) · [文档索引](docs/00-index.md)
 
 ## 致谢与许可
 
