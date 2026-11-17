@@ -8,6 +8,7 @@ const parent = await realpath(tmpdir());
 const root = await mkdtemp(path.join(parent, "codex-usage-tests-"));
 const directories = [{ directory: root, parent }];
 try {
+  await mkdir(new URL("../docs/validation/", import.meta.url), { recursive: true });
   // Native NTFS proofs need AppData's volume; ordinary fixtures keep the runner's temp drive.
   const localParent = process.platform === "win32" && process.env.LOCALAPPDATA
     ? await realpath(path.join(process.env.LOCALAPPDATA, "Temp")) : root;

@@ -1,14 +1,28 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-test("test runner isolates ambient Hermes paths, keeps discovery enabled and cleans success and failure", (t) => {
+test("test runner creates its output parent, isolates Hermes paths and cleans success and failure", (t) => {
   const root = mkdtempSync(path.join(tmpdir(), "test-environment-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
+  const runner = path.join(root, "scripts", "test.mjs");
+  mkdirSync(path.dirname(runner));
+  copyFileSync(fileURLToPath(new URL("../scripts/test.mjs", import.meta.url)), runner);
+  const validationRoot = path.join(root, "docs", "validation");
+  assert.equal(existsSync(validationRoot), false);
   const redirected = path.join(root, "redirected-temp");
   mkdirSync(redirected);
   const expectedParent = realpathSync(redirected);
@@ -28,6 +42,7 @@ test("test runner isolates ambient Hermes paths, keeps discovery enabled and cle
     import test from 'node:test';
     import { discoverHermesHomes } from ${JSON.stringify(new URL("../src/usage-core.js", import.meta.url).href)};
     test('isolated discovery', async () => {
+      assert.ok(existsSync(process.env.TEST_EXPECTED_VALIDATION_ROOT));
       console.log('TEST_ENV_ROOT=' + tmpdir());
       console.log('TEST_ENV_LOCAL=' + process.env.LOCALAPPDATA);
       if (process.env.TEST_EXPECTED_APPDATA_PARENT)
@@ -60,19 +75,17 @@ test("test runner isolates ambient Hermes paths, keeps discovery enabled and cle
       TMP: redirected,
       TEST_EXPECTED_TEMP_PARENT: expectedParent,
       TEST_EXPECTED_APPDATA_PARENT: expectedLocalParent,
+      TEST_EXPECTED_VALIDATION_ROOT: validationRoot,
     };
     delete env.NODE_TEST_CONTEXT;
-    const child = spawnSync(
-      process.execPath,
-      [fileURLToPath(new URL("../scripts/test.mjs", import.meta.url)), "--test-reporter=spec", file],
-      {
-        encoding: "utf8",
-        windowsHide: true,
-        env,
-      },
-    );
+    const child = spawnSync(process.execPath, [runner, "--test-reporter=spec", file], {
+      encoding: "utf8",
+      windowsHide: true,
+      env,
+    });
     assert.ifError(child.error);
     assert.equal(child.status, Number(forceFailure), child.stdout + child.stderr);
+    assert.deepEqual(readdirSync(validationRoot), [], "runner only creates an empty test output parent");
     const isolated = /TEST_ENV_ROOT=([^\r\n]+)/.exec(child.stdout)?.[1];
     assert.ok(isolated, child.stdout + child.stderr);
     assert.equal(existsSync(isolated), false, "runner must remove its entire temporary environment");
