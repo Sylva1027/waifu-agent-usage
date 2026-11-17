@@ -33,7 +33,7 @@ For an isolated build, pass `-OutputDirectory <directory>` and
 `-TargetDirectory <directory>` to the script. `-Check` only reads the output and
 source hashes. Compilation failure leaves existing output untouched; successful
 publication replaces staged files. Stop the relevant instance before an upgrade,
-or build into a new program directory. See [delivery and upgrade](../../docs/15-delivery-upgrade.md).
+or build into a new program directory. See [delivery and upgrade](../../docs/15-delivery-upgrade.en.md).
 
 The Node bridge discovers `bin/windows-source-proof.exe`, then
 `target/release/windows-source-proof.exe`. Tests can pass an explicit path to

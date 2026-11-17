@@ -1,5 +1,7 @@
 # Codex 数据源
 
+简体中文 · [English](codex.en.md)
+
 来源管理中选择 Codex home，默认 `~/.codex`，也扫描本机 JetBrains 集成目录。可用 `CODEX_USAGE_HOMES` 追加目录。共同导入操作见[数据来源](../10-data-sources.md)。
 
 ## 日志与用量

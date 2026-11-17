@@ -35,7 +35,7 @@ Open source management and scan common directories. Select the sources found and
 
 Import reads records, builds statistics, verifies them, and updates the dashboard. Closing the dialog does not cancel the import; refresh the page to reconnect to its progress. Choose Today, This Week, This Month, or another range when it finishes. Both editions interpret dates in the server machine's local timezone.
 
-The dashboard counts confirmed sources only. It checks for new records every 60 seconds by default. Pause auto-refresh to freeze the current data while continuing to change ranges. See [data sources](10-data-sources.en.md) for directories and the [dashboard guide](12-dashboard.md) for interface details (Chinese).
+The dashboard counts confirmed sources only. It checks for new records every 60 seconds by default. Pause auto-refresh to freeze the current data while continuing to change ranges. See [data sources](10-data-sources.en.md) for directories and the [dashboard guide](12-dashboard.en.md) for interface details.
 
 ## Data and edition switching
 

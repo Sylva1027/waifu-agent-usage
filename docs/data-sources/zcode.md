@@ -1,5 +1,7 @@
 # ZCode 数据源
 
+简体中文 · [English](zcode.en.md)
+
 默认 home 为 `~/.zcode`，按顺序探测 `cli/db/db.sqlite`、`db/db.sqlite`。导入选择 home 目录；`CODEX_USAGE_ZCODE_HOMES` 追加目录，`CODEX_USAGE_ZCODE=0` 关闭自动发现。操作见[数据来源](../10-data-sources.md)。
 
 ## 字段映射

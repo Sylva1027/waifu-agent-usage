@@ -1,5 +1,7 @@
 # 文档索引
 
+简体中文 · [English](00-index.en.md)
+
 Waifu Agent Usage v1.0：Waifu 提供完整体验，Lite 专注用量统计与趋势。
 
 ## 安装与日常使用

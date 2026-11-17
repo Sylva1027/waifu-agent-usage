@@ -36,7 +36,7 @@ The primary command is `waifu-agent-usage`; `codex-usage` and `cud` remain compa
 - [public/app.js](../public/app.js) and [public/lite/](../public/lite/): the edition interfaces; [public/dashboard-runtime.js](../public/dashboard-runtime.js) provides shared interaction.
 - [test/](../test/) and [test-support/](../test-support/): tests and independent reference data.
 
-See [data sources](10-data-sources.en.md) for usage semantics and [skin maintenance](13-skins.md) (Chinese) for artwork and palettes. A new source must be connected to discovery, parsing, indexing, import labels, channel grouping, quota filtering, and both language dictionaries, with source and three-path consistency tests.
+See [data sources](10-data-sources.en.md) for usage semantics and [skin maintenance](13-skins.en.md) for artwork and palettes. A new source must be connected to discovery, parsing, indexing, import labels, channel grouping, quota filtering, and both language dictionaries, with source and three-path consistency tests.
 
 Lite's page, styles, and usage backend are assembled independently; shared modules do not depend on Waifu's pricing, sharing, or achievement runtimes. History format validation must still preserve attachments declared in older packages. Frozen and import readers query fixed views; source acquisition and projection preparation are performed by their respective owners.
 
@@ -88,4 +88,4 @@ The output must be a new directory under `output/`. Names come from `releaseVers
 
 The packager collects actual dependencies, edition assets, the license, and the Windows helper; it excludes user data, development dependencies, and authoring PNGs. `release-manifest.json` records ZIP and per-file SHA-256 hashes. `package:check` verifies the extracted packages and runs isolated HTTP checks; `--browser` adds browser checks.
 
-Use `skins:check` to verify release assets. Additional PNGs are only needed to regenerate authoring materials; see [skin maintenance](13-skins.md) (Chinese). For installation and data migration, see [upgrading](15-delivery-upgrade.en.md).
+Use `skins:check` to verify release assets. Additional PNGs are only needed to regenerate authoring materials; see [skin maintenance](13-skins.en.md). For installation and data migration, see [upgrading](15-delivery-upgrade.en.md).

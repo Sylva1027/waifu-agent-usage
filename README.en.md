@@ -65,7 +65,7 @@ Open [http://127.0.0.1:3765/](http://127.0.0.1:3765/) and use source management 
 | **Waifu** | The full experience, including cost estimates, character skins, sharing, and achievements. | [Download Waifu](https://github.com/Sylva1027/waifu-agent-usage/releases/download/v1.0/1.0-waifu.zip) |
 | **Lite** | Focused usage tracking and trends in a simple dark interface, with history management. | [Download Lite](https://github.com/Sylva1027/waifu-agent-usage/releases/download/v1.0/1.0-lite.zip) |
 
-[All releases](https://github.com/Sylva1027/waifu-agent-usage/releases) · [Getting started](docs/01-getting-started.en.md) · [Data sources](docs/10-data-sources.en.md) · [Backup and transfer](docs/history-retention.en.md) · [Upgrading](docs/15-delivery-upgrade.en.md) · [Development](docs/03-development.en.md)
+[All releases](https://github.com/Sylva1027/waifu-agent-usage/releases) · [Getting started](docs/01-getting-started.en.md) · [Data sources](docs/10-data-sources.en.md) · [Backup and transfer](docs/history-retention.en.md) · [Upgrading](docs/15-delivery-upgrade.en.md) · [Development](docs/03-development.en.md) · [Documentation index](docs/00-index.en.md)
 
 ## Credits and license
 

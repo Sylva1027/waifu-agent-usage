@@ -1,5 +1,7 @@
 # Claude Code 数据源
 
+简体中文 · [English](claude-code.en.md)
+
 默认 home 为 `~/.claude`，同时扫描 `CLAUDE_CONFIG_DIR` 指向的目录。`CODEX_USAGE_CLAUDE_HOMES` 可追加位置，`CODEX_USAGE_CLAUDE=0` 关闭自动发现。导入选择 home 目录，操作见[数据来源](../10-data-sources.md)。
 
 ## 主会话与子代理

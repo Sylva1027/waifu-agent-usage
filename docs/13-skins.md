@@ -1,5 +1,7 @@
 # 角色皮肤与配色
 
+简体中文 · [English](13-skins.en.md)
+
 角色皮肤由 **Waifu** 提供。部分角色形象来自 [ZipZipPipe](https://space.bilibili.com/4168597)，感谢其创作。
 
 ## 选择与设置

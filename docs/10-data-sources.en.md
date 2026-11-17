@@ -2,7 +2,7 @@
 
 [简体中文](10-data-sources.md) · English
 
-Waifu and Lite use the same source and token accounting rules. Cost estimates are available in Waifu; see the [pricing guide](11-pricing.md) (Chinese).
+Waifu and Lite use the same source and token accounting rules. Cost estimates are available in Waifu; see the [pricing guide](11-pricing.en.md).
 
 ## Scan and import
 
@@ -12,16 +12,16 @@ Dashboard refresh and background watching read only confirmed sources. Import th
 
 Supported sources:
 
-- **Codex:** session logs in `~/.codex`, including JetBrains integration directories.
-- **ZCode:** SQLite usage databases under `~/.zcode`.
-- **DSH:** compressed session logs under `~/.dsh`.
-- **OpenCode:** `opencode*.db` in its data directory; v2 message databases are supported.
-- **Claude Code:** main and subagent transcripts under `~/.claude/projects/`.
-- **WorkBuddy:** transcripts under `~/.workbuddy-ai/projects/`; Auto records are excluded.
-- **Hermes:** cumulative usage ledgers in each home's `state.db`.
+- [Codex](data-sources/codex.en.md): session logs in `~/.codex`, including JetBrains integration directories.
+- [ZCode](data-sources/zcode.en.md): SQLite usage databases under `~/.zcode`.
+- [DSH](data-sources/dsh.en.md): compressed session logs under `~/.dsh`.
+- [OpenCode](data-sources/opencode.en.md): `opencode*.db` in its data directory; v2 message databases are supported.
+- [Claude Code](data-sources/claude-code.en.md): main and subagent transcripts under `~/.claude/projects/`.
+- [WorkBuddy](data-sources/workbuddy.en.md): transcripts under `~/.workbuddy-ai/projects/`; Auto records are excluded.
+- [Hermes](data-sources/hermes.en.md): cumulative usage ledgers in each home's `state.db`.
 - **Project usage logs:** import a project directory containing `.codex-usage/usage.jsonl` to read recorded usage.
 
-`~` is the current user's home. Scan candidates also include locations specified by `CODEX_HOME`, `CLAUDE_CONFIG_DIR`, `XDG_DATA_HOME`, and `HERMES_HOME`. The [Chinese source guides](10-data-sources.md#扫描与导入) provide additional adapter details.
+`~` is the current user's home. Scan candidates also include locations specified by `CODEX_HOME`, `CLAUDE_CONFIG_DIR`, `XDG_DATA_HOME`, and `HERMES_HOME`.
 
 <details>
 <summary>Additional directories and environment variables</summary>
@@ -62,7 +62,7 @@ When details conflict with a usable total, the total is retained and untrustwort
 
 Today, This Week, This Month, All, and custom ranges cover all selected sources. Dates use the server machine's local timezone.
 
-The current and previous Codex 5-hour and weekly quota windows include only eligible Codex usage; boundaries come from actual quota records. Eligibility is determined by source type: other tools do not qualify by using GPT models or naming a channel Codex. See the [dashboard guide](12-dashboard.md#时间范围与额度) (Chinese) for filtering and optional completion.
+The current and previous Codex 5-hour and weekly quota windows include only eligible Codex usage; boundaries come from actual quota records. Eligibility is determined by source type: other tools do not qualify by using GPT models or naming a channel Codex. See the [dashboard guide](12-dashboard.en.md#time-ranges-and-quotas) for filtering and optional completion.
 
 ## Channel grouping
 

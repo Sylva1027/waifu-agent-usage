@@ -1,5 +1,7 @@
 # OpenCode 数据源
 
+简体中文 · [English](opencode.en.md)
+
 扫描以下数据目录中的 `opencode*.db`，导入时选择目录而非数据库文件：
 
 - `~/.local/share/opencode`

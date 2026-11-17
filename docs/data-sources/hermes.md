@@ -1,5 +1,7 @@
 # Hermes 数据源
 
+简体中文 · [English](hermes.en.md)
+
 从各 home 的 `state.db` 读取累计用量。Windows 默认目录为 `%LOCALAPPDATA%/hermes`，macOS/Linux 为 `~/.hermes`；同时发现 `HERMES_HOME` 与默认根目录下的命名 profiles。
 
 `CODEX_USAGE_HERMES_HOMES` 可追加目录，`CODEX_USAGE_HERMES=0` 关闭自动发现。导入选择包含数据库的 home，扫描确认后才读取，操作见[数据来源](../10-data-sources.md)。

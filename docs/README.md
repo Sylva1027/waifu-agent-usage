@@ -1,5 +1,7 @@
 # Waifu Agent Usage 文档
 
+简体中文 · [English](README.en.md)
+
 v1.0 提供 Waifu 完整版和 Lite 轻量版。首次使用请从[开始使用](01-getting-started.md)进入。
 
 - [中文介绍](../README.md) · [English](../README.en.md)

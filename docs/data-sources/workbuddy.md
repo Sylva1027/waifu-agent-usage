@@ -1,5 +1,7 @@
 # WorkBuddy 数据源
 
+简体中文 · [English](workbuddy.en.md)
+
 默认 home 为 `~/.workbuddy-ai`，读取 `projects/<cwd-slug>/<sessionId>.jsonl`。导入选择 home 目录，跳过 `tool-results/` 和非 JSONL 文件。
 
 `CODEX_USAGE_WORKBUDDY_HOMES` 可追加目录，`CODEX_USAGE_WORKBUDDY=0` 关闭自动发现。WorkBuddy 与 Claude Code 目录形状相似，扫描还会按内容标记区分；共同操作见[数据来源](../10-data-sources.md)。

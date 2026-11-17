@@ -1,5 +1,7 @@
 # DSH（DeepSeek Harness）数据源
 
+简体中文 · [English](dsh.en.md)
+
 默认 home 为 `~/.dsh`，日志位于 `sessions/<cwd-slug>/<sessionId>/session.v<N>.jsonl.zstd`。导入选择 home 目录；`CODEX_USAGE_DSH_HOMES` 追加目录，`CODEX_USAGE_DSH=0` 关闭自动发现。共同操作见[数据来源](../10-data-sources.md)。
 
 ## 支持的记录
