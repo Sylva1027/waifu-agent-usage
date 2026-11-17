@@ -2,7 +2,7 @@
 
 简体中文 · [English](README.en.md)
 
-把多个 AI 编程工具的用量汇总到一个本地看板，看清 Token 消耗、模型分布和使用趋势。角色皮肤、分享卡片与成就，让每天的使用记录也能有自己的风格。
+Waifu Agent Usage 是由 Sylva1027 独立维护的本地 AI 编程用量看板。汇总多个 AI 编程工具的用量，看清 Token 消耗、模型分布和使用趋势；通过角色皮肤、分享卡片与成就，让每天的使用记录也能有自己的风格。
 
 支持的 harness：Codex、Claude Code、OpenCode、ZCode、DSH、WorkBuddy 和 Hermes。
 
@@ -69,6 +69,8 @@ node src/cli.js run
 
 ## 致谢与许可
 
-基于 [DhWU-coder/codex-usage](https://github.com/DhWU-coder/codex-usage) 开发。部分角色形象来自 [ZipZipPipe](https://space.bilibili.com/4168597)，感谢其创作。
+本项目最初基于 [Codex Usage](https://github.com/DhWU-coder/codex-usage)，此后围绕多 Agent 数据接入、统计架构、历史保留和个性化体验持续独立开发。感谢原作者提供的基础。
 
-项目采用 [MIT License](LICENSE)。
+部分角色形象来自 [ZipZipPipe](https://space.bilibili.com/4168597)，感谢其创作。项目来源、贡献与素材署名见 [CREDITS.md](CREDITS.md)。
+
+项目代码采用 [MIT License](LICENSE)，保留原作者及本项目贡献的版权声明。

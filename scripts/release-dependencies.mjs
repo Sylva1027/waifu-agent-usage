@@ -110,7 +110,9 @@ function arrayInitializer(file, source, name) {
 export async function releaseInputs(edition, root, { packaged = false, browserOnly = false } = {}) {
   assert.ok(EDITIONS.includes(edition), `Unknown edition: ${edition}`);
   const inputs = new Map();
-  const queue = browserOnly ? [] : ["package.json", "LICENSE", "src/cli.js", "src/server.js", "src/usage-executor.js"];
+  const queue = browserOnly
+    ? []
+    : ["package.json", "LICENSE", "CREDITS.md", "src/cli.js", "src/server.js", "src/usage-executor.js"];
   if (!browserOnly) {
     const native = "native/windows-source-proof";
     const receipt = JSON.parse(await readReleaseInput(root, `${native}/bin/windows-source-proof.build.json`));

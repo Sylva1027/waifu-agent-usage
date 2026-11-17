@@ -2,7 +2,7 @@
 
 [简体中文](README.md) · English
 
-Bring usage from your AI coding tools into one local dashboard. See where your tokens go, follow usage trends, and make it your own with character skins, share cards, and achievements.
+Waifu Agent Usage is a local AI coding usage dashboard independently maintained by Sylva1027. Bring usage from your AI coding tools into one place, see where your tokens go, follow usage trends, and make it your own with character skins, share cards, and achievements.
 
 Supported harnesses: Codex, Claude Code, OpenCode, ZCode, DSH, WorkBuddy, and Hermes.
 
@@ -69,6 +69,8 @@ Open [http://127.0.0.1:3765/](http://127.0.0.1:3765/) and use source management 
 
 ## Credits and license
 
-Built on [DhWU-coder/codex-usage](https://github.com/DhWU-coder/codex-usage). Some character artwork is by [ZipZipPipe](https://space.bilibili.com/4168597). Thank you for the artwork.
+This project began with [Codex Usage](https://github.com/DhWU-coder/codex-usage) and has since been independently developed around support for multiple agents, usage architecture, history retention, and personalization. Thank you to the original author for the foundation.
 
-Licensed under the [MIT License](LICENSE).
+Some character artwork is by [ZipZipPipe](https://space.bilibili.com/4168597). Thank you for the artwork. See [CREDITS.md](CREDITS.md) for project origins, contributions, and artwork credits.
+
+The project code is licensed under the [MIT License](LICENSE), retaining copyright notices for the original author and this project's contributions.
