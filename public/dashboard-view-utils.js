@@ -393,6 +393,7 @@ export function tokenTimelineSeries(mode, options) {
 // All application state, CSS and edition-specific series arrive explicitly from the caller.
 export function drawTimelineCanvas(canvas, rows, options) {
   const { styles, palette, outline, ratio, range, bucket, series, messages, timelineBars, drawnChartBox } = options;
+  const { focusedSeries = null } = options;
   const context = canvas.getContext("2d");
   canvas.dataset.usageTooltip = "true";
   canvas.dataset.chartAriaLabel = messages.aria;
@@ -475,6 +476,7 @@ export function drawTimelineCanvas(canvas, rows, options) {
       segments.sort((left, right) => right.value - left.value || left.name.localeCompare(right.name));
     let y = padding.top + chartHeight;
     if (series.fallbackBar && value > 0 && !segments.length) {
+      context.globalAlpha = focusedSeries === null ? 1 : 0.25;
       context.fillStyle = fallbackColor;
       context.fillRect(x, y - barHeight, barWidth, barHeight);
     }
@@ -482,11 +484,13 @@ export function drawTimelineCanvas(canvas, rows, options) {
       if (!(segment.value > 0)) continue;
       const segmentHeight = (segment.value / value) * barHeight;
       y -= segmentHeight;
+      context.globalAlpha = focusedSeries === null || segment.name === focusedSeries ? 1 : 0.25;
       context.fillStyle = segment.color;
       context.fillRect(x, y, barWidth, Math.max(0.5, segmentHeight));
     }
     bars.push({ x: slotX, y: padding.top, width: slotWidth, height: chartHeight, row });
   });
+  context.globalAlpha = 1;
   timelineBars.set(canvas, bars);
   context.fillStyle = chartText;
   context.font = axisFont;

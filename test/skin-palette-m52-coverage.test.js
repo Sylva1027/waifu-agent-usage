@@ -624,7 +624,7 @@ test("B3-4：图例名称叶节点角色与面板标题辅助说明扩展的精�
   // 图例名称：精确叶 selector，排除父容器与相邻色块
   assert.equal(
     legendRole.selector,
-    "#timelineLegend:not([hidden]) > .timeline-legend-item > span:not(.timeline-legend-swatch)",
+    "#timelineLegend:not([hidden]) .timeline-legend-item > span:not(.timeline-legend-swatch)",
   );
   assert.equal(legendRole.selector.split(",").length, 1);
   assert.doesNotMatch(legendRole.selector, /^#timelineLegend$/);
@@ -695,7 +695,7 @@ test("B3-4：renderTimelineLegendHtml 三模式名称叶节点，表头不再插
   );
   assert.equal(
     channelHtml,
-    '<span class="timeline-legend-item" role="listitem"><span class="timeline-legend-swatch" style="background:#007d91"></span><span title="Codex CLI">Codex CLI</span></span>',
+    '<span role="listitem"><button type="button" class="timeline-legend-item" data-series="Codex CLI" aria-pressed="false"><span class="timeline-legend-swatch" aria-hidden="true" style="background:#007d91"></span><span title="Codex CLI">Codex CLI</span></button></span>',
   );
 
   // model：显示名走 displayModelName（小写），颜色走显式 Map 避免 document 默认路径
@@ -707,7 +707,7 @@ test("B3-4：renderTimelineLegendHtml 三模式名称叶节点，表头不再插
   );
   assert.match(
     modelHtml,
-    /<span class="timeline-legend-swatch" style="background:#007d91"><\/span><span title="gpt-5\.2-codex">gpt-5\.2-codex<\/span>/,
+    /<span class="timeline-legend-swatch" aria-hidden="true" style="background:#007d91"><\/span><span title="gpt-5\.2-codex">gpt-5\.2-codex<\/span>/,
   );
 
   // cost：金额来源 costByModel，名称同为叶 span

@@ -104,6 +104,33 @@ test("shared renderer uses explicit gray palette, exact geometry and ordered sta
   assert.equal(f.canvas.dataset.chartAriaLabel, "Tokens");
 });
 
+test("focusing a series fades other fills without changing the chart geometry or axes", () => {
+  const f = fixture();
+  const row = {
+    key: "2026-11-16",
+    total: { total: 100 },
+    models: [
+      { name: "small", total: { total: 1 } },
+      { name: "large", total: { total: 99 } },
+    ],
+  };
+  const alphas = [];
+  const fillRect = f.context.fillRect;
+  f.context.fillRect = function (...args) {
+    alphas.push(this.globalAlpha);
+    fillRect.apply(this, args);
+  };
+  const options = { ...f.options, series: tokenSeries() };
+  drawTimelineCanvas(f.canvas, [row], options);
+  const before = { rects: f.rects.splice(0), texts: f.texts.splice(0) };
+  assert.deepEqual(alphas.splice(0), [1, 1]);
+  drawTimelineCanvas(f.canvas, [row], { ...options, focusedSeries: "small" });
+  assert.deepEqual(f.rects, before.rects);
+  assert.deepEqual(f.texts, before.texts);
+  assert.deepEqual(alphas, [0.25, 1]);
+  assert.equal(f.context.globalAlpha, 1);
+});
+
 test("generic series has no hidden unit conversion and preserves axis outline metadata on failure", () => {
   const f = fixture();
   const previous = { owned: "caller" };
