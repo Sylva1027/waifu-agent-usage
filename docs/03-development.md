@@ -1,5 +1,7 @@
 # 开发指南
 
+简体中文 · [English](03-development.en.md)
+
 项目使用 Node.js ESM、SQLite 和浏览器原生 JavaScript。v1.0 的包版本为 `1.0.0`，发布标识 `releaseVersion` 为 `1.0`，下载 tag 为 `v1.0`。
 
 ## 环境与启动

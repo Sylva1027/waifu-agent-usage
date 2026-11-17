@@ -1,5 +1,7 @@
 # 升级与回滚
 
+简体中文 · [English](15-delivery-upgrade.en.md)
+
 v1.0 提供 **Waifu** 与 **Lite**，包内 `version` 为 `1.0.0`。两版沿用既有用量数据目录和来源配置。
 
 - [下载 1.0-waifu.zip](https://github.com/Sylva1027/waifu-agent-usage/releases/download/v1.0/1.0-waifu.zip)

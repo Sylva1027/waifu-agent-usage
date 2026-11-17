@@ -1,5 +1,7 @@
 # 数据来源与统计口径
 
+简体中文 · [English](10-data-sources.en.md)
+
 Waifu 与 Lite 使用相同的来源和 Token 统计规则。费用估算由 Waifu 提供，见[计价说明](11-pricing.md)。
 
 ## 扫描与导入

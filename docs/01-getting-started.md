@@ -1,5 +1,7 @@
 # 开始使用
 
+简体中文 · [English](01-getting-started.en.md)
+
 v1.0 提供两个 Windows x64 运行包，包内 `version` 均为 `1.0.0`：
 
 - **[Waifu 完整版](https://github.com/Sylva1027/waifu-agent-usage/releases/download/v1.0/1.0-waifu.zip)**：用量、趋势、费用估算、深浅主题、角色皮肤、分享和成就。
