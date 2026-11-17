@@ -41,6 +41,8 @@ node src/cli.js run
 
 **角色与主题。** 十款角色皮肤搭配深浅配色，可调整角色显示与透明度，选择自己喜欢的看板风格。界面支持中英文。
 
+![角色皮肤与主题选择](docs/images/themes.png)
+
 **分享卡片。** 将当前用量生成 3:4 竖版或 4:3 横版图片，自选指标与图形，一键复制或保存。
 
 ![横版分享卡片预览](docs/images/share-landscape.png)
@@ -50,6 +52,8 @@ node src/cli.js run
 ![成就与徽章](docs/images/achievements.png)
 
 **来源与历史。** 扫描本机日志或导入其他目录，自动刷新，也可暂停当前视图。支持历史备份、导入与恢复，方便长期保留和转移使用记录。
+
+![数据来源管理](docs/images/sources.png)
 
 
 ## 下载

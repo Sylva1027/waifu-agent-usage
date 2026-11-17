@@ -41,6 +41,8 @@ Open [http://127.0.0.1:3765/](http://127.0.0.1:3765/) and use source management 
 
 **Characters and themes.** Choose from ten character skins with light and dark palettes, plus visibility and opacity controls. The interface supports English and Chinese.
 
+![Character skins and themes](docs/images/themes.png)
+
 **Share cards.** Turn your usage into a 3:4 portrait or 4:3 landscape image. Pick the metrics and charts, then copy or save it with one click.
 
 ![Landscape share card preview](docs/images/share-landscape.png)
@@ -50,6 +52,8 @@ Open [http://127.0.0.1:3765/](http://127.0.0.1:3765/) and use source management 
 ![Achievements and badges](docs/images/achievements.png)
 
 **Sources and history.** Scan local logs or import another directory, refresh automatically, or pause the current view. Back up, import, and restore history to keep your records over time and move them between machines.
+
+![Data source management](docs/images/sources.png)
 
 
 ## Download
