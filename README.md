@@ -2,74 +2,62 @@
 
 简体中文 · [English](README.en.md)
 
-把 Codex、ZCode、DSH、OpenCode、Claude Code、WorkBuddy 和 [Hermes](docs/data-sources/hermes.md) 的用量汇总到一个本地看板，查看 Token、缓存命中、模型使用与费用趋势。
+把多个 AI 编程工具的用量汇总到一个本地看板，看清 Token 消耗、模型分布和使用趋势。角色皮肤、分享卡片与成就，让每天的使用记录也能有自己的风格。
 
-当前版本：[0.95a](https://github.com/Sylva1027/agent-usage/releases/tag/0.95a)。
-
-![DeepSeek 浅色皮肤看板，示例数据](docs/images/dashboard-deepseek-light.png)
+![Waifu 看板：DeepSeek 浅色皮肤，示例数据](docs/images/dashboard-deepseek-light.png)
 
 ## 让 Agent 帮你安装
 
-复制以下提示词给 Agent：
-
 ```text
-请在我的电脑上安装并启动 Agent Usage：https://github.com/Sylva1027/agent-usage
+请在我的电脑上安装并启动 Waifu Agent Usage：
+https://github.com/Sylva1027/waifu-agent-usage
 
-1. 先询问我是否需要角色皮肤：需要则选择 waifu 版，不需要则选择标准版。
-2. 从仓库 Releases 下载最新发布的所选版本 ZIP 附件，解压到固定目录。
-3. 检查 Node.js 是否满足包内 package.json 的 engines.node 要求；若未安装或版本不满足，从 https://nodejs.org/ 安装符合要求的 LTS 版本，并用 node -v 确认。本项目运行无需 npm install 或编译。
-4. 在解压后的项目根目录运行 node src/cli.js run，确认 http://127.0.0.1:3765/ 可访问。完成后告知安装目录、访问地址，以及之后的启动和停止方法。
+1. 询问我想要完整体验的 Waifu，还是专注用量统计的 Lite，从 Releases 下载最新正式版对应的 ZIP 运行包。
+2. 检查 Node.js 是否满足包内 package.json 的 engines.node 要求；需要安装时从 https://nodejs.org/ 获取。
+3. 解压到固定目录。如果已有安装，先按仓库升级文档保留用量数据、来源配置和成就档案，再更新程序文件。
+4. 在包根目录运行 node src/cli.js run，无需 npm install 或编译。
+5. 启动后告诉我访问地址、安装目录，以及之后如何启动和停止。
 ```
 
-## 快速开始
+## 手动安装
 
-推荐安装 **Node.js 26 LTS**（最低要求 23.8）。打开 [官方下载页](https://nodejs.org/en/download)，选择 26 LTS 和你的系统：Windows 下载 `.msi`、macOS 下载 `.pkg`，按默认选项安装；Linux 按页面命令安装。重新打开终端，运行 `node -v` 确认版本。
-
-下载 [标准版](https://github.com/Sylva1027/agent-usage/releases/download/0.95a/0.95a.zip) 或 [waifu 版](https://github.com/Sylva1027/agent-usage/releases/download/0.95a/0.95a-waifu.zip)，解压后在该目录打开终端，运行：
+准备好 [Node.js](https://nodejs.org/en/download) 23.8 或更高版本，下载[下方的 Windows x64 运行包](#下载)，解压后在目录中打开终端：
 
 ```bash
 node src/cli.js run
 ```
 
-也可以从源码启动：
+打开 [http://127.0.0.1:3765/](http://127.0.0.1:3765/)，在来源管理中扫描并导入日志，即可开始查看。运行包无需 `npm install` 或编译；按 `Ctrl+C` 停止服务。
 
-```bash
-git clone https://github.com/Sylva1027/agent-usage.git
-cd agent-usage
-node src/cli.js run
-```
+## 功能一览
 
-打开 [http://127.0.0.1:3765/](http://127.0.0.1:3765/)，按 `Ctrl+C` 停止服务。
+**用量统计。** 查看输入、输出、推理、缓存读取与命中率，按模型或仓库搜索和查看明细，了解 Token 都花在哪里。
 
-标准版提供简洁界面；waifu 版增加角色皮肤。两版均提供完整统计和分享功能，源码运行默认为 waifu 版。下方截图展示 waifu 版。
+**趋势与额度。** 按日、周、月或自定义日期查看趋势，与上一周期比较。支持查看 Codex 当前和上一轮 5 小时／每周额度窗口内的用量。
 
-waifu 版部分角色形象来自 [ZipZipPipe](https://space.bilibili.com/4168597)，感谢其创作。
+**费用估算。** 按模型 API 单价估算用量对应的费用，以美元或人民币查看。价目与汇率自动更新，也可手动调整。
 
-## 看板功能
+**角色与主题。** 十款角色皮肤搭配深浅配色，可调整角色显示与透明度，选择自己喜欢的看板风格。界面支持中英文。
 
-- **时间趋势：** 按日、周、月或自定义日期查看用量，切换渠道、模型和费用视图。
-- **Codex 额度：** 查看当前和上一轮 5 小时、每周额度窗口的用量。
-- **用量明细：** 查看输入、输出和缓存命中，按模型、渠道或仓库搜索、排序。
-- **周期对比：** 与上一周期比较，发现用量变化和新纪录。
-- **分享图片：** 选择今日、本周或本月，用标题栏最右侧按钮生成适合手机阅读的 3:4 图片，复制或保存 PNG。
-- **来源管理：** 自动扫描本机日志，确认后导入，显示阶段和已用时间；也可导入其他目录，支持自动刷新和暂停。
-- **语言与外观：** 中英文界面、深浅主题；waifu 版提供十款角色皮肤，可调整角色显示与透明度。
+**分享卡片。** 将当前用量生成 3:4 竖版或 4:3 横版图片，自选指标与图形，一键复制或保存。
 
-<img src="docs/images/share-card-deepseek-light.png" alt="本周模型用量分享图，DeepSeek 浅色主题与示例数据" width="360" />
+**成就徽章。** 42 项成就记录你的使用里程碑，查看进度、收集徽章，回顾每次达成的日期。详见[成就说明](docs/achievements.md)。
 
-![界面风格选择器，十款皮肤与浅深配色预览](docs/images/skin-picker.png)
+**来源与历史。** 扫描本机日志或导入其他目录，自动刷新，也可暂停当前视图。支持历史备份、导入与恢复，方便长期保留和转移使用记录。
 
-## 费用估算
+<img src="docs/images/share-card-deepseek-light.png" alt="Waifu 用量分享图：DeepSeek 浅色主题，示例数据" width="360" />
 
-按模型的 API 单价估算输入、输出和缓存费用，可选择以美元或人民币查看。价目与汇率自动更新，也可手动调整。
+## 下载
 
-计价窗口按厂商汇总用过的模型，支持厂商和模型搜索，模型按发布时间排序。选择模型即可查看或修改费率，保存后重新计算。模型名称自动去除路由来源前缀。
+| 版本 | 简介 | 下载 |
+| --- | --- | --- |
+| **Waifu 完整版** | 完整体验，包含费用估算、角色皮肤、分享与成就。 | [下载 Waifu](https://github.com/Sylva1027/waifu-agent-usage/releases/download/v1.0/1.0-waifu.zip) |
+| **Lite 轻量版** | 专注用量统计与趋势，简洁的深色界面，保留历史管理。 | [下载 Lite](https://github.com/Sylva1027/waifu-agent-usage/releases/download/v1.0/1.0-lite.zip) |
 
-## 命令
+[查看所有版本](https://github.com/Sylva1027/waifu-agent-usage/releases) · [使用指南](docs/01-getting-started.md) · [数据来源](docs/10-data-sources.md) · [备份与转移](docs/history-retention.md) · [升级说明](docs/15-delivery-upgrade.md) · [开发文档](docs/03-development.md)
 
-```bash
-node src/cli.js summary        # 终端汇总
-node src/cli.js summary --json # JSON 输出
-```
+## 致谢与许可
+
+基于 [DhWU-coder/codex-usage](https://github.com/DhWU-coder/codex-usage) 开发。部分角色形象来自 [ZipZipPipe](https://space.bilibili.com/4168597)，感谢其创作。
 
 项目采用 [MIT License](LICENSE)。

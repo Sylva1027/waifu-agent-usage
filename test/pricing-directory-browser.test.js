@@ -122,7 +122,7 @@ test("manufacturer gallery keeps equal gutters and naturally scrolls without scr
     const background = await pageFrame();
     assert.ok(background.gutter > 0, "exercise a real page scrollbar that consumes layout width");
     await page.locator("#updatePricingButton").click();
-    await page.waitForFunction(() => document.activeElement?.id === "pricingSearch");
+    await page.waitForFunction(() => document.activeElement?.id === "pricingDialogTitle");
     assert.deepEqual(await pageFrame(), background, "manufacturer dialog keeps the page scrollbar and position");
     assert.equal(await page.locator("[data-pricing-provider]").count(), 19);
     const boxes = await page
@@ -257,7 +257,7 @@ test("manufacturer gallery keeps equal gutters and naturally scrolls without scr
   if ((await page.locator("html").getAttribute("lang")) !== "zh-CN") await page.locator("#languageToggle").click();
   const openGallery = async () => {
     await page.locator("#updatePricingButton").click();
-    await page.waitForFunction(() => document.activeElement?.id === "pricingSearch");
+    await page.waitForFunction(() => document.activeElement?.id === "pricingDialogTitle");
   };
   const deepseek = page.locator('[data-pricing-provider="deepseek"]');
   const order = () =>

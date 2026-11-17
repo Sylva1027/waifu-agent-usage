@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildTimelineRows } from "../public/timeline-utils.js";
+import { buildTimelineRows } from "../public/waifu-timeline.js";
 import { HISTORY_QUOTE_INPUT_MAX_BYTES, HistoryQuoteInputs } from "../src/history-quote-inputs.js";
 import { estimateCostForEvents, estimateEventCost, getPricingCatalog, runWithPricingCatalog } from "../src/pricing.js";
 

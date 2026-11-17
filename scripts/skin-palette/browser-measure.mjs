@@ -108,8 +108,8 @@ const INPUT_TEXT_TYPES = Object.freeze({
 });
 /** 颜色解析双哨兵：两个哨兵都被"沿用"才能判定浏览器拒绝了该值。 */
 const COLOR_SENTINELS = Object.freeze(["#010203", "#040506"]);
-/** 祖先链上这些属性使前景/背景无法分离（卡面步骤 7）。 */
-const NON_ISOLATABLE_PROPS = Object.freeze(["opacity", "filter", "mixBlendMode", "backdropFilter"]);
+/** 这些合成属性会改变自身及后代前景；backdrop-filter 只处理背后图像，保留在链证据中并实测背景。 */
+const NON_ISOLATABLE_PROPS = Object.freeze(["opacity", "filter", "mixBlendMode"]);
 const OWN_OPACITY_TEXT_DISALLOWED_TAGS = Object.freeze([
   "input",
   "textarea",
@@ -741,6 +741,7 @@ const IDENTITY_SOURCE = `
   const __limitedDynamicTextHost = (element) =>
     element?.nodeType === 1 &&
     (element.id === "lastSuccessfulCheck" ||
+      element.id === "runtimeStatusText" ||
       String(element.className ?? "").split(/\\s+/).includes("comparison-as-of"));
   const __directTextNodes = (element) =>
     Array.from(element?.childNodes ?? []).filter((node) => {
@@ -1072,14 +1073,8 @@ const IDENTITY_SOURCE = `
   const __installDecoration = (element, token, mode) => {
     if (mode !== "text") return { stash: null, evidence: null };
     const before = __hostMaterial(element);
-    if (element.tagName === "BUTTON" && element.id === "calendarZoneSelect") {
-      const arrow = element.querySelector(".calendar-zone-arrow");
-      if (!arrow) {
-        return {
-          stash: null,
-          evidence: { kind: "calendar-zone-arrow", installed: false, hostStable: true, reason: "目标按钮缺少箭头节点" },
-        };
-      }
+    const arrow = element.tagName === "BUTTON" ? element.querySelector(".calendar-zone-arrow") : null;
+    if (arrow) {
       const decoration = {
         kind: "calendar-zone-arrow",
         target: element,
@@ -8715,6 +8710,7 @@ async function measureTextRoleAttempt(role, runtime, recordContext, rawSelector)
       const nodeEvidence = {
         index: node.index,
         identity: nodeIdentity(node),
+        drawingChain: node.chain,
         ...(node.dynamicTextSnapshot ? { dynamicTextSnapshot: node.dynamicTextSnapshot } : {}),
         ...(includeOwnTextRanges ? { ownTextRangeProbe: node.ownTextRangeProbe } : {}),
         ...(node.ownOpacityTextProof ? { ownOpacityTextProof: node.ownOpacityTextProof } : {}),
@@ -9420,6 +9416,7 @@ async function measurePaintedSurfaceRoleAttempt(role, runtime, recordContext, se
       }
       const nodeEvidence = {
         index: node.index,
+        drawingChain: node.chain,
         fill: node.computed.backgroundColor,
         ...(badgeCoreOnly ? { geometry: { rect: node.rect, client: node.client } } : {}),
         parsed: { rgb: parsed.rgb, alpha: parsed.alpha, readBack: parsed.readBack },

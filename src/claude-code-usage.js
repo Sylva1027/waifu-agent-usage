@@ -16,7 +16,7 @@ import { readdir, stat } from "node:fs/promises";
 import path from "node:path";
 
 import { readRolloutLines } from "./codex-rollout.js";
-import { LONG_CONTEXT_INPUT_THRESHOLD, pricingVersionForTimestamp } from "./pricing.js";
+import { requestInputFacts } from "./usage-event-inputs.js";
 import { createRepositoryResolver } from "./repository-identity.js";
 import { UsageSourceRows } from "./usage-source-rows.js";
 import {
@@ -219,10 +219,9 @@ function eventFromRecord(record, usage, detailMask, cacheWrite) {
     reconciliationGap: detailValidation.reconciliationGap,
     cacheWriteTokens: cacheWrite.tokens,
     cacheWriteKnown: cacheWrite.known,
-    requestInputTokens: inputKnown ? usage.input : 0,
-    contextLevel: inputKnown ? (usage.input > LONG_CONTEXT_INPUT_THRESHOLD ? "long" : "short") : "unknown",
+    ...requestInputFacts(inputKnown, usage.input),
     serviceTier: claudeServiceTier(record.message?.usage),
-    priceVersion: pricingVersionForTimestamp(timestamp),
+    priceVersion: "",
   };
 }
 

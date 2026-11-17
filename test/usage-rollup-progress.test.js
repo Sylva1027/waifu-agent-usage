@@ -586,6 +586,33 @@ test("append failure rolls back every rollup, marker, dirty clear, and progress 
   }
 });
 
+test("legacy local-calendar progress is rebuilt without changing committed facts", () => {
+  const { db, directory } = openDatabase();
+  try {
+    seedAndCertify(db, [seedDetailEvent("2026-07-12T20:00:00.000Z")]);
+    const facts = db.prepare("SELECT * FROM events ORDER BY id").all();
+    db.exec("UPDATE usage_rollup_progress SET format_version=1; UPDATE usage_rollup_daily SET cached=0");
+    assert.equal(ensureUsageRollupProgressSchema(db), true);
+    assert.deepEqual(db.prepare("SELECT * FROM events ORDER BY id").all(), facts);
+    assert.equal(db.prepare("SELECT certified FROM usage_rollup_progress").get().certified, 0);
+    assert.equal(db.prepare("SELECT format_version FROM usage_rollup_progress").get().format_version, 2);
+    assert.deepEqual(listDirtyUsageRollupDays(db), ["2026-07-12"]);
+    repairDirty(db);
+    assert.equal(checkpointUsageRollups(db, { zoneIdentity: CURRENT_ZONE }).certified, true);
+    const expected = localUsageRollupDaysForUtcDays(["2026-07-12"]);
+    const rebuilt = queryUsageRollupsRange(db, {
+      startDay: expected[0],
+      endDay: expected.at(-1),
+      calendarZone: "local",
+    });
+    assert.equal(rebuilt.eventCount, 1);
+    assert.equal(rebuilt.cached, facts[0].cached);
+  } finally {
+    db.close();
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 test("progress schema readiness is read-only and partial triggers recover atomically", () => {
   const { db, directory } = openDatabase();
   const databaseFile = path.join(directory, "index.sqlite");

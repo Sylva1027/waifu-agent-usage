@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { canonicalModelName } from "../public/pricing-models.js";
-import { buildTimelineRows } from "../public/timeline-utils.js";
+import { buildTimelineRows } from "../public/waifu-timeline.js";
 import {
   createCostEstimateAccumulator,
   createEventPricing,

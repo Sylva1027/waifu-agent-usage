@@ -120,7 +120,11 @@ test("turn evidence identifies Fast and Standard while request input determines 
     );
     assert.deepEqual(
       report.events.map((event) => event.contextLevel),
-      ["long", "short", "long"],
+      ["known", "known", "known"],
+    );
+    assert.deepEqual(
+      report.events.map((event) => event.requestInputTokens),
+      [300_000, 100_000, 272_001],
     );
     assert.equal(report.events[2].requestInputTokens, 272_001);
 

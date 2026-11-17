@@ -854,9 +854,9 @@ test("parseSessionFile correlates last-token usage to request context and preser
   const session = await parseSessionFile(file, { id: "home", label: "Test", path: root });
   assert.equal(session.events.length, 2);
   assert.equal(session.events[0].requestInputTokens, 272_000);
-  assert.equal(session.events[0].contextLevel, "short");
+  assert.equal(session.events[0].contextLevel, "known");
   assert.equal(session.events[1].requestInputTokens, 272_001);
-  assert.equal(session.events[1].contextLevel, "long");
+  assert.equal(session.events[1].contextLevel, "known");
   assert.equal(session.events[0].cacheWriteKnown, true);
   assert.equal(session.events[0].cacheWriteTokens, 0);
   assert.equal(session.events[1].cacheWriteKnown, true);

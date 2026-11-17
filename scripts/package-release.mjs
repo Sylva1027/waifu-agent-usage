@@ -8,41 +8,10 @@ import { promisify } from "node:util";
 
 const exec = promisify(execFile);
 export const ROOT = fileURLToPath(new URL("../", import.meta.url));
+export { releaseInputs, isLiteForbidden } from "./release-dependencies.mjs";
+import { EDITIONS, ENTRY_OVERRIDES, releaseInputs, readReleaseInput } from "./release-dependencies.mjs";
 const NATIVE = "native/windows-source-proof";
-const CORE_PUBLIC = [
-  "app-state.js",
-  "app.js",
-  "calendar.js",
-  "html-utils.js",
-  "i18n.js",
-  "index.html",
-  "period-comparison.js",
-  "pricing-models.js",
-  "pricing-directory.js",
-  "pricing-release-dates.js",
-  "quota-usage.js",
-  "share-card.js",
-  "share-card-data.js",
-  "share-dialog.js",
-  "share.css",
-  "styles.css",
-  "timeline-utils.js",
-  "usage-fields.js",
-];
-const SKIN_PUBLIC = [
-  "skin-assets.json",
-  "skin-bootstrap.js",
-  "skin-palette-studio.html",
-  "skin-palette-studio.js",
-  "skin-palettes.js",
-  "skin-picker.js",
-  "skin-ui.js",
-  "skins.css",
-  "skins.js",
-];
 export const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
-export const isWaifuFile = (file) =>
-  file.startsWith("public/assets/skins/") || SKIN_PUBLIC.some((name) => file === `public/${name}`);
 
 async function walk(directory, extension) {
   const files = [];
@@ -55,42 +24,8 @@ async function walk(directory, extension) {
   return files;
 }
 
-export async function releaseFiles(root = ROOT) {
-  const files = [
-    "package.json",
-    "LICENSE",
-    ...CORE_PUBLIC.map((name) => `public/${name}`),
-    ...SKIN_PUBLIC.map((name) => `public/${name}`),
-    ...[
-      "Cargo.toml",
-      "Cargo.lock",
-      "build.ps1",
-      "bin/windows-source-proof.exe",
-      "bin/windows-source-proof.build.json",
-    ].map((name) => `${NATIVE}/${name}`),
-  ];
-  for (const [directory, extension] of [
-    ["src", ".js"],
-    [`${NATIVE}/src`, ".rs"],
-    ["public/assets/skins", ".webp"],
-  ]) {
-    files.push(
-      ...(await walk(path.join(root, directory), extension)).map((file) =>
-        path.relative(root, file).split(path.sep).join("/"),
-      ),
-    );
-  }
-  return files.sort();
-}
-
-export function standardHtml(html) {
-  assert.equal((html.match(/<!-- waifu:start -->/g) || []).length, 5, "Expected five waifu blocks");
-  assert.equal((html.match(/<!-- waifu:end -->/g) || []).length, 5, "Expected five waifu block endings");
-  const stripped = html.replace(/<!-- waifu:start -->[\s\S]*?<!-- waifu:end -->/g, "");
-  assert.ok(!stripped.includes("<!-- waifu:"), "Malformed waifu blocks");
-  assert.equal((stripped.match(/data-edition="waifu"/g) || []).length, 1, "Expected waifu edition root");
-  assert.ok(!/skinToggle|skinDialog|skinCharacters|\/skin[^\s"']*\.(?:js|css)/.test(stripped), "Unmarked skin entry");
-  return stripped.replace('data-edition="waifu"', 'data-edition="standard"');
+export async function releaseFiles(edition, root = ROOT) {
+  return Object.keys(await releaseInputs(edition, root));
 }
 
 // Only a new output child is writable; no overwrite or recursive removal of caller-provided paths.
@@ -136,12 +71,14 @@ export async function fileHashes(directory) {
   return hashes;
 }
 
-export function commonHashes(standard, waifu) {
-  const core = Object.fromEntries(
-    Object.entries(waifu).filter(([file]) => file !== "public/index.html" && !isWaifuFile(file)),
-  );
-  assert.deepEqual(Object.keys(standard).sort(), [...Object.keys(core), "public/index.html"].sort());
-  for (const [file, hash] of Object.entries(core)) assert.equal(standard[file], hash, `Shared core differs: ${file}`);
+export function commonHashes(lite, waifu) {
+  const core = {};
+  for (const file of Object.keys(lite).sort()) {
+    if (!Object.hasOwn(waifu, file) || Object.hasOwn(ENTRY_OVERRIDES, file)) continue;
+    assert.equal(lite[file], waifu[file], `Shared core differs: ${file}`);
+    core[file] = lite[file];
+  }
+  assert.ok(Object.keys(core).length > 0, "No shared release modules");
   return core;
 }
 
@@ -176,34 +113,28 @@ export async function packageRelease(output = "output/releases") {
   await mkdir(directory); // EEXIST keeps earlier releases and unrelated files intact.
   const work = await mkdtemp(path.join(directory, ".package-"));
   try {
-    const waifu = path.join(work, "waifu");
-    const standard = path.join(work, "standard");
-    for (const file of await releaseFiles()) {
-      const source = path.join(ROOT, file);
-      // Check ancestors as well as leaves so junctions cannot collect outside files.
-      for (let item = source; item !== path.resolve(ROOT); item = path.dirname(item)) {
-        assert.ok(!(await lstat(item)).isSymbolicLink(), `Refusing linked release input: ${item}`);
+    for (const edition of EDITIONS) {
+      const stage = path.join(work, edition);
+      for (const [file, sourceFile] of Object.entries(await releaseInputs(edition, ROOT))) {
+        const bytes = await readReleaseInput(ROOT, sourceFile);
+        await mkdir(path.dirname(path.join(stage, file)), { recursive: true });
+        await writeFile(path.join(stage, file), bytes);
       }
-      const bytes = await readFile(source);
-      await mkdir(path.dirname(path.join(waifu, file)), { recursive: true });
-      await writeFile(path.join(waifu, file), bytes);
-      if (isWaifuFile(file)) continue;
-      await mkdir(path.dirname(path.join(standard, file)), { recursive: true });
-      await writeFile(
-        path.join(standard, file),
-        file === "public/index.html" ? standardHtml(bytes.toString("utf8")) : bytes,
+      await nativeCheck(stage);
+      assert.deepEqual(
+        Object.keys(await fileHashes(stage)).sort(),
+        Object.keys(await releaseInputs(edition, stage, { packaged: true })).sort(),
+        "Packaged dependency closure differs",
       );
     }
-    await nativeCheck(waifu);
+    const waifu = path.join(work, "waifu");
     const { version, releaseVersion } = JSON.parse(await readFile(path.join(waifu, "package.json"), "utf8"));
     assert.match(version, /^\d+\.\d+\.\d+(?:-[\w.-]+)?$/);
     assert.match(releaseVersion, /^\d+\.\d+[a-z]?$/);
     const variants = {};
-    for (const [edition, stage] of [
-      ["standard", standard],
-      ["waifu", waifu],
-    ]) {
-      const filename = `${releaseVersion}${edition === "waifu" ? "-waifu" : ""}.zip`;
+    for (const edition of EDITIONS) {
+      const stage = path.join(work, edition);
+      const filename = `${releaseVersion}-${edition}.zip`;
       const zip = path.join(directory, filename);
       await exec(
         "pwsh",
@@ -219,7 +150,7 @@ export async function packageRelease(output = "output/releases") {
       await extractChecked(zip, path.join(work, `verify-${edition}`), files);
       variants[edition] = { filename, sha256: sha256(await readFile(zip)), files };
     }
-    const core = commonHashes(variants.standard.files, variants.waifu.files);
+    const core = commonHashes(variants.lite.files, variants.waifu.files);
     const manifest = {
       version,
       releaseVersion,

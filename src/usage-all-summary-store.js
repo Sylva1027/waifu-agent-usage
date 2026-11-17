@@ -1,17 +1,18 @@
-import { createCostEstimateAccumulator } from "./pricing.js";
 import { createTimelineAccumulator, sourceGroup } from "../public/timeline-utils.js";
+import { canonicalModelName } from "../public/model-identity.js";
 import { sessionIdentity } from "../public/usage-fields.js";
 
-const FORMAT = 4;
+const FORMAT = 1;
+const STATE_VERSION = "usage-all-summary-v1";
 const CHECKPOINT_INTERVAL = 1024;
 const CHECKPOINT_LIMIT = 32;
 const START = { ms: Number.MIN_SAFE_INTEGER, id: Number.MIN_SAFE_INTEGER };
 const FIELDS = ["total", "input", "cached", "output", "reasoning"];
-const STATE = "usage_all_summary_state";
-const CHECKPOINTS = "usage_all_summary_checkpoints";
-const MEMBERS = "usage_all_summary_members";
-const DIRTY = "usage_all_summary_dirty";
-const FORMAT_TABLE = "usage_all_summary_format";
+const STATE = "usage_all_summary_usage_state";
+const CHECKPOINTS = "usage_all_summary_usage_checkpoints";
+const MEMBERS = "usage_all_summary_usage_members";
+const DIRTY = "usage_all_summary_usage_dirty";
+const FORMAT_TABLE = "usage_all_summary_usage_format";
 const TRIGGERS = [
   "usage_all_insert_before",
   "usage_all_insert",
@@ -25,28 +26,48 @@ export const USAGE_ALL_SUMMARY_TABLE_NAMES = Object.freeze([STATE, CHECKPOINTS, 
 
 const HOT_TABLES = { STATE, CHECKPOINTS, MEMBERS, DIRTY, FORMAT_TABLE };
 const HISTORY_TABLES = {
-  STATE: "usage_history_all_summary_state",
-  CHECKPOINTS: "usage_history_all_summary_checkpoints",
-  MEMBERS: "usage_history_all_summary_members",
-  DIRTY: "usage_history_all_summary_dirty",
-  FORMAT_TABLE: "usage_history_all_summary_format",
+  STATE: "usage_history_all_summary_usage_state",
+  CHECKPOINTS: "usage_history_all_summary_usage_checkpoints",
+  MEMBERS: "usage_history_all_summary_usage_members",
+  DIRTY: "usage_history_all_summary_usage_dirty",
+  FORMAT_TABLE: "usage_history_all_summary_usage_format",
 };
 export const USAGE_HISTORY_ALL_SUMMARY_TABLE_NAMES = Object.freeze(Object.values(HISTORY_TABLES));
-const tables = (options) => (options.mode === "history" ? HISTORY_TABLES : HOT_TABLES);
+const tables = (options) =>
+  options.extension?.tables[options.mode === "history" ? "history" : "hot"] ??
+  (options.mode === "history" ? HISTORY_TABLES : HOT_TABLES);
 const before = (a, b, history) => (history ? a.ms < b.ms || (a.ms === b.ms && a.id < b.id) : a.id < b.id);
 const position = (row) => ({ ms: Number(row.timestamp_ms), id: Number(row.event_id) });
 const revision = (db) =>
   Number(db.prepare("SELECT revision FROM usage_business_revision WHERE singleton=1").get().revision);
 const stateRow = (db, state) => db.prepare(`SELECT * FROM ${state} WHERE singleton=1`).get();
 const dirtyRow = (db, dirty) => db.prepare(`SELECT timestamp_ms,event_id FROM ${dirty} WHERE singleton=1`).get();
-const dirtySql = (ref) => `INSERT INTO ${DIRTY}(singleton,timestamp_ms,event_id) VALUES(1,${ref}.timestamp_ms,${ref}.id)
+const dirtySql = (
+  dirty,
+  ref,
+) => `INSERT INTO ${dirty}(singleton,timestamp_ms,event_id) VALUES(1,${ref}.timestamp_ms,${ref}.id)
   ON CONFLICT(singleton) DO UPDATE SET timestamp_ms=excluded.timestamp_ms,event_id=excluded.event_id
   WHERE excluded.event_id < event_id;`;
 
 /** Rebuildable state; history tables belong only in the derived database. */
 export function ensureUsageAllSummarySchema(database, options = { mode: "hot" }) {
+  database.exec("SAVEPOINT all_summary_schema");
+  try {
+    ensureSchema(database, options);
+    database.exec("RELEASE all_summary_schema");
+  } catch (error) {
+    database.exec("ROLLBACK TO all_summary_schema; RELEASE all_summary_schema");
+    throw error;
+  }
+}
+
+function ensureSchema(database, options) {
   const { STATE, CHECKPOINTS, MEMBERS, DIRTY, FORMAT_TABLE } = tables(options);
   const history = options.mode === "history";
+  const formatVersion = options.extension?.format ?? FORMAT;
+  const temporary = options.extension ? "TEMP" : "";
+  const prefix = options.extension ? "usage_all_waifu" : "usage_all_usage";
+  if (!history) for (const name of TRIGGERS) database.exec(`DROP TRIGGER IF EXISTS main.${name}`);
   database.exec(
     `CREATE TABLE IF NOT EXISTS ${FORMAT_TABLE}(singleton INTEGER PRIMARY KEY CHECK(singleton=1),version INTEGER NOT NULL) STRICT;`,
   );
@@ -58,10 +79,14 @@ export function ensureUsageAllSummarySchema(database, options = { mode: "hot" })
       )
       .get(STATE, CHECKPOINTS, MEMBERS, DIRTY).n,
   );
-  if (format?.version !== FORMAT || count !== 4) {
-    if (!history) for (const name of TRIGGERS) database.exec(`DROP TRIGGER IF EXISTS ${name}`);
+  if (format?.version !== formatVersion || count !== 4) {
+    if (!history)
+      for (const name of TRIGGERS) {
+        const suffix = name.slice("usage_all_".length);
+        database.exec(`DROP TRIGGER IF EXISTS ${temporary ? "temp" : "main"}.${prefix}_${suffix}`);
+      }
     for (const name of [STATE, CHECKPOINTS, MEMBERS, DIRTY]) database.exec(`DROP TABLE IF EXISTS ${name}`);
-    database.exec(`DELETE FROM ${FORMAT_TABLE};INSERT INTO ${FORMAT_TABLE} VALUES(1,${FORMAT});
+    database.exec(`DELETE FROM ${FORMAT_TABLE};INSERT INTO ${FORMAT_TABLE} VALUES(1,${formatVersion});
       CREATE TABLE ${STATE}(singleton INTEGER PRIMARY KEY CHECK(singleton=1),context_key TEXT NOT NULL,
         zone TEXT NOT NULL,requested_bucket TEXT NOT NULL,bucket TEXT NOT NULL,target_revision INTEGER NOT NULL,
         published_revision INTEGER NOT NULL,status TEXT NOT NULL,last_ms INTEGER NOT NULL,last_id INTEGER NOT NULL,
@@ -70,37 +95,71 @@ export function ensureUsageAllSummarySchema(database, options = { mode: "hot" })
         PRIMARY KEY(${history ? "timestamp_ms,event_id" : "event_id"})) STRICT;
       CREATE TABLE ${MEMBERS}(scope TEXT NOT NULL,member TEXT NOT NULL,first_ms INTEGER NOT NULL,first_id INTEGER NOT NULL,
         PRIMARY KEY(scope,member)) WITHOUT ROWID;
-      CREATE INDEX ${history ? "usage_history_all_members_position_idx" : "usage_all_members_position_idx"}
+      CREATE INDEX ${MEMBERS}_position_idx
         ON ${MEMBERS}(${history ? "first_ms,first_id" : "first_id"});
       CREATE TABLE ${DIRTY}(singleton INTEGER PRIMARY KEY CHECK(singleton=1),timestamp_ms INTEGER NOT NULL,event_id INTEGER NOT NULL) STRICT;`);
   }
   if (history) return;
   const enabled = `EXISTS(SELECT 1 FROM ${STATE} WHERE singleton=1)`;
-  database.exec(`CREATE TRIGGER IF NOT EXISTS usage_all_insert_before BEFORE INSERT ON events WHEN ${enabled} BEGIN
+  database.exec(`CREATE ${temporary} TRIGGER IF NOT EXISTS ${prefix}_insert_before BEFORE INSERT ON main.events WHEN ${enabled} BEGIN
     INSERT INTO ${DIRTY}(singleton,timestamp_ms,event_id) SELECT 1,timestamp_ms,id FROM events WHERE id=NEW.id
       ON CONFLICT(singleton) DO UPDATE SET timestamp_ms=excluded.timestamp_ms,event_id=excluded.event_id
       WHERE excluded.event_id < event_id;
     END;
-    CREATE TRIGGER IF NOT EXISTS usage_all_insert AFTER INSERT ON events WHEN ${enabled} BEGIN ${dirtySql("NEW")} END;
-    CREATE TRIGGER IF NOT EXISTS usage_all_update AFTER UPDATE ON events WHEN ${enabled} BEGIN ${dirtySql("OLD")} ${dirtySql("NEW")} END;
-    CREATE TRIGGER IF NOT EXISTS usage_all_delete AFTER DELETE ON events WHEN ${enabled} BEGIN ${dirtySql("OLD")} END;
-    CREATE TRIGGER IF NOT EXISTS usage_all_source_insert BEFORE INSERT ON source_files WHEN ${enabled}
+    CREATE ${temporary} TRIGGER IF NOT EXISTS ${prefix}_insert AFTER INSERT ON main.events WHEN ${enabled} BEGIN ${dirtySql(DIRTY, "NEW")} END;
+    CREATE ${temporary} TRIGGER IF NOT EXISTS ${prefix}_update AFTER UPDATE ON main.events WHEN ${enabled} BEGIN ${dirtySql(DIRTY, "OLD")} ${dirtySql(DIRTY, "NEW")} END;
+    CREATE ${temporary} TRIGGER IF NOT EXISTS ${prefix}_delete AFTER DELETE ON main.events WHEN ${enabled} BEGIN ${dirtySql(DIRTY, "OLD")} END;
+    CREATE ${temporary} TRIGGER IF NOT EXISTS ${prefix}_source_insert BEFORE INSERT ON main.source_files WHEN ${enabled}
       AND EXISTS(SELECT 1 FROM source_files WHERE path=NEW.path AND
         (kind IS NOT NEW.kind OR home_id IS NOT NEW.home_id OR home_label IS NOT NEW.home_label OR home_path IS NOT NEW.home_path))
       BEGIN UPDATE ${STATE} SET force_rebuild=1 WHERE singleton=1; END;
-    CREATE TRIGGER IF NOT EXISTS usage_all_source_update AFTER UPDATE OF path,kind,home_id,home_label,home_path ON source_files
+    CREATE ${temporary} TRIGGER IF NOT EXISTS ${prefix}_source_update AFTER UPDATE OF path,kind,home_id,home_label,home_path ON main.source_files
       WHEN ${enabled} AND (OLD.path IS NOT NEW.path OR OLD.kind IS NOT NEW.kind OR OLD.home_id IS NOT NEW.home_id OR OLD.home_label IS NOT NEW.home_label OR OLD.home_path IS NOT NEW.home_path)
       BEGIN UPDATE ${STATE} SET force_rebuild=1 WHERE singleton=1; END;
-    CREATE TRIGGER IF NOT EXISTS usage_all_source_delete AFTER DELETE ON source_files WHEN ${enabled}
+    CREATE ${temporary} TRIGGER IF NOT EXISTS ${prefix}_source_delete AFTER DELETE ON main.source_files WHEN ${enabled}
       BEGIN UPDATE ${STATE} SET force_rebuild=1 WHERE singleton=1; END;`);
+  if (options.extension) {
+    const coverage = `${STATE}_coverage`;
+    database.exec(`CREATE TEMP TABLE IF NOT EXISTS ${coverage}(singleton INTEGER PRIMARY KEY,base_revision INTEGER,
+      last_revision INTEGER);
+      CREATE TEMP TRIGGER IF NOT EXISTS ${prefix}_revision AFTER UPDATE ON main.usage_business_revision BEGIN
+        UPDATE ${coverage} SET base_revision=CASE WHEN last_revision=OLD.revision THEN base_revision ELSE -1 END,
+          last_revision=NEW.revision WHERE singleton=1;
+      END;`);
+    database
+      .prepare(`INSERT OR IGNORE INTO temp.${coverage} VALUES(1,?,?)`)
+      .run(revision(database), revision(database));
+  }
+}
+
+// TEMP triggers cannot prove changes from another connection; replay an uncovered view.
+function covered(options, state, target) {
+  if (!options.extension || options.mode === "history") return true;
+  if (
+    !options.database
+      .prepare("SELECT 1 FROM sqlite_temp_master WHERE type='table' AND name=?")
+      .get(`${tables(options).STATE}_coverage`)
+  )
+    return false;
+  const coverage = options.database.prepare(`SELECT * FROM temp.${tables(options).STATE}_coverage`).get();
+  return (
+    coverage.base_revision >= 0 && state.target_revision >= coverage.base_revision && coverage.last_revision === target
+  );
+}
+function cover(options, target) {
+  if (!options.extension || options.mode === "history") return;
+  options.database
+    .prepare(`UPDATE temp.${tables(options).STATE}_coverage SET base_revision=?,last_revision=?
+    WHERE base_revision<>? OR last_revision<>?`)
+    .run(target, target, target, target);
 }
 
 /** Mark the earliest changed logical position in the caller's fact-update transaction. */
-export function markStoredHistoryAllSummaryDirty(database, { ms, id }) {
+export function markStoredHistoryAllSummaryDirty(database, { ms, id }, options = {}) {
   if (!Number.isSafeInteger(ms) || !Number.isSafeInteger(id))
     throw new TypeError("Invalid history all-summary dirty position");
   database
-    .prepare(`INSERT INTO ${HISTORY_TABLES.DIRTY}(singleton,timestamp_ms,event_id) VALUES(1,?,?)
+    .prepare(`INSERT INTO ${tables({ ...options, mode: "history" }).DIRTY}(singleton,timestamp_ms,event_id) VALUES(1,?,?)
       ON CONFLICT(singleton) DO UPDATE SET timestamp_ms=excluded.timestamp_ms,event_id=excluded.event_id
       WHERE (excluded.timestamp_ms,excluded.event_id)<(timestamp_ms,event_id)`)
     .run(ms, id);
@@ -121,15 +180,14 @@ function transaction(database, work) {
 function totals() {
   return { event_count: 0, session_count: 0, home_count: 0, total: 0, input: 0, cached: 0, output: 0, reasoning: 0 };
 }
-function numberState(value) {
+function numberState(value, version) {
   if (
     !value ||
     typeof value !== "object" ||
-    value.version !== 1 ||
+    value.version !== version ||
     !value.aggregate ||
     !Array.isArray(value.channels) ||
     !Array.isArray(value.models) ||
-    !value.cost ||
     !value.timeline
   )
     throw Object.assign(new TypeError("Invalid stored all-summary state"), { code: "ALL_SUMMARY_STATE_INVALID" });
@@ -157,9 +215,10 @@ function numberState(value) {
 
 /** One event is live at a time; member identities live in indexed SQLite rows. */
 function accumulator(options, saved = null) {
-  const { database, range, bucket, pricing, sourceKinds, pricingModels } = options;
+  const { database, range, bucket, sourceKinds, extension } = options;
+  const modelName = extension?.modelName ?? options.modelName ?? canonicalModelName;
   const { MEMBERS } = tables(options);
-  if (saved) numberState(saved);
+  if (saved) numberState(saved, extension?.stateVersion ?? STATE_VERSION);
   let current = START;
   const insert = database.prepare(`INSERT OR IGNORE INTO ${MEMBERS}(scope,member,first_ms,first_id) VALUES(?,?,?,?)`);
   const memberSet = (scope, count = 0) => {
@@ -195,15 +254,21 @@ function accumulator(options, saved = null) {
       { ...x, total: { ...x.total }, sessionsSet: memberSet(["all", "model", x.name], x.sessions) },
     ]),
   );
-  const cost = createCostEstimateAccumulator({ modelName: pricing.costModelName, state: saved?.cost });
-  const timeline = createTimelineAccumulator(range, bucket, {
+  const timelineOptions = {
     state: saved?.timeline,
-    pricingModels,
     sourceKinds,
-    modelName: pricing.modelName,
+    modelName,
     createSessionSet: (scope, state) => memberSet(["timeline", ...scope], state || 0),
     snapshotSessionSet: (set) => set.size,
-  });
+  };
+  const timeline = extension ? null : createTimelineAccumulator(range, bucket, timelineOptions);
+  const projection = extension
+    ? extension.createProjection(options, saved, timelineOptions)
+    : {
+        add: (event) => timeline.add(event),
+        snapshot: () => ({ timeline: timeline.snapshot() }),
+        result: () => ({ timeline: timeline.result(range), timelineError: null }),
+      };
   const addGroup = (groups, kind, name, event) => {
     let group = groups.get(name);
     if (!group) {
@@ -246,20 +311,17 @@ function accumulator(options, saved = null) {
       }
       aggregate.session_count = sessions.size;
       aggregate.home_count = homes.size;
-      const estimate = pricing.estimate(event);
-      cost.add(event, estimate);
-      timeline.add(event, estimate);
+      projection.add(event);
       addGroup(channels, "channel", sourceGroup(event.channel, event.sourceKind), event);
-      addGroup(models, "model", pricing.modelName(event.model), event);
+      addGroup(models, "model", modelName(event.model), event);
     },
     snapshot() {
       return {
-        version: 1,
+        version: extension?.stateVersion ?? STATE_VERSION,
         aggregate: { ...aggregate },
         channels: groupState(channels),
         models: groupState(models),
-        cost: cost.snapshot(),
-        timeline: timeline.snapshot(),
+        ...projection.snapshot(),
       };
     },
     result() {
@@ -267,9 +329,7 @@ function accumulator(options, saved = null) {
         aggregate: { ...aggregate },
         channels: orderedGroups(channels),
         models: orderedGroups(models),
-        costEstimate: cost.result(),
-        timeline: timeline.result(range),
-        timelineError: null,
+        ...projection.result(),
       };
     },
   };
@@ -310,17 +370,27 @@ export function buildStoredAllSummary(options) {
   const batchSize = options.batchSize || 1024;
   if (!Number.isSafeInteger(batchSize) || batchSize < 1 || batchSize > 10000)
     throw new TypeError("Invalid all-summary batch size");
-  const work = { readEvents: 0, pricedEvents: 0, batches: 0, rewinds: 0, rebuilt: false, reused: false };
+  const work = {
+    readEvents: 0,
+    ...(options.extension ? { pricedEvents: 0 } : {}),
+    batches: 0,
+    rewinds: 0,
+    rebuilt: false,
+    reused: false,
+  };
   let restored = null,
     state = null;
   for (;;) {
     const step = transaction(database, () => {
       const target = revision(database);
       state = stateRow(database, STATE);
-      if (!state || state.context_key !== key || state.force_rebuild) {
+      const missedChanges = state && state.target_revision !== target && !covered(options, state, target);
+      if (!state || state.context_key !== key || state.force_rebuild || missedChanges) {
         state = reset(database, options, target);
         restored = null;
         work.rebuilt = true;
+        if (missedChanges) work.rewinds++;
+        cover(options, target);
       }
       const dirty = dirtyRow(database, DIRTY);
       if (state.target_revision !== target || dirty) {
@@ -364,6 +434,7 @@ export function buildStoredAllSummary(options) {
       }
       if (state.status === "ready" && state.published_revision === target) {
         work.reused = true;
+        cover(options, target);
         return { done: true, processed: 0 };
       }
       let last = { ms: state.last_ms, id: state.last_id },
@@ -380,7 +451,7 @@ export function buildStoredAllSummary(options) {
         processed++;
       }
       work.readEvents += processed;
-      work.pricedEvents += processed;
+      if (options.extension) work.pricedEvents += processed;
       work.batches++;
       if (processed) {
         const snapshot = restored.snapshot();
@@ -400,6 +471,7 @@ export function buildStoredAllSummary(options) {
           });
         database.prepare(`UPDATE ${STATE} SET status='ready',published_revision=? WHERE singleton=1`).run(target);
       }
+      cover(options, target);
       return { done, processed };
     });
     options.afterBatch?.({ ...step, ...work });

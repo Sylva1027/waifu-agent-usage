@@ -1,9 +1,70 @@
-import { getLocale, localizeText } from "./i18n.js";
+import { getLocale, localizeText } from "./locale.js";
 import { escapeHtml } from "./html-utils.js";
 
 const datePickerWeekdays = ["一", "二", "三", "四", "五", "六", "日"];
+const zonedFormatters = new Map();
+
+export function rangeCalendarZone(range) {
+  return range?.calendarZone === "utc" ? "utc" : range?.timeZone || "local";
+}
+
+export function calendarParts(date, zone = "local") {
+  if (zone === "local" || zone === "utc") {
+    const prefix = zone === "utc" ? "getUTC" : "get";
+    return {
+      year: date[`${prefix}FullYear`](),
+      month: date[`${prefix}Month`]() + 1,
+      day: date[`${prefix}Date`](),
+      hour: date[`${prefix}Hours`](),
+      minute: date[`${prefix}Minutes`](),
+      second: date[`${prefix}Seconds`](),
+      weekday: date[`${prefix}Day`](),
+    };
+  }
+  if (!zonedFormatters.has(zone))
+    zonedFormatters.set(
+      zone,
+      new Intl.DateTimeFormat("en-US", {
+        timeZone: zone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hourCycle: "h23",
+      }),
+    );
+  const parts = Object.fromEntries(
+    zonedFormatters
+      .get(zone)
+      .formatToParts(date)
+      .map(({ type, value }) => [type, Number(value)]),
+  );
+  const { year, month, day, hour, minute, second } = parts;
+  return { year, month, day, hour, minute, second, weekday: new Date(Date.UTC(year, month - 1, day)).getUTCDay() };
+}
+
+export function calendarDate(year, month, day, zone = "local") {
+  if (zone === "local") return new Date(year, month, day);
+  if (zone === "utc") return new Date(Date.UTC(year, month, day));
+  const ordinal = Date.UTC(year, month, day);
+  const target = new Date(ordinal).toISOString().slice(0, 10);
+  let low = ordinal - 3 * 86400000,
+    high = ordinal + 3 * 86400000;
+  while (low < high) {
+    const middle = Math.floor((low + high) / 2);
+    if (dateKey(new Date(middle), zone) < target) low = middle + 1;
+    else high = middle;
+  }
+  return new Date(low);
+}
 
 export function dateKey(date, zone = "local") {
+  if (zone !== "local" && zone !== "utc") {
+    const { year, month, day } = calendarParts(date, zone);
+    return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  }
   const utc = zone === "utc";
   const year = utc ? date.getUTCFullYear() : date.getFullYear();
   const month = String((utc ? date.getUTCMonth() : date.getMonth()) + 1).padStart(2, "0");

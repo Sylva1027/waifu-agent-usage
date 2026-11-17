@@ -4,87 +4,146 @@ import path from "node:path";
 import test from "node:test";
 import {
   commonHashes,
-  isWaifuFile,
   packageRelease,
   releaseDirectory,
   releaseFiles,
   ROOT,
-  standardHtml,
+  sha256,
 } from "../scripts/package-release.mjs";
+import {
+  ENTRY_OVERRIDES,
+  isLiteForbidden,
+  readReleaseInput,
+  releaseInputs,
+  scriptReferences,
+} from "../scripts/release-dependencies.mjs";
 
-test("standard HTML removes all five marked islands and preserves the shared page", async () => {
-  const html = await readFile(new URL("../public/index.html", import.meta.url), "utf8");
-  const standard = standardHtml(html);
-  assert.match(standard, /<html[^>]*data-edition="standard"/);
-  assert.match(standard, /href="\/styles.css"/);
-  assert.match(standard, /href="\/share.css"/);
-  assert.match(standard, /src="\/app.js"/);
-  assert.match(standard, /id="themeToggle"/);
-  assert.match(standard, /id="shareToggle"/);
-  assert.match(standard, /id="shareDialog"/);
-  assert.match(standard, /id="copyShareImage"/);
-  assert.match(standard, /id="saveShareImage"/);
-  assert.match(standard, /id="importDialog"/);
-  assert.doesNotMatch(standard, /waifu:|skinToggle|skinDialog|skinCharacters|skin-bootstrap|skins.css/);
-  assert.throws(() => standardHtml(html.replace("<!-- waifu:end -->", "")), /five waifu block endings/);
-  assert.throws(
-    () => standardHtml(html.replace('data-edition="waifu"', 'data-edition="standard"')),
-    /waifu edition root/,
+test("Lite closure binds all canonical entries and retains the exact common runtime and history formats", async () => {
+  const inputs = await releaseInputs("lite", ROOT);
+  for (const [file, source] of Object.entries(ENTRY_OVERRIDES)) assert.equal(inputs[file], source);
+  for (const file of [
+    "src/cli-core.js",
+    "src/server-core.js",
+    "src/usage-executor-client.js",
+    "src/usage-executor-worker.js",
+    "src/usage-executor-lite.js",
+    "src/usage-store-lite.js",
+    "src/usage-record-migration.js",
+    "src/achievement-backup-format.js",
+    "src/achievement-format-descriptor.js",
+    "src/pricing-catalog-format.js",
+    "src/service-tier-evidence-format.js",
+    "public/locale.js",
+    "public/source-view.js",
+    "public/dashboard-runtime.js",
+    "public/dashboard-view-utils.js",
+    "public/lite/index.html",
+  ])
+    assert.ok(inputs[file], file);
+  assert.ok(Object.keys(inputs).length > 60);
+  assert.deepEqual(Object.keys(inputs).filter(isLiteForbidden), []);
+  assert.doesNotMatch(Object.keys(inputs).join("\n"), /^public\/(?:assets|i18n|share|skin|achievement)|^src\/waifu/m);
+});
+
+test("Waifu closure keeps 42 achievement families / 96 original badge bytes and 40 skin assets", async () => {
+  const files = await releaseFiles("waifu");
+  const badges = files.filter((file) => file.startsWith("public/assets/achievements/"));
+  assert.equal(badges.length, 96);
+  assert.equal(new Set(badges.map((file) => file.split("/")[3])).size, 42);
+  assert.equal(files.filter((file) => file.startsWith("public/assets/skins/")).length, 40);
+  for (const file of [
+    "src/achievement-runtime.js",
+    "src/achievement-restore.js",
+    "src/usage-record-store.js",
+    "src/pricing.js",
+    "public/share-card.js",
+    "public/skin-palette-studio.js",
+    "native/windows-source-proof/src/usn.rs",
+    "native/windows-source-proof/bin/windows-source-proof.build.json",
+  ])
+    assert.ok(files.includes(file), file);
+  assert.doesNotMatch(files.join("\n"), /target\/|node_modules\/|\.png$|^(?:test|docs|scripts|output)\//m);
+  assert.equal(files.includes("src/cli-lite.js"), false);
+  await assert.rejects(releaseFiles("standard"), /Unknown edition/);
+});
+
+test("dependency parsing follows static, dynamic, require, worker URLs and assets but rejects unresolved edges", () => {
+  assert.deepEqual(
+    scriptReferences(
+      "src/example.js",
+      'import "./a.js"; export * from "./b.js"; import("./c.js"); require("./d.js"); new URL("./worker.js", import.meta.url);',
+    ),
+    ["./a.js", "./b.js", "./c.js", "./d.js", "./worker.js"],
   );
+  assert.deepEqual(scriptReferences("public/example.js", 'const asset="/assets/skins/a.webp"; import "./view.js";'), [
+    "/assets/skins/a.webp",
+    "./view.js",
+  ]);
+  assert.deepEqual(
+    scriptReferences("src/example.js", '/** @type {import("./type.js").Type} */\nimport "node:fs";'),
+    [],
+  );
+  assert.throws(() => scriptReferences("src/example.js", "import(variable)"), /Nonliteral/);
+  assert.throws(() => scriptReferences("src/example.js", 'import "unshipped-dependency"'), /External/);
 });
 
-test("release allowlist retains runtime/helper inputs and excludes development and authoring files", async () => {
-  const files = await releaseFiles();
-  assert.ok(files.includes("src/cli.js") && files.includes("src/usage-executor.js"));
-  assert.ok(files.includes("public/usage-fields.js") && files.includes("public/styles.css"));
-  for (const name of [
-    "Cargo.toml",
-    "Cargo.lock",
-    "build.ps1",
-    "src/main.rs",
-    "src/usn.rs",
-    "bin/windows-source-proof.exe",
-    "bin/windows-source-proof.build.json",
-  ]) {
-    assert.ok(files.includes(`native/windows-source-proof/${name}`), name);
+test("missing release inputs and unsafe paths fail closed", async () => {
+  await assert.rejects(readReleaseInput(ROOT, "public/does-not-exist-c19.js"), { code: "ENOENT" });
+  for (const file of ["../outside", "C:/outside", "/outside", "src/../../outside"])
+    await assert.rejects(readReleaseInput(ROOT, file), /Unsafe/);
+});
+
+test("browser manifest follows served imports without exposing Node-only public parser modules", async () => {
+  const runtime = await releaseInputs("lite", ROOT);
+  const browser = await releaseInputs("lite", ROOT, { browserOnly: true });
+  assert.ok(runtime["public/quota-usage.js"]);
+  assert.equal(browser["public/quota-usage.js"], undefined);
+  assert.ok(browser["public/dashboard-runtime.js"]);
+  assert.ok(browser["public/lite/app.js"]);
+  assert.ok(Object.keys(browser).every((file) => file.startsWith("public/")));
+});
+
+test("shared hashes compare actual common modules, allowing concrete edition entries and exclusive resources", () => {
+  const waifu = {
+    "src/cli.js": "waifu",
+    "src/cli-core.js": "shared",
+    "src/pricing.js": "price",
+    "public/locale.js": "locale",
+  };
+  const lite = {
+    "src/cli.js": "lite",
+    "src/cli-core.js": "shared",
+    "src/usage-store-lite.js": "lite-store",
+    "public/locale.js": "locale",
+  };
+  assert.deepEqual(commonHashes(lite, waifu), { "public/locale.js": "locale", "src/cli-core.js": "shared" });
+  assert.throws(() => commonHashes({ ...lite, "src/cli-core.js": "changed" }, waifu), /Shared core differs/);
+  assert.throws(() => commonHashes({}, waifu), /No shared/);
+});
+
+test("runtime inventory shares identical original bytes for every real common dependency", async () => {
+  const variants = {};
+  for (const edition of ["lite", "waifu"]) {
+    variants[edition] = {};
+    for (const [file, source] of Object.entries(await releaseInputs(edition, ROOT)))
+      variants[edition][file] = sha256(await readReleaseInput(ROOT, source));
   }
-  assert.equal(files.filter((file) => file.endsWith(".webp")).length, 40);
-  assert.doesNotMatch(files.join("\n"), /target\/|node_modules\/|\.git|\.png$|^test|^docs|^scripts|^output/m);
-  const standard = files.filter((file) => !isWaifuFile(file));
-  for (const name of [
-    "share-card.js",
-    "share-card-data.js",
-    "share-dialog.js",
-    "share.css",
-    "pricing-directory.js",
-    "pricing-release-dates.js",
-  ]) {
-    assert.ok(standard.includes(`public/${name}`), `Shared release file missing: ${name}`);
-  }
-  assert.doesNotMatch(standard.join("\n"), /public\/(?:skin|assets\/skins)/);
-  assert.ok(files.includes("public/skin-palette-studio.js"));
+  const core = commonHashes(variants.lite, variants.waifu);
+  assert.ok(core["src/cli-core.js"]);
+  assert.ok(core["src/history-backup.js"]);
+  assert.ok(!Object.hasOwn(core, "src/cli.js"));
+  assert.ok(!Object.hasOwn(core, "src/pricing.js"));
 });
 
-test("shared core comparison detects a missing file, extra skin file and different bytes", () => {
-  const waifu = { "src/cli.js": "a", "public/styles.css": "b", "public/index.html": "c", "public/skins.js": "d" };
-  const standard = { "src/cli.js": "a", "public/styles.css": "b", "public/index.html": "e" };
-  assert.deepEqual(commonHashes(standard, waifu), { "src/cli.js": "a", "public/styles.css": "b" });
-  assert.throws(() => commonHashes({ ...standard, "src/cli.js": "changed" }, waifu), /Shared core differs/);
-  assert.throws(() => commonHashes({ "public/index.html": "e" }, waifu));
-  assert.throws(() => commonHashes({ ...standard, "public/skins.js": "d" }, waifu));
-});
-
-test("output validation rejects source/user locations and existing destinations without touching data", async (t) => {
-  for (const directory of [".", "output", "public", "output/..", "../outside", path.parse(ROOT).root]) {
+test("output validation preserves earlier releases and rejects user/source or linked locations", async (t) => {
+  for (const directory of [".", "output", "public", "output/..", "../outside", path.parse(ROOT).root])
     await assert.rejects(releaseDirectory(ROOT, directory), /child of workspace\/output/);
-  }
   await mkdir(path.join(ROOT, "output"), { recursive: true });
   const fixture = await mkdtemp(path.join(ROOT, "output/package-test-"));
   t.after(() => rm(fixture, { recursive: true, force: true }));
   const existing = path.join(fixture, "existing");
   await mkdir(existing);
   await writeFile(path.join(existing, "user-data.txt"), "keep");
-  assert.equal(await releaseDirectory(ROOT, existing), existing);
   await assert.rejects(packageRelease(existing), { code: "EEXIST" });
   await assert.rejects(releaseDirectory(ROOT, path.join(existing, "user-data.txt/release")), /linked\/non-directory/);
   assert.equal(await readFile(path.join(existing, "user-data.txt"), "utf8"), "keep");

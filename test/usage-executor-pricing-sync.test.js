@@ -9,6 +9,17 @@ import { createUsageExecutor } from "../src/usage-executor.js";
 import { createRemainingHarnessFixture, insertDatabaseEvent } from "../test-support/remaining-harness-fixture.mjs";
 
 const filters = { preset: "all", calendarZone: "utc", bucket: "day" };
+function assertQuote({ summary, pricingCatalog }, catalog, eventCount, totalUsd) {
+  assert.equal(summary.eventCount, eventCount);
+  assert.equal(pricingCatalog.version, catalog.version);
+  assert.deepEqual(summary.costEstimate.priceVersions, [catalog.version]);
+  assert.equal(summary.costEstimate.usdToCnyRate, catalog.usdToCnyRate);
+  assert.equal(summary.costEstimate.pricedRecords, eventCount);
+  assert.ok(
+    Math.abs(summary.costEstimate.totalUsd - totalUsd) < 1e-12,
+    `expected USD ${totalUsd}, received ${summary.costEstimate.totalUsd}`,
+  );
+}
 function database(file, operation) {
   const db = new DatabaseSync(file);
   try {
@@ -34,7 +45,15 @@ async function fixture(t, { pause = false } = {}) {
     automaticDiscoveryEnabled: false,
     pricingRefreshSchedulerEnabled: false,
   };
-  let catalog = setPricingCatalog({ ...original, checkedAt: "2026-11-06", usdToCnyRate: 7.123 });
+  let catalog = setPricingCatalog({
+    ...original,
+    checkedAt: "2026-11-06",
+    usdToCnyRate: 7.123,
+    models: {
+      ...original.models,
+      "gpt-6-sol": { currency: "USD", short: { input: 2, cachedInput: 2, cacheWrite: 2, output: 2 } },
+    },
+  });
   const clients = [];
   const marker = (name) => path.join(root, name);
   if (pause) {
@@ -51,6 +70,8 @@ async function fixture(t, { pause = false } = {}) {
               if(Date.now()>deadline)throw new Error('pricing sync gate timed out');
               await new Promise(resolve=>setTimeout(resolve,10));
             }
+            const summary=await this.summarizeHistory(${JSON.stringify(filters)},{includeDetails:false});
+            pricingGateWrite(${JSON.stringify(marker("resumed"))},JSON.stringify({summary,pricingCatalog:getPricingCatalog()}));
           }
           return pricingSyncReplace.call(this,file,...args);
         };
@@ -82,43 +103,71 @@ async function fixture(t, { pause = false } = {}) {
     get catalog() {
       return catalog;
     },
-    reprice: () => (catalog = setPricingCatalog({ ...catalog, usdToCnyRate: 8.123 })),
+    reprice: () =>
+      (catalog = setPricingCatalog({
+        ...catalog,
+        usdToCnyRate: 8.123,
+        models: {
+          ...catalog.models,
+          "gpt-6-sol": { currency: "USD", short: { input: 5, cachedInput: 5, cacheWrite: 5, output: 5 } },
+        },
+      })),
   };
 }
 
-test("sync records the authoritative pricing version before queries, on warm reuse, and after restart", async (t) => {
+test("sync keeps raw facts unpriced while queries use authoritative prices on warm reuse and restart", async (t) => {
   const f = await fixture(t);
   let client = f.open();
   await client.sync({ options: f.options });
   const initial = f.rows();
   assert.equal(initial.length, 3);
-  assert.deepEqual([...new Set(initial.map((row) => row.price_version))], [f.catalog.version]);
-  await client.dashboard(filters, { includeDetails: false });
+  assert.deepEqual([...new Set(initial.map((row) => row.price_version))], [""]);
+  // Fixture totals are 160 + index; every token costs USD 2 (then 5) per million.
+  assertQuote(await client.dashboard(filters, { includeDetails: false }), f.catalog, 3, 0.000966);
   let before = f.revision();
+  await client.sync({ options: f.options });
+  assert.deepEqual(f.rows(), initial);
+  assert.equal(f.revision(), before, "unchanged directory sync must not rewrite facts");
+  assertQuote(await client.dashboard(filters, { includeDetails: false }), f.catalog, 3, 0.000966);
   f.append(3);
   await client.sync({ options: f.options });
   assert.deepEqual(f.rows().slice(0, 3), initial);
   assert.equal(f.revision() - before, 1, "warm append must only insert its new fact");
+  assertQuote(await client.dashboard(filters, { includeDetails: false }), f.catalog, 4, 0.001292);
+  const warm = f.rows();
   await client.close();
   client = f.open();
   before = f.revision();
   f.append(4);
   await client.sync({ options: f.options });
-  assert.equal(f.revision() - before, 1, "restart cannot change the parser catalog");
-  assert.ok(f.rows().every((row) => row.price_version === f.catalog.version));
+  assert.equal(f.revision() - before, 1, "restart must only insert the new fact");
+  assert.deepEqual(f.rows().slice(0, 4), warm);
+  assert.ok(f.rows().every((row) => row.price_version === ""));
+  assertQuote(await client.dashboard(filters, { includeDetails: false }), f.catalog, 5, 0.00162);
+  const facts = f.rows(),
+    version = f.catalog.version;
+  before = f.revision();
   f.reprice();
+  assert.notEqual(f.catalog.version, version);
+  assertQuote(await client.dashboard(filters, { includeDetails: false }), f.catalog, 5, 0.00405);
+  assert.deepEqual(f.rows(), facts, "repricing must not change original facts");
+  assert.equal(f.revision(), before);
   f.append(5);
   before = f.revision();
   await client.sync({ options: f.options });
-  assert.equal(f.revision() - before, 11, "a real version change retains full-replacement semantics");
-  assert.ok(f.rows().every((row) => row.price_version === f.catalog.version));
+  assert.equal(f.revision() - before, 1, "a new catalog must not cause full fact replacement");
+  assert.deepEqual(f.rows().slice(0, 5), facts);
+  assert.ok(f.rows().every((row) => row.price_version === ""));
+  assertQuote(await client.dashboard(filters, { includeDetails: false }), f.catalog, 6, 0.004875);
 });
 
 test("a concurrent dashboard catalog cannot change the catalog captured by an awaiting sync", async (t) => {
   const f = await fixture(t, { pause: true });
   const client = f.open();
   await client.sync({ options: f.options });
-  const captured = f.catalog.version;
+  const captured = f.catalog,
+    initial = f.rows();
+  assertQuote(await client.dashboard(filters, { includeDetails: false }), captured, 3, 0.000966);
   f.append(3);
   writeFileSync(f.marker("gate"), "pause");
   const before = f.revision(),
@@ -131,13 +180,17 @@ test("a concurrent dashboard catalog cannot change the catalog captured by an aw
     }
     assert.equal(readFileSync(f.marker("entered"), "utf8"), "ready");
     f.reprice();
+    assert.notEqual(f.catalog.version, captured.version);
     const response = await client.dashboard(filters, { includeDetails: false });
     assert.equal(response.summary.eventCount, 3, "the concurrent reader sees the committed version");
-    assert.equal(response.summary.costEstimate.usdToCnyRate, 8.123);
+    assertQuote(response, f.catalog, 3, 0.002415);
   } finally {
     writeFileSync(f.marker("release"), "release");
     await pending;
   }
-  assert.deepEqual([...new Set(f.rows().map((row) => row.price_version))], [captured]);
+  assertQuote(JSON.parse(readFileSync(f.marker("resumed"), "utf8")), captured, 3, 0.000966);
+  assert.deepEqual(f.rows().slice(0, 3), initial);
+  assert.deepEqual([...new Set(f.rows().map((row) => row.price_version))], [""]);
   assert.equal(f.revision() - before, 1);
+  assertQuote(await client.dashboard(filters, { includeDetails: false }), f.catalog, 4, 0.00323);
 });

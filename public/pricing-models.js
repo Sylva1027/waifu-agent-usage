@@ -1,33 +1,11 @@
-const PRICING_MODEL_ALIASES = Object.freeze({
-  "gpt-5.6": "gpt-5.6-sol",
-  "gpt-daybreak-blue-latest": "gpt-5.6-sol",
-  "deepseek-v4.1-flash": "deepseek-flash",
-  "deepseek-v4.1-flash-sg": "deepseek-flash",
-  // Local Magpie routing-group convention; sync this alias when the group changes.
-  "group/deepseek": "deepseek-flash",
-});
-
-export const CODEX_AUTO_REVIEW_MODEL = "codex-auto-review";
+import {
+  MODEL_ALIASES as PRICING_MODEL_ALIASES,
+  CLAUDE_MODEL_SNAPSHOTS,
+  CODEX_AUTO_REVIEW_MODEL,
+  isCodexAutoReview,
+} from "./model-identity.js";
+export { CLAUDE_MODEL_SNAPSHOTS, CODEX_AUTO_REVIEW_MODEL, isCodexAutoReview };
 export const CODEX_GPT_61_CONTEXT_WINDOW = 500_000;
-
-export function isCodexAutoReview(model) {
-  return (
-    String(model ?? "")
-      .trim()
-      .toLowerCase() === CODEX_AUTO_REVIEW_MODEL
-  );
-}
-
-// Official pinned snapshots, not arbitrary numeric version suffixes.
-export const CLAUDE_MODEL_SNAPSHOTS = Object.freeze({
-  "claude-opus-4-20250514": "claude-opus-4",
-  "claude-sonnet-4-20250514": "claude-sonnet-4",
-  "claude-opus-4-1-20250805": "claude-opus-4-1",
-  "claude-opus-4-5-20251101": "claude-opus-4-5",
-  "claude-sonnet-4-5-20250929": "claude-sonnet-4-5",
-  "claude-haiku-4-5-20251001": "claude-haiku-4-5",
-  "claude-3-5-haiku-20241022": "claude-3-5-haiku",
-});
 
 function activityTime(value) {
   return value instanceof Date ? value.getTime() : typeof value === "number" ? value : Date.parse(String(value));

@@ -5,7 +5,7 @@ import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 
-import { buildTimelineRows } from "../public/timeline-utils.js";
+import { buildTimelineRows } from "../public/waifu-timeline.js";
 import { createCostEstimateAccumulator } from "../src/pricing.js";
 import {
   buildStoredAllSummary,
@@ -13,6 +13,7 @@ import {
   readStoredAllSummary,
 } from "../src/usage-all-summary-store.js";
 import { UsageStore } from "../src/usage-store.js";
+import { createWaifuAllSummaryExtension } from "../src/waifu/usage-all-summary.js";
 
 const SOURCES = [
   {
@@ -43,7 +44,7 @@ const RANGE = {
 function openDatabase(file) {
   const database = new DatabaseSync(file);
   database.exec("PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL;");
-  ensureUsageAllSummarySchema(database);
+  ensureUsageAllSummarySchema(database, { extension: createWaifuAllSummaryExtension(fixturePricing()) });
   return database;
 }
 
@@ -322,6 +323,7 @@ function makeOptions(fixture, { pricing = fixturePricing(), batchSize = 1024, ev
     bucket: "day",
     requestedBucket: "day",
     pricing,
+    extension: createWaifuAllSummaryExtension(pricing),
     sourceKinds: fixture.sourceKinds,
     pricingModels: {},
     batchSize,

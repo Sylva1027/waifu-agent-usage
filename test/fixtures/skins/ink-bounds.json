@@ -1,0 +1,282 @@
+[
+  {
+    "file": "ChatGPT-dark-lineart.png",
+    "inkHeightFraction": 0.985646,
+    "inkCenterXFraction": 0.504782,
+    "inkWidthFraction": 0.96068,
+    "inkTopFraction": 0.007775
+  },
+  {
+    "file": "ChatGPT-side-dark-lineart.png",
+    "inkHeightFraction": 0.994617,
+    "inkCenterXFraction": 0.534538,
+    "inkWidthFraction": 0.920298,
+    "inkTopFraction": 0.004187
+  },
+  {
+    "file": "Claude-dark-lineart.png",
+    "inkHeightFraction": 0.992819,
+    "inkCenterXFraction": 0.503719,
+    "inkWidthFraction": 0.98406,
+    "inkTopFraction": 0.005386
+  },
+  {
+    "file": "Claude-side-dark-lineart.png",
+    "inkHeightFraction": 0.987433,
+    "inkCenterXFraction": 0.502125,
+    "inkWidthFraction": 0.980871,
+    "inkTopFraction": 0.007181
+  },
+  {
+    "file": "DeepSeek-dark-lineart.png",
+    "inkHeightFraction": 0.986244,
+    "inkCenterXFraction": 0.507439,
+    "inkWidthFraction": 0.953241,
+    "inkTopFraction": 0.008971
+  },
+  {
+    "file": "DeepSeek-side-dark-lineart.png",
+    "inkHeightFraction": 0.982645,
+    "inkCenterXFraction": 0.503188,
+    "inkWidthFraction": 0.97237,
+    "inkTopFraction": 0.005984
+  },
+  {
+    "file": "GLM-dark-lineart.png",
+    "inkHeightFraction": 0.992839,
+    "inkCenterXFraction": 0.507324,
+    "inkWidthFraction": 0.893555,
+    "inkTopFraction": 0.005208
+  },
+  {
+    "file": "GLM-side-dark-lineart.png",
+    "inkHeightFraction": 0.990234,
+    "inkCenterXFraction": 0.512695,
+    "inkWidthFraction": 0.912109,
+    "inkTopFraction": 0.005859
+  },
+  {
+    "file": "Gemini-dark-lineart.png",
+    "inkHeightFraction": 0.990234,
+    "inkCenterXFraction": 0.500488,
+    "inkWidthFraction": 0.954102,
+    "inkTopFraction": 0.005208
+  },
+  {
+    "file": "Gemini-side-dark-lineart.png",
+    "inkHeightFraction": 0.985048,
+    "inkCenterXFraction": 0.501594,
+    "inkWidthFraction": 0.981934,
+    "inkTopFraction": 0.007775
+  },
+  {
+    "file": "Grok-dark-lineart.png",
+    "inkHeightFraction": 0.983254,
+    "inkCenterXFraction": 0.506376,
+    "inkWidthFraction": 0.987248,
+    "inkTopFraction": 0.007775
+  },
+  {
+    "file": "Grok-side-dark-lineart.png",
+    "inkHeightFraction": 0.98445,
+    "inkCenterXFraction": 0.50797,
+    "inkWidthFraction": 0.971307,
+    "inkTopFraction": 0.00299
+  },
+  {
+    "file": "Kimi-dark-lineart.png",
+    "inkHeightFraction": 0.98763,
+    "inkCenterXFraction": 0.511719,
+    "inkWidthFraction": 0.953125,
+    "inkTopFraction": 0.00651
+  },
+  {
+    "file": "Kimi-side-dark-lineart.png",
+    "inkHeightFraction": 0.974267,
+    "inkCenterXFraction": 0.503719,
+    "inkWidthFraction": 0.990436,
+    "inkTopFraction": 0.010174
+  },
+  {
+    "file": "Mimo-dark-lineart.png",
+    "inkHeightFraction": 0.979818,
+    "inkCenterXFraction": 0.502441,
+    "inkWidthFraction": 0.567383,
+    "inkTopFraction": 0.007812
+  },
+  {
+    "file": "Mimo-side-dark-lineart.png",
+    "inkHeightFraction": 0.988281,
+    "inkCenterXFraction": 0.596191,
+    "inkWidthFraction": 0.688477,
+    "inkTopFraction": 0.005859
+  },
+  {
+    "file": "Muse-dark-lineart.png",
+    "inkHeightFraction": 0.992839,
+    "inkCenterXFraction": 0.505859,
+    "inkWidthFraction": 0.912109,
+    "inkTopFraction": 0.003906
+  },
+  {
+    "file": "Muse-side-dark-lineart.png",
+    "inkHeightFraction": 0.988932,
+    "inkCenterXFraction": 0.574707,
+    "inkWidthFraction": 0.756836,
+    "inkTopFraction": 0.005859
+  },
+  {
+    "file": "Qwen-dark-lineart.png",
+    "inkHeightFraction": 0.985646,
+    "inkCenterXFraction": 0.503188,
+    "inkWidthFraction": 0.97237,
+    "inkTopFraction": 0.007775
+  },
+  {
+    "file": "Qwen-side-dark-lineart.png",
+    "inkHeightFraction": 0.977273,
+    "inkCenterXFraction": 0.519129,
+    "inkWidthFraction": 0.955367,
+    "inkTopFraction": 0.004785
+  },
+  {
+    "file": "ChatGPT-lineart.png",
+    "inkHeightFraction": 0.985646,
+    "inkCenterXFraction": 0.504782,
+    "inkWidthFraction": 0.96068,
+    "inkTopFraction": 0.007775
+  },
+  {
+    "file": "ChatGPT-side-lineart.png",
+    "inkHeightFraction": 0.994617,
+    "inkCenterXFraction": 0.534538,
+    "inkWidthFraction": 0.920298,
+    "inkTopFraction": 0.004187
+  },
+  {
+    "file": "Claude-lineart.png",
+    "inkHeightFraction": 0.992819,
+    "inkCenterXFraction": 0.503719,
+    "inkWidthFraction": 0.98406,
+    "inkTopFraction": 0.005386
+  },
+  {
+    "file": "Claude-side-lineart.png",
+    "inkHeightFraction": 0.987433,
+    "inkCenterXFraction": 0.502125,
+    "inkWidthFraction": 0.980871,
+    "inkTopFraction": 0.007181
+  },
+  {
+    "file": "DeepSeek-lineart.png",
+    "inkHeightFraction": 0.986244,
+    "inkCenterXFraction": 0.507439,
+    "inkWidthFraction": 0.953241,
+    "inkTopFraction": 0.008971
+  },
+  {
+    "file": "DeepSeek-side-lineart.png",
+    "inkHeightFraction": 0.982645,
+    "inkCenterXFraction": 0.503188,
+    "inkWidthFraction": 0.97237,
+    "inkTopFraction": 0.005984
+  },
+  {
+    "file": "GLM-lineart.png",
+    "inkHeightFraction": 0.992839,
+    "inkCenterXFraction": 0.507324,
+    "inkWidthFraction": 0.893555,
+    "inkTopFraction": 0.005208
+  },
+  {
+    "file": "GLM-side-lineart.png",
+    "inkHeightFraction": 0.990234,
+    "inkCenterXFraction": 0.512695,
+    "inkWidthFraction": 0.912109,
+    "inkTopFraction": 0.005859
+  },
+  {
+    "file": "Gemini-lineart.png",
+    "inkHeightFraction": 0.990234,
+    "inkCenterXFraction": 0.500488,
+    "inkWidthFraction": 0.954102,
+    "inkTopFraction": 0.005208
+  },
+  {
+    "file": "Gemini-side-lineart.png",
+    "inkHeightFraction": 0.985048,
+    "inkCenterXFraction": 0.501594,
+    "inkWidthFraction": 0.981934,
+    "inkTopFraction": 0.007775
+  },
+  {
+    "file": "Grok-lineart.png",
+    "inkHeightFraction": 0.983254,
+    "inkCenterXFraction": 0.506376,
+    "inkWidthFraction": 0.987248,
+    "inkTopFraction": 0.007775
+  },
+  {
+    "file": "Grok-side-lineart.png",
+    "inkHeightFraction": 0.98445,
+    "inkCenterXFraction": 0.50797,
+    "inkWidthFraction": 0.971307,
+    "inkTopFraction": 0.00299
+  },
+  {
+    "file": "Kimi-lineart.png",
+    "inkHeightFraction": 0.98763,
+    "inkCenterXFraction": 0.511719,
+    "inkWidthFraction": 0.953125,
+    "inkTopFraction": 0.00651
+  },
+  {
+    "file": "Kimi-side-lineart.png",
+    "inkHeightFraction": 0.974267,
+    "inkCenterXFraction": 0.503719,
+    "inkWidthFraction": 0.990436,
+    "inkTopFraction": 0.010174
+  },
+  {
+    "file": "Mimo-lineart.png",
+    "inkHeightFraction": 0.979818,
+    "inkCenterXFraction": 0.502441,
+    "inkWidthFraction": 0.567383,
+    "inkTopFraction": 0.007812
+  },
+  {
+    "file": "Mimo-side-lineart.png",
+    "inkHeightFraction": 0.988281,
+    "inkCenterXFraction": 0.596191,
+    "inkWidthFraction": 0.688477,
+    "inkTopFraction": 0.005859
+  },
+  {
+    "file": "Muse-lineart.png",
+    "inkHeightFraction": 0.992839,
+    "inkCenterXFraction": 0.505859,
+    "inkWidthFraction": 0.912109,
+    "inkTopFraction": 0.003906
+  },
+  {
+    "file": "Muse-side-lineart.png",
+    "inkHeightFraction": 0.988932,
+    "inkCenterXFraction": 0.574707,
+    "inkWidthFraction": 0.756836,
+    "inkTopFraction": 0.005859
+  },
+  {
+    "file": "Qwen-lineart.png",
+    "inkHeightFraction": 0.985646,
+    "inkCenterXFraction": 0.503188,
+    "inkWidthFraction": 0.97237,
+    "inkTopFraction": 0.007775
+  },
+  {
+    "file": "Qwen-side-lineart.png",
+    "inkHeightFraction": 0.977273,
+    "inkCenterXFraction": 0.519129,
+    "inkWidthFraction": 0.955367,
+    "inkTopFraction": 0.004785
+  }
+]

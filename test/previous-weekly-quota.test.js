@@ -6,13 +6,8 @@ import path from "node:path";
 import test from "node:test";
 import { rangeLabel } from "../public/app.js";
 import { canonicalRecentValue, displayRecentValue, localizeText } from "../public/i18n.js";
-import {
-  buildTimelineRows,
-  completedQuotaWindows,
-  deriveTimelineBucket,
-  previousQuotaRange,
-  quotaRecordsForRange,
-} from "../public/timeline-utils.js";
+import { completedQuotaWindows, deriveTimelineBucket, previousQuotaRange } from "../public/timeline-utils.js";
+import { buildTimelineRows, quotaRecordsForRange } from "../public/waifu-timeline.js";
 import {
   buildUsageIndex,
   buildUsageReport,
@@ -307,11 +302,11 @@ for (const [minutes, recentValue, bucket] of [
         assert.equal(iso(summary.range.windowEndExclusive), iso(expectedEnd));
         assert.equal(summary.range.durationMinutes, minutes === 300 ? 300 : 5697);
         assert.equal(summary.range.bucket, bucket);
-        assert.equal(summary.totals.total, minutes === 300 ? 999 : 50);
-        assert.equal(summary.sessionCount, minutes === 300 ? 1 : 2);
+        assert.equal(summary.totals.total, minutes === 300 ? 999 : 550);
+        assert.equal(summary.sessionCount, minutes === 300 ? 1 : 3);
         assert.deepEqual(
           summary.timeline.map((row) => row.key),
-          minutes === 10080 ? ["2026-10-07", "2026-10-10"] : [String(stamp(third))],
+          minutes === 10080 ? ["2026-10-07", "2026-10-09", "2026-10-10"] : [String(stamp(third))],
         );
         assert.ok(summary.costEstimate.totalUsd > 0);
         assert.equal(

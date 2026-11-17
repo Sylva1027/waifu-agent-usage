@@ -1,13 +1,15 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { createHash } from "node:crypto";
 import { closeSync, constants as fsConstants, fstatSync, openSync, readFileSync, statSync } from "node:fs";
-import { copyFile, link, mkdir, open, readFile, rm, writeFile } from "node:fs/promises";
+import { copyFile, link, lstat, mkdir, open, readFile, rm, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { backup, DatabaseSync } from "node:sqlite";
-import { getPricingCatalog, validatePricingCatalog } from "./pricing.js";
-import { serviceTierEvidenceFromSnapshot, serviceTierEvidenceSnapshot } from "./service-tier-evidence.js";
+import { validatePricingCatalog } from "./pricing-catalog-format.js";
+import { validateServiceTierEvidenceSnapshot } from "./service-tier-evidence-format.js";
 
-export const HISTORY_BACKUP_FORMAT_VERSION = 1;
+export const HISTORY_BACKUP_FORMAT_VERSION = 3;
+const require = createRequire(import.meta.url);
 
 const PROGRAM_VERSION = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).version;
 
@@ -400,11 +402,51 @@ function explicitPricingCatalog(value) {
   return structuredClone(value);
 }
 
+/** Capture the optional metadata before asynchronous copying; null pricing never loads pricing runtime. */
+export function captureHistoryBackupInputs(options = {}) {
+  const pricingCatalog =
+    options.pricingCatalog === undefined
+      ? require("./pricing.js").getPricingCatalog()
+      : options.pricingCatalog === null
+        ? null
+        : explicitPricingCatalog(options.pricingCatalog);
+  let serviceTierSnapshot = options.serviceTierSnapshot;
+  if (serviceTierSnapshot === undefined) {
+    serviceTierSnapshot =
+      options.serviceTierEvidence == null
+        ? null
+        : require("./service-tier-evidence.js").serviceTierEvidenceSnapshot(options.serviceTierEvidence);
+  }
+  if (serviceTierSnapshot !== null) validateServiceTierEvidenceSnapshot(serviceTierSnapshot);
+  return { pricingCatalog, serviceTierSnapshot: structuredClone(serviceTierSnapshot) };
+}
+
+/** Copy only a declared, verified sidecar, preserving exclusive atomic publication without the achievement runtime. */
+export async function copyHistoryAchievementBackup(directory, record, destinationFile) {
+  const { verifyAchievementBackup } = await import("./achievement-backup-format.js");
+  const verified = await verifyAchievementBackup(directory, record);
+  const destination = path.resolve(destinationFile);
+  const temporary = databaseSuffix(destination);
+  await mkdir(path.dirname(destination), { recursive: true });
+  try {
+    await copyFile(verified.databaseFile, temporary, fsConstants.COPYFILE_EXCL);
+    await verifyAchievementBackup(path.dirname(temporary), { ...record, filename: path.basename(temporary) });
+    await publishFile(temporary, destination);
+    return { achievementDatabaseFile: destination, profile: verified.profile };
+  } finally {
+    await rm(temporary, { force: true });
+  }
+}
+
 /**
  * Create a self-contained SQLite backup plus an external manifest.
  * Existing destination files are rejected; partial output is removed.
  * @param {{
- *   pricingCatalog?: ReturnType<typeof getPricingCatalog>,
+ *   pricingCatalog?: ReturnType<typeof import("./pricing.js").getPricingCatalog> | null,
+ *   formatVersion?: number,
+ *   achievementDatabaseFile?: string,
+ *   achievementBackup?: {directory: string, record: any},
+ *   serviceTierSnapshot?: any,
  *   serviceTierEvidence?: ReturnType<typeof import("./service-tier-evidence.js").serviceTierEvidenceFromSnapshot> | null
  * }} [options]
  */
@@ -415,22 +457,30 @@ export async function createHistoryBackup(database, destinationFile, options = {
   if (!options || typeof options !== "object" || Array.isArray(options)) {
     throw new TypeError("createHistoryBackup options must be an object");
   }
-  const serviceTierEvidence = options.serviceTierEvidence ?? null;
-  const pricingSnapshot =
-    options.pricingCatalog === undefined ? getPricingCatalog() : explicitPricingCatalog(options.pricingCatalog);
-  const serviceTierEvidenceRecord =
-    serviceTierEvidence === null
-      ? null
-      : (() => {
-          const snapshot = serviceTierEvidenceSnapshot(serviceTierEvidence);
-          return { snapshot, sha256: sha256(JSON.stringify(snapshot)) };
-        })();
+  const { pricingCatalog: pricingSnapshot, serviceTierSnapshot: snapshot } = await captureHistoryBackupInputs(options);
+  const serviceTierEvidenceRecord = snapshot === null ? null : { snapshot, sha256: sha256(JSON.stringify(snapshot)) };
+  if (options.achievementDatabaseFile !== undefined && options.achievementBackup !== undefined)
+    throw new TypeError("achievementDatabaseFile and achievementBackup are mutually exclusive");
+  const hasAchievements = options.achievementDatabaseFile !== undefined || options.achievementBackup !== undefined;
+  const formatVersion =
+    options.formatVersion ?? (pricingSnapshot === null ? HISTORY_BACKUP_FORMAT_VERSION : hasAchievements ? 2 : 1);
+  if (
+    ![1, 2, 3].includes(formatVersion) ||
+    (formatVersion < 3 && pricingSnapshot === null) ||
+    (formatVersion === 1 && hasAchievements) ||
+    (formatVersion === 2 && !hasAchievements)
+  )
+    throw new TypeError("history format does not support the requested pricing or achievement metadata");
   const destination = path.resolve(destinationFile);
   const manifestFile = manifestPathFor(destination);
 
   await mkdir(path.dirname(destination), { recursive: true });
   const temporaryDatabase = databaseSuffix(destination);
   const temporaryManifest = temporaryManifestPathFor(destination);
+  const achievementFile = `${destination}.achievements.sqlite`;
+  const temporaryAchievement = databaseSuffix(achievementFile);
+  let achievementRecord;
+  let publishedAchievement = false;
   let publishedDatabase = false;
   let publishedManifest = false;
   try {
@@ -447,8 +497,22 @@ export async function createHistoryBackup(database, destinationFile, options = {
       inspection.close();
     }
     const databaseHash = await hashFile(temporaryDatabase);
+    if (options.achievementDatabaseFile !== undefined) {
+      const { createAchievementBackup } = await import("./achievement-backup.js");
+      achievementRecord = await createAchievementBackup(options.achievementDatabaseFile, temporaryAchievement);
+      achievementRecord.filename = path.basename(achievementFile);
+    } else if (options.achievementBackup !== undefined) {
+      const { directory, record } = options.achievementBackup;
+      await copyHistoryAchievementBackup(directory, record, temporaryAchievement);
+      achievementRecord = { ...record, filename: path.basename(achievementFile) };
+    }
     const manifest = {
-      formatVersion: HISTORY_BACKUP_FORMAT_VERSION,
+      formatVersion,
+      ...(formatVersion === 3
+        ? { achievements: achievementRecord ?? null }
+        : achievementRecord
+          ? { achievements: achievementRecord }
+          : {}),
       createdAt: new Date().toISOString(),
       database: {
         filename: path.basename(destination),
@@ -457,12 +521,15 @@ export async function createHistoryBackup(database, destinationFile, options = {
       },
       schemaVersion,
       programVersion: PROGRAM_VERSION,
-      pricingVersion: pricingSnapshot.version,
-      pricingCheckedAt: pricingSnapshot.checkedAt,
-      pricing: {
-        sha256: sha256(JSON.stringify(pricingSnapshot)),
-        catalog: pricingSnapshot,
-      },
+      pricingVersion: pricingSnapshot?.version ?? null,
+      pricingCheckedAt: pricingSnapshot?.checkedAt ?? null,
+      pricing:
+        pricingSnapshot === null
+          ? null
+          : {
+              sha256: sha256(JSON.stringify(pricingSnapshot)),
+              catalog: pricingSnapshot,
+            },
       serviceTierEvidence: serviceTierEvidenceRecord,
       tables: evidence.tables,
       quickCheck: evidence.quickCheck,
@@ -475,16 +542,24 @@ export async function createHistoryBackup(database, destinationFile, options = {
     try {
       await publishFile(temporaryDatabase, destination);
       publishedDatabase = true;
+      if (achievementRecord) {
+        await publishFile(temporaryAchievement, achievementFile);
+        publishedAchievement = true;
+      }
       await publishFile(temporaryManifest, manifestFile);
       publishedManifest = true;
     } catch (error) {
-      await removeFiles([...(publishedDatabase ? [destination] : []), ...(publishedManifest ? [manifestFile] : [])]);
+      await removeFiles([
+        ...(publishedDatabase ? [destination] : []),
+        ...(publishedManifest ? [manifestFile] : []),
+        ...(publishedAchievement ? [achievementFile] : []),
+      ]);
       throw error;
     }
-    await removeFiles([temporaryDatabase, temporaryManifest]);
+    await removeFiles([temporaryDatabase, temporaryManifest, temporaryAchievement]);
     return manifest;
   } catch (error) {
-    await removeFiles([temporaryDatabase, temporaryManifest, ...sidecarFiles(temporaryDatabase)]);
+    await removeFiles([temporaryDatabase, temporaryManifest, temporaryAchievement, ...sidecarFiles(temporaryDatabase)]);
     if (error?.code?.startsWith?.("HISTORY_BACKUP_")) throw error;
     throw backupError("HISTORY_BACKUP_FAILED", error?.message ?? String(error));
   }
@@ -494,9 +569,13 @@ function readManifestShape(manifest) {
   if (!manifest || typeof manifest !== "object" || Array.isArray(manifest)) {
     throw backupError("HISTORY_BACKUP_BAD_MANIFEST", "manifest must be an object");
   }
-  if (manifest.formatVersion !== HISTORY_BACKUP_FORMAT_VERSION) {
+  if (![1, 2, HISTORY_BACKUP_FORMAT_VERSION].includes(manifest.formatVersion)) {
     throw backupError("HISTORY_BACKUP_BAD_MANIFEST", "unsupported manifest format");
   }
+  if (manifest.formatVersion === 1 && Object.hasOwn(manifest, "achievements"))
+    throw backupError("HISTORY_BACKUP_BAD_MANIFEST", "v1 cannot contain achievement metadata");
+  if (manifest.formatVersion === 3 && !Object.hasOwn(manifest, "achievements"))
+    throw backupError("HISTORY_BACKUP_BAD_MANIFEST", "v3 achievement marker is missing");
   if (!manifest.database || typeof manifest.database !== "object") {
     throw backupError("HISTORY_BACKUP_BAD_MANIFEST", "manifest database record is missing");
   }
@@ -509,28 +588,38 @@ function readManifestShape(manifest) {
     throw backupError("HISTORY_BACKUP_BAD_MANIFEST", "manifest database digest or byte size is invalid");
   }
   const tables = tablesForSchemaVersion(manifest.schemaVersion);
-  if (
-    typeof manifest.pricingVersion !== "string" ||
-    typeof manifest.pricingCheckedAt !== "string" ||
-    !manifest.pricing ||
-    typeof manifest.pricing !== "object" ||
-    Array.isArray(manifest.pricing) ||
-    !manifest.pricing.catalog ||
-    typeof manifest.pricing.catalog !== "object" ||
-    Array.isArray(manifest.pricing.catalog) ||
-    !manifest.pricing.catalog.models ||
-    typeof manifest.pricing.catalog.models !== "object" ||
-    Array.isArray(manifest.pricing.catalog.models) ||
-    typeof manifest.pricing.sha256 !== "string" ||
-    !/^[a-f0-9]{64}$/.test(manifest.pricing.sha256)
-  ) {
-    throw backupError("HISTORY_BACKUP_BAD_MANIFEST", "manifest pricing snapshot is invalid");
-  }
-  if (
-    manifest.pricingVersion !== manifest.pricing.catalog.version ||
-    manifest.pricingCheckedAt !== manifest.pricing.catalog.checkedAt
-  ) {
-    throw backupError("HISTORY_BACKUP_BAD_MANIFEST", "manifest pricing version does not match its catalog");
+  if (manifest.formatVersion === 3 && manifest.pricing === null) {
+    if (manifest.pricingVersion !== null || manifest.pricingCheckedAt !== null)
+      throw backupError("HISTORY_BACKUP_BAD_MANIFEST", "absent pricing must have null version and date");
+  } else {
+    if (
+      typeof manifest.pricingVersion !== "string" ||
+      typeof manifest.pricingCheckedAt !== "string" ||
+      !manifest.pricing ||
+      typeof manifest.pricing !== "object" ||
+      Array.isArray(manifest.pricing) ||
+      !manifest.pricing.catalog ||
+      typeof manifest.pricing.catalog !== "object" ||
+      Array.isArray(manifest.pricing.catalog) ||
+      !manifest.pricing.catalog.models ||
+      typeof manifest.pricing.catalog.models !== "object" ||
+      Array.isArray(manifest.pricing.catalog.models) ||
+      typeof manifest.pricing.sha256 !== "string" ||
+      !/^[a-f0-9]{64}$/.test(manifest.pricing.sha256)
+    ) {
+      throw backupError("HISTORY_BACKUP_BAD_MANIFEST", "manifest pricing snapshot is invalid");
+    }
+    if (
+      manifest.pricingVersion !== manifest.pricing.catalog.version ||
+      manifest.pricingCheckedAt !== manifest.pricing.catalog.checkedAt
+    ) {
+      throw backupError("HISTORY_BACKUP_BAD_MANIFEST", "manifest pricing version does not match its catalog");
+    }
+    try {
+      explicitPricingCatalog(manifest.pricing.catalog);
+    } catch (error) {
+      throw backupError("HISTORY_BACKUP_BAD_MANIFEST", `manifest pricing snapshot is invalid: ${error.message}`);
+    }
   }
   if (!Object.hasOwn(manifest, "serviceTierEvidence")) {
     throw backupError("HISTORY_BACKUP_BAD_MANIFEST", "manifest service-tier evidence marker is missing");
@@ -616,7 +705,13 @@ async function verifyHistoryBackupInScope(databaseFile, manifestFile, reader, ev
     throw backupError("HISTORY_BACKUP_BAD_MANIFEST", `cannot read manifest: ${error?.message ?? String(error)}`);
   }
   readManifestShape(manifest);
-  if (sha256(JSON.stringify(manifest.pricing.catalog)) !== manifest.pricing.sha256) {
+  if (manifest.formatVersion === 2 || (manifest.achievements !== undefined && manifest.achievements !== null)) {
+    const { verifyAchievementBackup } = await import("./achievement-backup-format.js");
+    if ([path.basename(databasePath), path.basename(manifestPath)].includes(manifest.achievements?.filename))
+      throw backupError("HISTORY_BACKUP_BAD_MANIFEST", "achievement sidecar must be a separate file");
+    await verifyAchievementBackup(path.dirname(databasePath), manifest.achievements);
+  }
+  if (manifest.pricing !== null && sha256(JSON.stringify(manifest.pricing.catalog)) !== manifest.pricing.sha256) {
     throw backupError("HISTORY_BACKUP_PRICING_MISMATCH", "pricing catalog SHA-256 does not match manifest");
   }
   if (manifest.serviceTierEvidence !== null) {
@@ -628,7 +723,7 @@ async function verifyHistoryBackupInScope(databaseFile, manifestFile, reader, ev
       );
     }
     try {
-      serviceTierEvidenceFromSnapshot(snapshot);
+      validateServiceTierEvidenceSnapshot(snapshot);
     } catch (error) {
       throw backupError(
         "HISTORY_BACKUP_BAD_MANIFEST",
@@ -846,17 +941,33 @@ async function verifyHistoryBackupInScope(databaseFile, manifestFile, reader, ev
 
 /**
  * Verify a package and expose its restore-time inputs without activating them.
+ * Snapshot mode returns the raw tier snapshot (or null) without loading its runtime codec.
+ * @param {string} databaseFile
+ * @param {string} [manifestFile]
+ * @param {{ serviceTierEvidenceFormat?: "resolver" | "snapshot" }} [options]
  */
-export async function loadHistoryBackupContext(databaseFile, manifestFile = manifestPathFor(databaseFile)) {
+export async function loadHistoryBackupContext(
+  databaseFile,
+  manifestFile = manifestPathFor(databaseFile),
+  options = {},
+) {
+  if (!options || typeof options !== "object" || Array.isArray(options))
+    throw new TypeError("history context options must be an object");
+  const format = options.serviceTierEvidenceFormat ?? "resolver";
+  if (!["resolver", "snapshot"].includes(format))
+    throw new TypeError("serviceTierEvidenceFormat must be resolver or snapshot");
   const verified = await verifyHistoryBackup(databaseFile, manifestFile);
+  const snapshot = verified.manifest.serviceTierEvidence?.snapshot ?? null;
   return {
     databaseFile: verified.databaseFile,
     manifestFile: verified.manifestFile,
-    pricingCatalog: verified.manifest.pricing.catalog,
+    pricingCatalog: verified.manifest.pricing?.catalog ?? null,
     serviceTierEvidence:
-      verified.manifest.serviceTierEvidence === null
+      snapshot === null
         ? null
-        : serviceTierEvidenceFromSnapshot(verified.manifest.serviceTierEvidence.snapshot),
+        : format === "snapshot"
+          ? snapshot
+          : (await import("./service-tier-evidence.js")).serviceTierEvidenceFromSnapshot(snapshot),
   };
 }
 
@@ -864,21 +975,76 @@ export async function loadHistoryBackupContext(databaseFile, manifestFile = mani
  * Restore a verified package and its manifest to new paths. Existing files are
  * never overwritten; the restored copy is re-verified before success.
  */
-export async function restoreHistoryBackup(backupFile, destinationFile, manifestFile = manifestPathFor(backupFile)) {
+export async function restoreHistoryBackup(
+  backupFile,
+  destinationFile,
+  manifestFile = manifestPathFor(backupFile),
+  options = {},
+) {
   const source = path.resolve(backupFile);
   const destination = path.resolve(destinationFile);
   const manifestPath = path.resolve(manifestFile);
   const verified = await verifyHistoryBackup(source, manifestPath);
+  const fullRestore = options.achievementDatabaseFile !== undefined;
+  if (fullRestore && !verified.manifest.achievements)
+    throw backupError("HISTORY_BACKUP_NO_ACHIEVEMENTS", "full profile restore requires a v2 backup");
+  const withAchievements = fullRestore || (options.preserveAchievements === true && !!verified.manifest.achievements);
+  const achievementFile = fullRestore
+    ? path.resolve(options.achievementDatabaseFile)
+    : withAchievements
+      ? `${destination}.achievements.sqlite`
+      : null;
+  if (
+    achievementFile &&
+    [destination, manifestPathFor(destination), ...sidecarFiles(destination)].some(
+      (file) =>
+        (process.platform === "win32" ? file.toLowerCase() : file) ===
+        (process.platform === "win32" ? achievementFile.toLowerCase() : achievementFile),
+    )
+  )
+    throw backupError("HISTORY_BACKUP_BAD_DESTINATION", "achievement destination must be separate from usage files");
+  if (withAchievements) {
+    for (const file of [
+      destination,
+      manifestPathFor(destination),
+      achievementFile,
+      ...sidecarFiles(destination),
+      ...sidecarFiles(achievementFile),
+    ]) {
+      const existing = await lstat(file).catch((error) => {
+        if (error.code !== "ENOENT") throw error;
+        return null;
+      });
+      if (existing) throw backupError("HISTORY_BACKUP_DESTINATION_EXISTS", `destination already exists: ${file}`);
+    }
+  }
   await mkdir(path.dirname(destination), { recursive: true });
   const temporary = databaseSuffix(destination);
   const temporaryManifest = temporaryManifestPathFor(destination);
   const restoredManifestFile = manifestPathFor(destination);
+  const temporaryAchievement = withAchievements ? databaseSuffix(achievementFile) : null;
   const restoredManifest = {
     ...verified.manifest,
     database: { ...verified.manifest.database, filename: path.basename(destination) },
   };
+  if (!withAchievements) {
+    if (restoredManifest.formatVersion === 3) restoredManifest.achievements = null;
+    else {
+      restoredManifest.formatVersion = 1;
+      delete restoredManifest.achievements;
+    }
+  } else {
+    restoredManifest.achievements = { ...restoredManifest.achievements, filename: path.basename(achievementFile) };
+    if (path.dirname(achievementFile) !== path.dirname(destination))
+      throw backupError(
+        "HISTORY_BACKUP_BAD_DESTINATION",
+        "achievement destination must be adjacent to the usage database",
+      );
+  }
   let publishedDestination = false;
   let publishedManifest = false;
+  let restoredAchievement;
+  let publishedAchievement = false;
   try {
     await copyFile(source, temporary, fsConstants.COPYFILE_EXCL);
     const copiedHash = await hashFile(temporary);
@@ -901,17 +1067,30 @@ export async function restoreHistoryBackup(backupFile, destinationFile, manifest
     } finally {
       inspection.close();
     }
+    if (withAchievements) {
+      restoredAchievement = await copyHistoryAchievementBackup(
+        path.dirname(source),
+        verified.manifest.achievements,
+        temporaryAchievement,
+      );
+      restoredAchievement.achievementDatabaseFile = achievementFile;
+    }
     await writeFile(temporaryManifest, `${JSON.stringify(restoredManifest, null, 2)}\n`, "utf8");
     await publishFile(temporary, destination);
     publishedDestination = true;
+    if (withAchievements) {
+      await publishFile(temporaryAchievement, achievementFile);
+      publishedAchievement = true;
+    }
     await publishFile(temporaryManifest, restoredManifestFile);
     publishedManifest = true;
-    await removeFiles([temporary, temporaryManifest]);
+    await removeFiles([temporary, temporaryManifest, ...(withAchievements ? [temporaryAchievement] : [])]);
     return {
       restoredTo: destination,
       manifestFile: restoredManifestFile,
       bytes: copiedHash.bytes,
       sha256: verified.manifest.database.sha256,
+      ...(restoredAchievement ?? {}),
     };
   } catch (error) {
     await removeFiles([
@@ -920,6 +1099,8 @@ export async function restoreHistoryBackup(backupFile, destinationFile, manifest
       ...sidecarFiles(temporary),
       ...(publishedDestination ? [destination] : []),
       ...(publishedManifest ? [restoredManifestFile] : []),
+      ...(withAchievements ? [temporaryAchievement] : []),
+      ...(publishedAchievement ? [achievementFile] : []),
     ]);
     throw error;
   }

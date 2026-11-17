@@ -14,9 +14,23 @@ test("quota candidates retain namespaces and reject explicit non-plan sources", 
     "deepseek-flash",
     "step-5-preview",
     "provider/gpt-6-sol",
-    "codex-auto-review",
+    "provider/codex-auto-review",
+    "codex-auto-review-other",
   ]) {
     assert.equal(isQuotaUsage({ model }), false, model);
+  }
+});
+
+test("free reviews retain usage during inferred credits but not explicit external or API calls", () => {
+  for (const model of [
+    "codex-auto-review",
+    " CODEX-AUTO-REVIEW ",
+    "codex/codex-auto-review",
+    "openai/codex-auto-review",
+  ]) {
+    for (const quotaSource of [undefined, "plan", "unknown", "credits"])
+      assert.equal(isQuotaUsage({ model, quotaSource }), true);
+    for (const quotaSource of ["api", "external"]) assert.equal(isQuotaUsage({ model, quotaSource }), false);
   }
 });
 

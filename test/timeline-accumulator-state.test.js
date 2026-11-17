@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildTimelineRows, createTimelineAccumulator } from "../public/timeline-utils.js";
+import { buildTimelineRows, createTimelineAccumulator } from "../public/waifu-timeline.js";
 
 const usage = (total) => ({
   total,

@@ -539,12 +539,12 @@ export async function loadAppSource({ appSourcePath = APP_PATH, depsDir = path.j
   for (const match of source.matchAll(/^import\s*\{([\s\S]*?)\}\s*from\s*"(\.[^"]+)";\s*$/gm)) {
     const names = match[1]
       .split(",")
-      .map((part) => part.trim())
+      .map((part) => part.trim().replace(/\s+as\s+/, ": "))
       .filter(Boolean)
       .join(", ");
     applied.push({ from: match[0], to: `const { ${names} } = __deps[${JSON.stringify(match[2])}];`, kind: "import" });
   }
-  for (const match of source.matchAll(/^export\s*\{[^}]*\};\s*$/gm)) {
+  for (const match of source.matchAll(/^export\s*\{[^}]*\}(?:\s*from\s*"\.[^"]+")?;\s*$/gm)) {
     applied.push({ from: match[0], to: "", kind: "export-list" });
   }
   for (const match of source.matchAll(/^export\s+(?=(?:async\s+)?(?:function|const|let|var|class)\b)/gm)) {
@@ -689,6 +689,7 @@ export async function createCycleHarness(options = {}) {
     initial = {},
     storage = {},
     realTimers = false,
+    EventSource = undefined,
     pricingCatalog = { automatic: {}, usageCoverage: {}, modelActivities: [] },
   } = options;
   const html = await readFile(INDEX_PATH, "utf8");
@@ -720,6 +721,7 @@ export async function createCycleHarness(options = {}) {
   };
 
   const windowStub = {
+    EventSource,
     innerWidth: 1280,
     innerHeight: 900,
     devicePixelRatio: 1,
@@ -769,6 +771,7 @@ export async function createCycleHarness(options = {}) {
         at: clockIso(),
         cycle: counts.ticks,
         seq: fetchLog.length,
+        requestId: init?.headers?.["X-Usage-Request-Id"],
       };
       fetchLog.push(entry);
       if (parsed.pathname === "/api/status") counts.statusChecks += 1;
@@ -970,6 +973,11 @@ export async function createCycleHarness(options = {}) {
   });
 
   vm.runInContext(loaded.code, context, { filename: "public/app.js (U4 harness)" });
+  Object.assign(context, vm.runInContext("({ pollImportTask, submitImportDirectory })", context));
+  const deliveredRuntime = vm.runInContext("dashboardRuntime", context);
+  for (const [name, value] of Object.entries(deliveredRuntime)) {
+    if (typeof value === "function" && typeof context[name] !== "function") context[name] = value;
+  }
   vm.runInContext(
     `(() => {
       const names = ${JSON.stringify(WRAPPED)};
@@ -1016,7 +1024,7 @@ export async function createCycleHarness(options = {}) {
    *  这样"周期不是 60 秒"会落到 `u4.coverage.intervalIs60s` 这条**具名判据**上，
    *  而不是让夹具抛错（夹具抛错只能说明夹具脆，不能算抓住变体）。 */
   const pickInterval = () => {
-    const preferred = activeIntervals(EXPECTED_INTERVAL_MS).at(-1);
+    const preferred = activeIntervals(EXPECTED_INTERVAL_MS).find((entry) => entry.id === state.autoRefreshTimer);
     if (preferred) return preferred;
     const fallback = activeIntervals()
       .filter((entry) => entry.ms !== 60 * 60 * 1000)
@@ -1559,7 +1567,9 @@ export async function runCycleMatrix(options = {}) {
       await harness.settle();
       const afterResume = capture("resume:after");
       const resumeDiff = delta(beforeResume, afterResume);
-      const resumed = harness.timers.entries.filter((entry) => entry.ms === EXPECTED_INTERVAL_MS && !entry.cleared);
+      const resumed = harness.timers.entries.filter(
+        (entry) => entry.id === harness.state.autoRefreshTimer && !entry.cleared,
+      );
       ok(`u4.resume.${preset}.timerRestored`, resumed.length === 1 && harness.state.autoRefreshTimer !== null, {
         active: resumed.length,
         timer: harness.state.autoRefreshTimer,
@@ -1798,34 +1808,35 @@ function sourceBetween(source, startFunction, endFunction) {
 
 if (!HARNESS_ONLY) {
   test("auto refresh preference gates polling, preserves manual refresh, and preserves frozen server snapshots", async () => {
-    const source = await readFile(APP_UNDER_TEST, "utf8");
+    const adapter = await readFile(APP_UNDER_TEST, "utf8");
+    const source = await readFile(path.join(REPO_ROOT, "public/dashboard-runtime.js"), "utf8");
     const check = sourceBetween(source, "checkForUpdates", "startAutoRefresh");
     const start = sourceBetween(source, "startAutoRefresh", "stopAutoRefresh");
     const stop = sourceBetween(source, "stopAutoRefresh", "refreshViewForFilters");
     const toggle = sourceBetween(source, "setAutoRefreshEnabled", "initializeAutoRefresh");
-    const initialize = sourceBetween(source, "initializeAutoRefresh", "setPricingMessage");
-    const visibilityStart = source.indexOf('document.addEventListener("visibilitychange"');
-    const visibilityEnd = source.indexOf("setTheme(preferredTheme()", visibilityStart);
-    const visibility = source.slice(visibilityStart, visibilityEnd);
+    const initialize = sourceBetween(source, "initializeAutoRefresh", "usageQuery");
+    const visibilityStart = adapter.indexOf('document.addEventListener("visibilitychange"');
+    const visibilityEnd = adapter.indexOf("setTheme(preferredTheme()", visibilityStart);
+    const visibility = adapter.slice(visibilityStart, visibilityEnd);
 
     assert.match(source, /AUTO_REFRESH_STORAGE_KEY/);
-    assert.match(source, /localStorage\.setItem\(AUTO_REFRESH_STORAGE_KEY/);
+    assert.match(source, /storage\.setItem\(AUTO_REFRESH_STORAGE_KEY/);
     assert.match(check, /!state\.autoRefreshEnabled/);
     assert.match(check, /state\.autoRefreshCheckInFlight/);
     assert.match(check, /runId !== state\.autoRefreshRunId/);
-    assert.match(check, /await loadUsage\(\)/);
-    assert.match(check, /status\.changed \|\| isQuotaPreset\(state\.preset\)/);
+    assert.match(check, /await requestUsage\(\{ background: true, confirmation \}\)/);
+    assert.match(check, /status\.changed \|\| context\.isQuotaPreset\(state\.preset\)/);
     assert.match(start, /state\.autoRefreshTimer/);
     assert.match(stop, /window\.clearInterval/);
     assert.match(toggle, /stopAutoRefresh\(\)/);
-    assert.match(toggle, /if \(checkNow\) void loadUsage\(\)/);
-    assert.match(toggle, /loadUsage\(\{ skipCheck: true, freeze: true \}\)/);
+    assert.match(toggle, /if \(checkNow\) void requestUsage\(\)/);
+    assert.match(toggle, /requestUsage\(\{ skipCheck: true, freeze: true \}\)/);
     assert.match(initialize, /state\.autoRefreshEnabled = readAutoRefreshPreference\(\)/);
     assert.match(visibility, /!document\.hidden && state\.autoRefreshEnabled/);
     assert.match(source, /params\.set\("snapshot", state\.snapshotId\)/);
     assert.match(source, /params\.set\("freeze", "1"\)/);
     assert.match(source, /if \(error\.body\?\.quota\) state\.quotaSnapshot = error\.body\.quota/);
-    assert.match(source, /renderUnavailableQuota\(reason\)/);
+    assert.match(source, /context\.renderUnavailableQuota\(reason\)/);
     assert.match(source, /state\.summary = null/);
     assert.doesNotMatch(source, /force: true/);
   });
@@ -2015,7 +2026,7 @@ if (!HARNESS_ONLY) {
             void harness.api.loadUsage({ skipCheck: true });
           } else if (supersede === "pause") {
             harness.api.setAutoRefreshEnabled(false);
-            assert.equal(spinner.classList.contains("is-loading"), false);
+            assert.equal(spinner.classList.contains("is-loading"), true, "creating a frozen snapshot is real work");
             assert.equal(harness.fetchLog.at(-1).params.freeze, "1");
           }
           releaseCorrection(
@@ -2027,7 +2038,7 @@ if (!HARNESS_ONLY) {
             assert.equal(harness.pendingFetches, 1);
             assert.equal(harness.counts.renders, 0, "stale success must not render");
             assert.equal(harness.counts.statusErrors, 0, "stale failure must not replace the current status");
-            assert.equal(spinner.classList.contains("is-loading"), supersede === "reload");
+            assert.equal(spinner.classList.contains("is-loading"), true);
             assert.equal(total.innerHTML, before);
             releaseReplacement({ payload: replacement });
             await harness.settle();
@@ -2043,7 +2054,7 @@ if (!HARNESS_ONLY) {
             assert.deepEqual(rendered, [
               {
                 preset: supersede === "reload" ? "month" : "today",
-                busy: supersede !== "pause",
+                busy: true,
                 tokens: total.innerHTML,
               },
             ]);

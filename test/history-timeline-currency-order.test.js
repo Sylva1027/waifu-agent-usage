@@ -7,7 +7,7 @@ import {
   renderTimelineLegendHtml,
   timelineDetailRows,
 } from "../public/app.js";
-import { buildTimelineRows } from "../public/timeline-utils.js";
+import { buildTimelineRows } from "../public/waifu-timeline.js";
 import { state } from "../public/app-state.js";
 import { estimateEventCost } from "../src/pricing.js";
 

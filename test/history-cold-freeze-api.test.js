@@ -82,7 +82,7 @@ function costFields(summary) {
   };
 }
 
-async function createArchivedFixture() {
+async function createArchivedFixture(review = false) {
   const root = mkdtempSync(path.join(os.tmpdir(), "cold-freeze-api-"));
   const codexHome = path.join(root, "codex-home");
   const usageFile = path.join(codexHome, "sessions", "2026", "07", "12", "rollout-cold-freeze.jsonl");
@@ -92,7 +92,7 @@ async function createArchivedFixture() {
     mkdirSync(path.dirname(usageFile), { recursive: true });
     writeFileSync(
       usageFile,
-      `${sessionPrefix(codexHome)}\n${tokenLine(COLD_TIME, 100, 100)}\n${tokenLine(HOT_TIME, 130, 30)}\n`,
+      `${sessionPrefix(codexHome)}\n${review ? `${JSON.stringify({ type: "turn_context", timestamp: COLD_TIME, payload: { model: "codex-auto-review" } })}\n` : ""}${tokenLine(COLD_TIME, 100, 100)}\n${tokenLine(HOT_TIME, 130, 30)}\n${review ? `${JSON.stringify({ type: "event_msg", timestamp: HOT_TIME, payload: { type: "token_count", rate_limits: { limit_id: "codex", primary: { window_minutes: 300, resets_at: (HOT_MS + 3600000) / 1000, used_percent: 42 } } } })}\n` : ""}`,
     );
 
     const oracle = new UsageStore({ ...source, databaseFile: path.join(root, "oracle.sqlite") });
@@ -242,6 +242,7 @@ test("cold HTTP freeze keeps catalog A costs after live pricing changes to B", a
       `import { existsSync } from "node:fs";
 import path from "node:path";
 import { UsageStore } from ${JSON.stringify(usageStoreUrl)};
+import { WaifuUsageQueries } from ${JSON.stringify(new URL("../src/waifu/usage-reader.js", import.meta.url).href)};
 
 if (process.env.CODEX_USAGE_EXECUTOR_CHILD === "1" && typeof process.send === "function") {
   const markerFile = ${JSON.stringify(markerFile)};
@@ -250,9 +251,9 @@ if (process.env.CODEX_USAGE_EXECUTOR_CHILD === "1" && typeof process.send === "f
     existsSync(markerFile) &&
     typeof store.databaseFile === "string" &&
     path.resolve(store.databaseFile) !== liveDatabaseFile;
-  for (const method of ["summarizeInReadTransaction", "summarizeHistoryReport"]) {
-    const original = UsageStore.prototype[method];
-    UsageStore.prototype[method] = function (...args) {
+  for (const [target, method] of [[WaifuUsageQueries.prototype, "summarizeInReadTransaction"], [UsageStore.prototype, "summarizeHistoryReport"]]) {
+    const original = target[method];
+    target[method] = function (...args) {
       if (shouldFail(this)) throw new Error("INJECTED_COLD_SUMMARY_FAILURE");
       return Reflect.apply(original, this, args);
     };
@@ -340,5 +341,51 @@ if (process.env.CODEX_USAGE_EXECUTOR_CHILD === "1" && typeof process.send === "f
       setPricingCatalog(originalCatalog);
       fixture.close();
     }
+  }
+});
+
+test("free review usage survives mixed cold/hot quota queries and HTTP frozen replay", async () => {
+  const fixture = await createArchivedFixture(true);
+  const store = new UsageStore(fixture.serverOptions);
+  let server;
+  try {
+    await store.open();
+    const payload = await store.dashboardHistory({
+      preset: "quota_5h",
+      now: new Date(HOT_MS + 60000),
+      calendarZone: "utc",
+    });
+    assert.equal(payload.summary.totals.total, 130);
+    assert.equal(payload.summary.details.total, 130);
+    assert.equal(payload.summary.rangeMetrics.activeDays, 1);
+    assert.equal(payload.summary.rangeMetrics.maxSessionTokens, 130);
+    assert.ok(Number.isFinite(payload.summary.details.uncachedInput));
+    assert.equal(payload.summary.models[0].name, "codex-auto-review");
+    assert.equal(payload.summary.costEstimate.totalUsd, 0);
+    assert.equal(payload.summary.quota.windows.quota_5h.usedPercent, 42);
+    store.close();
+    server = createUsageServer(fixture.serverOptions);
+    const base = await listen(server);
+    const response = await fetch(
+      `${base}/api/summary?preset=recent&recentValue=${encodeURIComponent("今年")}&freeze=1`,
+    );
+    assert.equal(response.status, 200, await response.clone().text());
+    const frozen = await response.json();
+    const replay = await fetch(
+      `${base}/api/summary?preset=recent&recentValue=${encodeURIComponent("今年")}&snapshot=${frozen.snapshotId}`,
+    ).then((r) => r.json());
+    for (const body of [frozen, replay]) {
+      assert.equal(body.summary.totals.total, 130);
+      assert.equal(body.summary.range.recentValue, "今年");
+      assert.equal(body.summary.details.total, 130);
+      assert.equal(body.summary.rangeMetrics.maxSessionTokens, 130);
+      assert.equal(body.summary.rangeMetrics.harnesses[0].total, 130);
+      assert.equal(body.summary.costEstimate.totalUsd, 0);
+      assert.equal(body.summary.models[0].name, "codex-auto-review");
+    }
+  } finally {
+    store.close();
+    await server?.close();
+    fixture.close();
   }
 });

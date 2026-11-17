@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { UsageSessionMembers } from "../src/usage-session-members.js";
-import { buildTimelineRows } from "../public/timeline-utils.js";
+import { buildTimelineRows } from "../public/waifu-timeline.js";
 
 test("session counters stay exact across shared-budget spill and late sets", () => {
   const members = new UsageSessionMembers(500);

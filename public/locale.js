@@ -1,0 +1,754 @@
+// Shared dashboard copy and one locale state for both editions.
+export const LOCALE_STORAGE_KEY = "codexUsageLocale";
+export const SUPPORTED_LOCALES = Object.freeze(["zh-CN", "en-US"]);
+
+const ENGLISH = new Map(
+  Object.entries({
+    自动刷新: "Auto Refresh",
+    开: "On",
+    关: "Off",
+    事件数: "Event count",
+    "上次：尚无": "Last: never",
+    "上次：刚刚": "Last: just now",
+    "上次：大于1天": "Last: >1 day",
+    "正在加载数据…": "Loading data…",
+    "正在计算统计…": "Calculating statistics…",
+    "正在同步数据…": "Syncing data…",
+    "等待处理…": "Waiting for processing…",
+    "等待记录更新…": "Waiting for record updates…",
+    "正在导入记录…": "Importing records…",
+    "正在移除来源…": "Removing source…",
+    就绪: "Ready",
+    自动刷新已暂停: "Auto refresh paused",
+    "更新失败 · 详情 ›": "Update failed · Details ›",
+    "异常 · 详情 ›": "Error · Details ›",
+    错误详情: "Error details",
+    "‹ 返回": "‹ Back",
+    完整错误信息: "Full error message",
+    切换语言: "Switch Language",
+    用量概览: "Usage overview",
+    趋势: "Trend",
+    "GitHub 项目": "GitHub project",
+    "用量摘要暂不可用。": "The usage summary is not currently available.",
+    近期: "Recent",
+    历史: "History",
+    未提供: "Not provided",
+    用量记录: "Usage records",
+    请求: "request",
+    来源: "Source",
+    模型名称: "Model",
+    导入目录: "Import",
+    筛选: "Filters",
+    范围: "Range",
+    日期范围时区: "Date Range Time Zone",
+    本地时间: "Local Time",
+    今日: "Today",
+    本周: "This Week",
+    本月: "This Month",
+    全部: "All Time",
+    最近: "Recent",
+    上一个5h: "Last 5h",
+    上一个7d: "Last 7d",
+    仅显示有用量的日期: "Only dates with usage are shown",
+    仅显示有用量的半小时: "Only half-hour slots with usage are shown",
+    "上一周限额记录存在冲突，无法确认周期边界。":
+      "Weekly limit records conflict; the cycle boundaries cannot be confirmed.",
+    上周: "Last Week",
+    今年: "This Year",
+    去年: "Last Year",
+    较去年同期: "vs Same Period Last Year",
+    较前年: "vs Year Before Last",
+    "尚未发现上一限额窗口的 Codex 记录。": "No Codex record was found for the previous limit window.",
+    最近范围: "Recent Range",
+    展开最近范围选项: "Show recent range options",
+    "1天": "1 day",
+    "1周": "1 week",
+    "1个月": "1 month",
+    "2个月": "2 months",
+    "3个月": "3 months",
+    半年: "6 months",
+    一年: "1 year",
+    自定义: "Custom",
+    日期范围: "Date Range",
+    打开日期范围日历: "Open date range calendar",
+    日期范围日历: "Date range calendar",
+    开始日期: "Start date",
+    结束日期: "End date",
+    选择开始日期: "Choose a start date",
+    选择结束日期: "Choose an end date",
+    清除: "Clear",
+    清除日期范围: "Clear date range",
+    结束: "End",
+    "年/月/日": "YYYY-MM-DD",
+    打开开始日期日历: "Open start date calendar",
+    打开结束日期日历: "Open end date calendar",
+    上个月: "Last Month",
+    下个月: "Next Month",
+    总览: "Overview",
+    "总 tokens": "Total Tokens",
+    总输入: "Total Input",
+    缓存读取: "Cache Hit",
+    缓存输入: "Cache Hit",
+    输出: "Output",
+    推理输出: "Reasoning Tokens",
+    推理: "Reasoning Tokens",
+    会话: "Sessions",
+    事件: "Events",
+    缓外输入: "Cache Miss",
+    缓存写入: "Cache Write",
+    未命中输入: "Cache Miss",
+    缓存命中: "Cache Hit Rate",
+    缓存命中率: "Cache Hit Rate",
+    模型数量: "Models",
+    模型: "Models",
+    趋势变化: "Usage Trend",
+    时间分布: "Usage Over Time",
+    时间分布方式: "Timeline Breakdown",
+    按渠道: "By Source",
+    渠道: "Sources",
+    按模型: "By Model",
+    按仓库: "By Repository",
+    "时间分布柱状图；聚焦后可查看用量详情": "Usage over time chart. Focus to inspect each interval",
+    图表图例: "Chart Legend",
+    时间分布详情: "Timeline Details",
+    详情: "Details",
+    跨时间范围用量对比: "Usage Across Time Ranges",
+    搜索模型: "Search Models",
+    搜索模型用量对比: "Search model usage",
+    搜索仓库: "Search Repositories",
+    搜索仓库用量对比: "Search repository usage",
+    "默认排序优先级：今日 → 本周 → 本月 → 全部（各项倒序）":
+      "Default sort priority: Today → This Week → This Month → All Time (descending)",
+    扫描目录: "Scanned Directories",
+    编辑: "Edit",
+    "勾选统计来源，修改立即生效。": "Select sources to include. Changes apply immediately.",
+    数据来源: "Data Sources",
+    统计来源: "Included Sources",
+    添加目录: "Add Directory",
+    选择文件夹: "Choose Folder",
+    关闭: "Close",
+    导入: "Import",
+    其他: "Other",
+    返回: "Back",
+    取消: "Cancel",
+    "5 小时限额": "5-Hour Limit",
+    本周限额: "Weekly Limit",
+    限额窗口: "Limit Window",
+    "此限额窗口当前不可用。": "This limit window is currently unavailable.",
+    "尚无限额快照，请等待 Codex 写入限额记录。": "No limit snapshot is available yet. Wait for Codex to record one.",
+    "等待新的限额记录。": "Waiting for a new limit record.",
+    等待新的限额记录: "Waiting for a new limit record",
+    统计数据截至: "Data as of",
+    未知: "Unknown",
+    未知时间: "Unknown time",
+    本地时区: "local time zone",
+    限额窗口边界不可用: "Limit window boundaries unavailable",
+    较昨日: "VS Yesterday",
+    较上周: "VS Last Week",
+    较上月: "VS Last Month",
+    较上一5h: "VS Previous 5h",
+    较上一7d: "VS Previous 7d",
+    较上一等长周期: "VS Previous Period",
+    暂无对比: "No Comparison",
+    "上一5h Tokens": "Previous 5h Tokens",
+    "上一7d Tokens": "Previous 7d Tokens",
+    "昨日 tokens": "Yesterday's Tokens",
+    "上周 tokens": "Last Week's Tokens",
+    "上月 tokens": "Last Month's Tokens",
+    "前一等长区间 tokens": "Previous Period's Tokens",
+    "上一周期 tokens": "Previous Period's Tokens",
+    无基准: "No baseline",
+    全部范围没有可比较的上一周期: "All-time usage has no preceding period for comparison.",
+    当前范围没有可比较的上一周期: "No preceding period is available for this range.",
+    同比流速: "Usage Pace vs. Prior Period",
+    开始: "Start",
+    现在: "Now",
+    没有匹配的用量记录: "No matching usage records",
+    所选时间范围内没有用量: "No usage in the selected period",
+    "时间范围过大，无法生成时间分布。": "The date range is too large to build the time distribution.",
+    按周合并: "merged by week",
+    按月合并: "merged by month",
+    明细未提供: "Details unavailable",
+    只按总输入与缓存读取都已知的记录计算:
+      "Calculated only from records with known total input and cache-hit token counts",
+    "缓存读取 ÷ 总输入": "Cache-hit tokens ÷ total input tokens",
+    明细不完整记录的总量: "Tokens With Incomplete Details",
+    "记录总量提示，不与各明细相加": "For reference only; do not add to the breakdown",
+    字段不一致记录的总量: "Tokens With Inconsistent Fields",
+    "涉及总量、输入/输出或缓存关系不一致": "Total, input/output, or cache figures do not reconcile",
+    明细校验差额合计: "Total Reconciliation Gap",
+    "各项差额之和，仅作质量提示": "Sum of discrepancies, shown as a data-quality indicator",
+    "Git 仓库": "Git Repository",
+    不受搜索筛选影响: "Unaffected by search",
+    全局合计: "Overall Total",
+    仓库: "Repository",
+    正序: "ascending",
+    倒序: "descending",
+    统计截至: "As of",
+    无模型用量: "No model usage",
+    不可用: "Unavailable",
+    有用量记录: "Usage found",
+    无用量记录: "No usage found",
+    可扫描: "Ready to scan",
+    没有可统计的来源: "No sources available",
+    "没有发现 Codex、ZCode、DSH、OpenCode、Claude Code 或 WorkBuddy 目录":
+      "No Codex, ZCode, DSH, OpenCode, Claude Code, or WorkBuddy directories found",
+    移除: "Remove",
+    不计入统计: "Excluded from totals",
+    切换自动刷新: "Toggle auto refresh",
+    已关闭: "Off",
+    "正在打开文件夹选择器...": "Opening folder picker…",
+    "已选择目录，可继续导入。": "Folder selected. You can import it now.",
+    "没有选择目录。": "No folder selected.",
+    "请输入目录路径。": "Enter a directory path.",
+    "正在识别目录...": "Checking directory…",
+    发现的记录目录: "Discovered record directories",
+    重新扫描: "Scan again",
+    添加其他位置: "Add another location",
+    记录目录: "Record directory",
+    输入完整目录路径: "Enter a complete directory path",
+    如何找到记录目录: "How to find your records",
+    扫描详情: "Details",
+    导入所选: "Import selected",
+    "正在查找本机记录…": "Finding local records…",
+    "选择需要导入的记录目录。": "Select the record directories to import.",
+    "没有发现新的记录目录。": "No new record directories found.",
+    "已找到记录，部分位置无法访问。": "Records found. Some locations could not be accessed.",
+    "部分位置无法访问，请选择记录目录。": "Some locations could not be accessed. Choose a record directory.",
+    "未找到记录目录，请选择记录所在位置。": "No record directories found. Choose their location.",
+    "正在读取记录…": "Reading records…",
+    "正在建立统计…": "Building statistics…",
+    "正在校验记录…": "Checking records…",
+    "正在更新看板…": "Updating dashboard…",
+    "该目录暂无可统计记录。": "This directory has no usage records yet.",
+    "看板尚未更新，请重试。": "The dashboard has not updated yet. Please retry.",
+    "在文件资源管理器地址栏输入下列位置；选择软件的记录目录，不要选择单个记录文件。":
+      "Enter a location below in the File Explorer address bar. Choose the app's record directory, rather than an individual file.",
+    "在 Finder 按 Command＋Shift＋G，输入下列位置；Command＋Shift＋. 可显示隐藏文件夹。":
+      "In Finder, press Command+Shift+G and enter a location below. Command+Shift+. shows hidden folders.",
+    "在文件管理器中打开下列位置，显示隐藏文件夹后选择记录目录。":
+      "Open a location below in your file manager, show hidden folders, and choose the record directory.",
+    "正在移除导入目录...": "Removing imported directory…",
+    "已移除导入目录，正在刷新...": "Directory removed. Refreshing…",
+    "快照已回收，正在重新冻结…": "Snapshot expired. Creating a new one…",
+    限额统计暂不可用: "Limit statistics are temporarily unavailable",
+    正在检查更新: "Checking for updates",
+    "正在检查更新…": "Checking for updates…",
+    "检测到用量变化，正在更新…": "New usage found. Updating…",
+    "正在刷新限额窗口…": "Refreshing limit window…",
+    "正在加载限额窗口…": "Loading limit window…",
+    "最近范围格式无效。请使用数字和天、周、月或年。":
+      "Invalid recent range. Enter a number followed by days, weeks, months, or years.",
+    请重启服务: "Restart the local service",
+    時間分布圖: "Usage over time chart",
+    "存在多个无法区分的 Codex 限额桶。": "Multiple Codex limit buckets cannot be distinguished.",
+    "尚未发现 Codex 限额记录。": "No Codex limit records were found.",
+    "同一观察时刻存在相互冲突的限额重置时间。": "Conflicting reset times were recorded at the same observation time.",
+    "尚未发现当前限额窗口的 Codex 记录。": "No Codex record was found for the current limit window.",
+    "限额窗口边界无效。": "The limit window boundaries are invalid.",
+    "目录需要是 Codex home、ZCode home、DSH home、OpenCode 数据目录、Claude Code home、WorkBuddy home，或包含 .codex-usage/usage.jsonl":
+      "Choose a Codex, ZCode, or DSH home directory, an OpenCode data directory, a Claude Code home, a WorkBuddy home, or a project containing .codex-usage/usage.jsonl.",
+  }),
+);
+
+// Constructing an Intl.DateTimeFormat dominates formatting cost while format() is
+// stateless, so one instance per (options object, locale) pair is reused. Callers pass
+// module-level constant option objects, which keeps the lookup allocation-free.
+const dateTimeFormatters = new WeakMap();
+
+function cachedDateTimeFormat(locale, options) {
+  let byLocale = dateTimeFormatters.get(options);
+  if (!byLocale) {
+    byLocale = new Map();
+    dateTimeFormatters.set(options, byLocale);
+  }
+  let formatter = byLocale.get(locale);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat(locale, options);
+    byLocale.set(locale, formatter);
+  }
+  return formatter;
+}
+
+const LOCAL_DATE_TIME_OPTIONS = {
+  year: "numeric",
+  month: "short",
+  day: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+};
+const ENGLISH_MONTH_OPTIONS = { month: "long", year: "numeric", timeZone: "UTC" };
+
+const englishText = (value) => localizeText(value, "en-US");
+
+const ENGLISH_PATTERNS = [
+  [
+    /^当前范围为(.+?)(?:；(.+?))?；点击切换到(.+)$/,
+    (_, current, reason, target) =>
+      `Current range: ${englishText(current)}${reason ? `. ${englishText(reason)}` : ""}. Switch to ${englishText(target.trim())}`,
+  ],
+  [/^点击切换到 (.+)$/, (_, target) => `Switch to ${englishText(target)}`],
+  [/^等待(.+)数据$/, (_, range) => `Waiting for ${englishText(range)} data`],
+  [/^(.+) 至 (.+)$/, (_, start, end) => `${englishText(start)} to ${englishText(end)}`],
+  [
+    /^(.+)年(\d{2})月$/,
+    (_, year, month) =>
+      cachedDateTimeFormat("en-US", ENGLISH_MONTH_OPTIONS).format(
+        new Date(Date.UTC(Number(year), Number(month) - 1, 1)),
+      ),
+  ],
+  [/^([\d,]+) 个会话$/, (_, n) => `${n} sessions`],
+  [
+    /^([\d,]+) 条事件(?: · ([\d,]+) 个会话)?$/,
+    (_, events, sessions) => `${events} events${sessions ? ` · ${sessions} sessions` : ""}`,
+  ],
+  [/^移除 (.+)$/, (_, name) => `Remove ${name}`],
+  [/^(.+)明细$/, (_, period) => `${englishText(period)} Details`],
+  [/^；另有 (.+) token 的记录未提供此项$/, (_, n) => `; this field is unavailable for another ${n} tokens`],
+  [/^另有 (.+) token 的记录未提供此项$/, (_, n) => `This field is unavailable for another ${n} tokens`],
+  [/^(.+)（已知部分）$/, (_, value) => `${value} (known records only)`],
+  [/^(.+)，正序$/, (_, label) => `${englishText(label)}, ascending`],
+  [/^(.+)，倒序$/, (_, label) => `${englishText(label)}, descending`],
+  [
+    /^当前先按(.+)(正序|倒序)；平手依次按其余周期倒序$/,
+    (_, label, direction) =>
+      `Sort by ${englishText(label).toLowerCase()} ${direction === "正序" ? "ascending" : "descending"}; ties follow the remaining periods in descending priority`,
+  ],
+  [/^按(.+)用量排序$/, (_, label) => `Sort by ${englishText(label).toLowerCase()} usage`],
+  [/^本地 Git 仓库优先；(.+)$/, (_, label) => `Local Git repositories first; ${englishText(label)}`],
+  [/^统计截至 (.+)$/, (_, date) => `As of ${date}`],
+  [
+    /^总计 (.+) tokens(?:，(.+)：(.+))?$/,
+    (_, n, kind, breakdown) =>
+      `Total ${n} tokens${kind ? `; ${englishText(kind).toLowerCase()}: ${breakdown.replaceAll("，", ", ")}` : ""}`,
+  ],
+  [
+    /^时间分布，(.+)堆叠 tokens(.+)；每个时间槽可查看完整日期和明细$/,
+    (_, mode, range) =>
+      `Usage over time, tokens stacked ${englishText(mode).toLowerCase()}${englishText(range)}. Inspect each interval for dates and details`,
+  ],
+  [/^，统计范围 (.+) 至 (.+)$/, (_, start, end) => `, from ${start} to ${end}`],
+  [/^(.+)明细不可用，请刷新数据。$/, (_, kind) => `${englishText(kind)} details are unavailable. Refresh the data.`],
+  [
+    /^(.+)明细不可用，(.+)$/,
+    (_, kind, action) => `${englishText(kind)} details are unavailable. ${englishText(action)}`,
+  ],
+  [
+    /^此范围超过 (.+) 个时间槽，无法生成时间分布。请缩短日期范围。$/,
+    (_, n) => `This range exceeds ${n} chart intervals and cannot build the time distribution. Shorten the range.`,
+  ],
+  [/^上次：(\d+)分钟前$/, (_, minutes) => `Last: ${minutes} min ago`],
+  [/^上次：(\d+)小时前$/, (_, hours) => `Last: ${hours} h ago`],
+  [/^保存失败：(.+)$/, (_, error) => `Could not save: ${englishText(error)}`],
+  [
+    /^选择失败：(.+)，也可以手动输入路径。$/,
+    (_, error) => `Could not choose a folder: ${englishText(error)}. You can enter the path manually.`,
+  ],
+  [/^已导入 (.+)，正在刷新\.\.\.$/, (_, name) => `Imported ${name}. Refreshing…`],
+  [/^导入失败：(.+)$/, (_, error) => `Import failed: ${englishText(error)}`],
+  [/^扫描失败：(.+)$/, (_, error) => `Scan failed: ${englishText(error)}`],
+  [/^导入所选（(\d+)）$/, (_, count) => `Import selected (${count})`],
+  [/^已导入 (\d+) 个来源。$/, (_, count) => `Imported ${count} sources.`],
+  [/^已用 (\d+) 秒$/, (_, seconds) => `${seconds}s elapsed`],
+  [/^加载失败：(.+)$/, (_, error) => `Could not load usage: ${englishText(error)}`],
+  [
+    /^检查失败：(.+)；下次继续尝试$/,
+    (_, error) => `Update check failed: ${englishText(error)}. Retrying at the next interval.`,
+  ],
+  [/^移除失败：(.+)$/, (_, error) => `Could not remove the directory: ${englishText(error)}`],
+  [/^(.+)：(.+)$/, (_, label, detail) => `${englishText(label)}: ${englishText(detail)}`],
+];
+
+const extensionServerErrors = {};
+
+/** Positions preserve the original matching order when the Waifu rules are installed. */
+export function registerLocaleExtension(englishEntries, patterns, serverErrors = {}, skipSelectors = []) {
+  for (const [source, english] of Object.entries(englishEntries)) ENGLISH.set(source, english);
+  for (const [position, rule] of patterns) ENGLISH_PATTERNS.splice(position, 0, rule);
+  Object.assign(extensionServerErrors, serverErrors);
+  if (skipSelectors.length) SKIP_USER_DATA += `, ${skipSelectors.join(", ")}`;
+}
+
+let activeLocale = "zh-CN";
+let observer = null;
+let translationScheduled = false;
+let fullPageScheduled = false;
+// Nodes queued for the next microtask, mapped to "subtree" or "attributes" work.
+const pendingRoots = new Map();
+// Pathological guard only: an attributes/text batch this wide is cheaper as one
+// whole-page pass. Self-inflicted records are filtered before they reach this cap.
+const MAX_PENDING_ROOTS = 512;
+const nodeSources = new WeakMap();
+const attributeSources = new WeakMap();
+let SKIP_USER_DATA =
+  ".home-label strong, .home-path, .source-option-label, .source-option-path, .comparison-row-label, .timeline-legend-item, .usage-tooltip-title";
+const TRANSLATED_ATTRIBUTES = ["aria-label", "title", "placeholder"];
+
+/** @param {readonly string[] | string} [languages] */
+export function localeFromLanguages(languages = []) {
+  const first = Array.isArray(languages) ? languages[0] : languages;
+  return String(first || "")
+    .toLowerCase()
+    .startsWith("zh")
+    ? "zh-CN"
+    : "en-US";
+}
+
+export function preferredLocale(
+  storage,
+  languages = globalThis.navigator?.languages || [globalThis.navigator?.language],
+) {
+  try {
+    const saved = (storage === undefined ? globalThis.localStorage : storage)?.getItem(LOCALE_STORAGE_KEY);
+    if (SUPPORTED_LOCALES.includes(saved)) return saved;
+  } catch {
+    // file:// pages and restricted browsers may deny storage.
+  }
+  return localeFromLanguages(languages);
+}
+
+export function getLocale() {
+  return activeLocale;
+}
+
+export function localizeText(value, locale = activeLocale) {
+  const input = String(value ?? "");
+  if (locale === "en-US" && input === "、") return ", ";
+  if (locale === "en-US" && input === "；") return "; ";
+  if (locale === "en-US" && input === "。") return ".";
+  if (locale !== "en-US" || !/[\u3400-\u9fff]/u.test(input)) return input;
+  const match = input.match(/^(\s*)([\s\S]*?)(\s*)$/u);
+  const before = match?.[1] || "";
+  const text = match?.[2] || input;
+  const after = match?.[3] || "";
+  if (ENGLISH.has(text)) return before + ENGLISH.get(text) + after;
+  for (const [pattern, format] of ENGLISH_PATTERNS) {
+    if (pattern.test(text)) return before + text.replace(pattern, format) + after;
+  }
+  if (text.endsWith("。")) {
+    const translated = englishText(text.slice(0, -1));
+    if (!/[\u3400-\u9fff]/u.test(translated))
+      return before + translated + (/[.!?]$/u.test(translated) ? "" : ".") + after;
+  }
+  for (const separator of [" · ", "；"]) {
+    if (!text.includes(separator)) continue;
+    const parts = text.split(separator).map(englishText);
+    if (parts.every((part) => !/[\u3400-\u9fff]/u.test(part))) {
+      return before + parts.join(separator === "；" ? "; " : " · ") + after;
+    }
+  }
+  return input;
+}
+
+export function canonicalRecentValue(value) {
+  const input = String(value || "")
+    .trim()
+    .replace(/\s+/g, " ");
+  const named = {
+    上一个7d: "上周",
+    "上一个 7d": "上周",
+    "last 7d": "上周",
+    上一个5h: "上一个5h",
+    上周: "上周",
+    上个月: "上个月",
+    今年: "今年",
+    去年: "去年",
+    "last 5h": "上一个5h",
+    "last week": "上周",
+    "last month": "上个月",
+    "this year": "今年",
+    "last year": "去年",
+  };
+  if (named[input.toLowerCase()]) return named[input.toLowerCase()];
+  const compact = input.replace(/\s+/g, "");
+  if (/^[1-9]\d*$/.test(compact)) return `${compact}天`;
+  if (compact === "半年" || compact === "一年" || /^[1-9]\d*(?:天|周|个月|年)$/.test(compact)) return compact;
+  const match = input.toLowerCase().match(/^([1-9]\d*)\s*(days?|weeks?|months?|years?)$/);
+  if (!match) return null;
+  const amount = Number(match[1]);
+  const unit = match[2];
+  if (unit.startsWith("day")) return `${amount}天`;
+  if (unit.startsWith("week")) return `${amount}周`;
+  if (unit.startsWith("month")) return amount === 6 ? "半年" : `${amount}个月`;
+  return amount === 1 ? "一年" : `${amount}年`;
+}
+
+export function displayRecentValue(value, locale = activeLocale) {
+  if (value === "上周") return localizeText("上一个7d", locale);
+  if (["上一个5h", "上周", "上个月", "今年", "去年"].includes(value)) return localizeText(value, locale);
+  if (locale !== "en-US") return String(value || "");
+  const canonical = canonicalRecentValue(value);
+  if (!canonical) return String(value || "");
+  if (canonical === "半年") return "6 months";
+  if (canonical === "一年") return "1 year";
+  const match = canonical.match(/^([1-9]\d*)(天|周|个月|年)$/);
+  if (!match) return canonical;
+  const amount = Number(match[1]);
+  const unit = { 天: "day", 周: "week", 个月: "month", 年: "year" }[match[2]];
+  return `${amount} ${unit}${amount === 1 ? "" : "s"}`;
+}
+
+export function formatLocalDateTime(value, locale = activeLocale, timeZone = undefined) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (!Number.isFinite(date.getTime())) return localizeText("未知时间", locale);
+  return cachedDateTimeFormat(
+    locale,
+    timeZone ? { ...LOCAL_DATE_TIME_OPTIONS, timeZone } : LOCAL_DATE_TIME_OPTIONS,
+  ).format(date);
+}
+
+export function localizeServerError(body, status = 0, locale = activeLocale) {
+  const importErrors = {
+    INVALID_IMPORT_MANIFEST: [
+      "数据来源清单无法读取，请检查配置文件后重试。",
+      "The source manifest could not be read. Check the configuration file and retry.",
+    ],
+    IMPORT_SCAN_FAILED: [
+      "无法读取此位置，请重试或手动选择。",
+      "This location could not be read. Retry or choose it manually.",
+    ],
+    INVALID_IMPORT_PATH: ["请输入完整的目录路径。", "Enter a complete directory path."],
+    INVALID_IMPORT_PATHS: ["请选择 1 至 64 个记录目录。", "Select 1 to 64 record directories."],
+    IMPORT_PATH_NOT_DIRECTORY: [
+      "请选择记录所在的文件夹，不要选择单个文件。",
+      "Choose the containing folder, not an individual file.",
+    ],
+    DIRECTORY_PICKER_FAILED: [
+      "无法打开文件夹选择器，请手动输入目录路径。",
+      "Could not open the folder picker. Enter the directory path manually.",
+    ],
+    DIRECTORY_PICKER_UNAVAILABLE: [
+      "请在此系统上手动输入目录路径。",
+      "Enter the directory path manually on this system.",
+    ],
+    DIRECTORY_PICKER_BUSY: ["文件夹选择器已打开。", "The folder picker is already open."],
+    IMPORT_IN_PROGRESS: ["正在导入，请等待当前导入完成。", "An import is in progress. Wait for it to finish."],
+    SOURCE_UPDATE_PENDING: [
+      "本次记录校验未完成，请重试导入。已读取的记录会保留。",
+      "Record verification did not finish. Retry the import; records already read are retained.",
+    ],
+    EACCES: [
+      "没有权限读取此目录，请选择可访问的记录目录。",
+      "This directory cannot be read. Choose an accessible record directory.",
+    ],
+    EPERM: [
+      "没有权限读取此目录，请选择可访问的记录目录。",
+      "This directory cannot be read. Choose an accessible record directory.",
+    ],
+    ENOENT: ["此目录已不存在，请重新选择。", "This directory no longer exists. Choose another location."],
+    ENOTDIR: ["请选择记录所在的文件夹。", "Choose the folder containing the records."],
+  };
+  if (importErrors[body?.code]) return importErrors[body.code][locale === "en-US" ? 1 : 0];
+  if (locale !== "en-US") return body?.error || `API ${status}`;
+  const known = {
+    INVALID_PRESET: "That time range is not supported.",
+    INVALID_BUCKET: "That chart interval is not supported.",
+    INVALID_DATE: "Enter a valid date in YYYY-MM-DD format.",
+    INVALID_DATE_RANGE: "The start date must be on or before the end date.",
+    MISSING_IMPORT_PATH: "Enter a directory path.",
+    FULL_DETAIL_UNAVAILABLE:
+      "Full detail is unavailable in low-memory mode. Restart with more memory or export a snapshot.",
+    QUOTA_WINDOW_UNAVAILABLE: "This limit window is not available yet.",
+    SNAPSHOT_EXPIRED: "This snapshot has expired.",
+    INVALID_IMPORT_DIRECTORY:
+      "Choose a Codex, ZCode, or DSH home directory, an OpenCode data directory, a Claude Code home, a WorkBuddy home, or a project with a usage log.",
+  };
+  if (body?.code && extensionServerErrors[body.code]) return extensionServerErrors[body.code];
+  if (body?.code && known[body.code]) return known[body.code];
+  if (body?.error && ENGLISH.has(body.error)) return ENGLISH.get(body.error);
+  if (status === 403) return "This operation is not allowed.";
+  if (status === 404) return "The requested resource was not found.";
+  if (status >= 500) return `The local service could not complete this request (HTTP ${status}).`;
+  return `The request could not be completed${status ? ` (HTTP ${status})` : ""}.`;
+}
+
+export function localizeQuotaReason(window, locale = activeLocale) {
+  if (locale !== "en-US") return window?.reason || "";
+  const reasons = {
+    "multiple-buckets": "Multiple Codex limit buckets cannot be distinguished.",
+    "no-records": "No Codex limit records were found.",
+    "conflicting-reset": "Conflicting reset times were recorded at the same observation time.",
+    waiting: "Waiting for a new limit record.",
+    "missing-window": "No Codex record was found for the current limit window.",
+    "invalid-boundaries": "The limit window boundaries are invalid.",
+  };
+  return reasons[window?.reasonCode] || localizeText(window?.reason || "此限额窗口当前不可用。", locale);
+}
+
+function isSkippedElement(element) {
+  return element.matches("script, style, code, pre, textarea, input, [data-i18n-skip]") && element.tagName !== "INPUT";
+}
+
+function applyAttributeTranslations(element) {
+  let attributes = attributeSources.get(element);
+  if (!attributes) {
+    attributes = new Map();
+    attributeSources.set(element, attributes);
+  }
+  for (const name of TRANSLATED_ATTRIBUTES) {
+    if (!element.hasAttribute(name)) continue;
+    const current = element.getAttribute(name) || "";
+    const entry = attributes.get(name);
+    const source = entry && current === entry.output ? entry.source : current;
+    const output = localizeText(source);
+    attributes.set(name, { source, output });
+    if (current !== output) element.setAttribute(name, output);
+  }
+}
+
+function translateTextNode(node) {
+  const parent = node.parentElement;
+  if (!parent || parent.closest(`script, style, code, pre, textarea, input, [data-i18n-skip], ${SKIP_USER_DATA}`))
+    return;
+  const current = node.nodeValue || "";
+  const entry = nodeSources.get(node);
+  const source = entry && current === entry.output ? entry.source : current;
+  const output = activeLocale === "en-US" && parent.dataset.i18nEn ? parent.dataset.i18nEn : localizeText(source);
+  nodeSources.set(node, { source, output });
+  if (current !== output) node.nodeValue = output;
+}
+
+function translateElementAttributes(element) {
+  if (isSkippedElement(element) || element.closest(SKIP_USER_DATA)) return;
+  applyAttributeTranslations(element);
+}
+
+function translateNode(node) {
+  if (node.nodeType === 3) {
+    translateTextNode(node);
+    return;
+  }
+  if (node.nodeType !== 1) return;
+  const element = node;
+  if (isSkippedElement(element)) return;
+  if (!element.closest(SKIP_USER_DATA)) applyAttributeTranslations(element);
+  for (const child of element.childNodes) translateNode(child);
+}
+
+export function translatePage(root = globalThis.document?.body) {
+  if (!root) return;
+  translateNode(root);
+}
+
+function isTextAtCachedOutput(node) {
+  const entry = nodeSources.get(node);
+  return Boolean(entry && (node.nodeValue || "") === entry.output);
+}
+
+// mode "subtree" translates the node and its descendants, "attributes" only the node's
+// translated attributes (what an attributes record can actually have changed).
+function queueTranslationRoot(node, mode) {
+  if (!node || (node.nodeType !== 1 && node.nodeType !== 3)) return;
+  // A detached subtree carries no visible text and its user-data ancestors cannot be
+  // resolved yet; inserting it later queues it again through the observer.
+  if (!node.isConnected) return;
+  if (mode === "subtree") {
+    for (const [root, rootMode] of pendingRoots) {
+      if (root === node) {
+        if (rootMode !== "subtree") pendingRoots.set(root, "subtree");
+        return;
+      }
+      if (root.contains(node)) {
+        // An attributes-only pass on an ancestor cannot cover a descendant subtree.
+        if (rootMode !== "subtree") pendingRoots.set(root, "subtree");
+        return;
+      }
+    }
+    for (const root of pendingRoots.keys()) {
+      if (node.contains(root)) pendingRoots.delete(root);
+    }
+    pendingRoots.set(node, "subtree");
+  } else {
+    for (const [root, rootMode] of pendingRoots) {
+      if (root === node || (rootMode === "subtree" && root.contains(node))) return;
+    }
+    pendingRoots.set(node, "attributes");
+  }
+  if (pendingRoots.size > MAX_PENDING_ROOTS) fullPageScheduled = true;
+}
+
+function queueMutation(mutation) {
+  const target = mutation?.target;
+  if (!target) {
+    fullPageScheduled = true;
+    return;
+  }
+  if (mutation.type === "characterData") {
+    // A record whose text still equals our own last output is already translated;
+    // re-queueing those records is what used to make the observer re-walk the page.
+    if (!isTextAtCachedOutput(target)) queueTranslationRoot(target, "subtree");
+    return;
+  }
+  if (mutation.type === "attributes") {
+    queueTranslationRoot(target, "attributes");
+    return;
+  }
+  if (mutation.type === "childList") {
+    for (const node of mutation.addedNodes) queueTranslationRoot(node, "subtree");
+    return;
+  }
+  // Unknown record shape: fall back to a whole-page pass instead of silently skipping work.
+  fullPageScheduled = true;
+}
+
+function flushTranslationQueue() {
+  const roots = [...pendingRoots];
+  const fullPage = fullPageScheduled;
+  pendingRoots.clear();
+  fullPageScheduled = false;
+  // Safety net: unclassifiable work (or a pathologically wide batch) keeps the previous
+  // "translate the whole page" behaviour, so nothing translatable is ever left behind.
+  if (fullPage) {
+    translatePage();
+    return;
+  }
+  for (const [root, mode] of roots) {
+    if (mode === "attributes") translateElementAttributes(root);
+    else translatePage(root);
+  }
+}
+
+export function setLocale(locale, { persist = true } = {}) {
+  activeLocale = locale === "en-US" ? "en-US" : "zh-CN";
+  if (globalThis.document) {
+    document.documentElement.lang = activeLocale;
+    document.documentElement.dataset.locale = activeLocale;
+    translatePage();
+  }
+  if (persist) {
+    try {
+      globalThis.localStorage?.setItem(LOCALE_STORAGE_KEY, activeLocale);
+    } catch {
+      // The selection still applies for the current page.
+    }
+  }
+  return activeLocale;
+}
+
+export function initializeLocale() {
+  const locale = preferredLocale();
+  setLocale(locale, { persist: false });
+  if (globalThis.document) {
+    document.documentElement.removeAttribute("data-i18n-pending");
+    if (typeof MutationObserver !== "undefined" && !observer) {
+      observer = new MutationObserver((mutations) => {
+        for (const mutation of mutations) queueMutation(mutation);
+        if (translationScheduled) return;
+        translationScheduled = true;
+        queueMicrotask(() => {
+          translationScheduled = false;
+          flushTranslationQueue();
+        });
+      });
+      observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+        characterData: true,
+        attributes: true,
+        attributeFilter: TRANSLATED_ATTRIBUTES,
+      });
+    }
+  }
+  return locale;
+}

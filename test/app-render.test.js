@@ -374,12 +374,28 @@ test("comparison sort cycles through descending, ascending, and default order", 
   );
 });
 
-test("auto refresh timestamps use the selected calendar zone and identify it", () => {
-  const value = "2026-01-01T12:05:30.000Z";
-  const utc = formatAutoRefreshTimestamp(value, "en-US", "utc");
-  assert.match(utc, /12:05/);
-  assert.match(utc, /UTC/);
-  assert.equal(formatAutoRefreshTimestamp("not a date", "en-US", "utc"), "");
+test("auto refresh relative time floors boundaries, caps at one day and ignores calendar zone", () => {
+  const now = Date.parse("2026-11-16T12:00:00Z");
+  const cases = [
+    [null, "上次：尚无", "Last: never"],
+    [undefined, "上次：尚无", "Last: never"],
+    ["not a date", "上次：尚无", "Last: never"],
+    [new Date(Number.NaN), "上次：尚无", "Last: never"],
+    [now + 60_000, "上次：刚刚", "Last: just now"],
+    [now - 59_000, "上次：刚刚", "Last: just now"],
+    [now - 60_000, "上次：1分钟前", "Last: 1 min ago"],
+    [now - 3_599_000, "上次：59分钟前", "Last: 59 min ago"],
+    [now - 3_600_000, "上次：1小时前", "Last: 1 h ago"],
+    [now - 86_399_000, "上次：23小时前", "Last: 23 h ago"],
+    [now - 86_400_000, "上次：大于1天", "Last: >1 day"],
+    [now - 300 * 86_400_000, "上次：大于1天", "Last: >1 day"],
+  ];
+  for (const [value, chinese, english] of cases) {
+    for (const zone of ["local", "utc"]) {
+      assert.equal(formatAutoRefreshTimestamp(value, "zh-CN", zone, now), chinese);
+      assert.equal(formatAutoRefreshTimestamp(value, "en-US", zone, now), english);
+    }
+  }
 });
 
 test("natural week comparison headings and accessible sort labels use 本周", () => {

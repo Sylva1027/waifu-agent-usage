@@ -162,8 +162,7 @@ input::placeholder {
 
 .metric strong,
 .comparison-total-button,
-#lastSuccessfulCheck,
-#autoRefreshInterval {
+#lastSuccessfulCheck {
   font-variant-numeric: lining-nums tabular-nums;
 }
 
@@ -294,22 +293,20 @@ label {
   line-height: 19px;
 }
 
-.auto-refresh-label {
-  color: var(--muted);
-}
-
 #autoRefreshToggle {
+  flex-shrink: 0;
   min-height: 19px;
   padding: 0 2px;
   border: 0;
   border-radius: 3px;
   background: transparent;
-  /* 开=主题青（--record），关=关闭状态色（--red） */
+  /* 开启用主题青，暂停沿用关闭色与删除线。 */
   color: var(--record);
   font-size: inherit;
   font-weight: 650;
   text-decoration: underline;
   text-underline-offset: 3px;
+  white-space: nowrap;
   cursor: pointer;
 }
 
@@ -390,13 +387,11 @@ label {
 
 #autoRefreshToggle[aria-pressed="false"] {
   color: var(--red);
+  text-decoration: line-through;
 }
 
-#autoRefreshInterval {
-  white-space: nowrap;
-}
-
-#lastSuccessfulCheck {
+#lastSuccessfulCheck,
+#runtimeStatusText {
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -636,26 +631,6 @@ label {
   line-height: 19px;
 }
 
-#calendarZoneSelect {
-  width: auto;
-  min-width: 112px;
-  min-height: 30px;
-  height: 30px;
-  padding: 0 28px 0 9px;
-  color: var(--muted);
-  font-size: 13px;
-  font-weight: 700;
-  line-height: 19px;
-  cursor: pointer;
-}
-#calendarZoneSelect:hover,
-#calendarZoneSelect:focus-visible {
-  color: var(--blue);
-}
-#calendarZoneSelect:focus-visible {
-  outline: 2px solid var(--blue);
-  outline-offset: 3px;
-}
 .calendar-zone-arrow {
   position: absolute;
   right: 10px;
@@ -1631,6 +1606,11 @@ details.panel:not([open]) > .panel-heading {
   display: none;
 }
 
+.dialog-backdrop,
+dialog::backdrop {
+  backdrop-filter: blur(2px);
+}
+
 .dialog {
   width: min(520px, 100%);
   padding: 18px;
@@ -2555,6 +2535,11 @@ select:focus-visible {
 
 .comparison-item .metric-unit {
   color: inherit;
+}
+
+.metric .metric-unit-prefix {
+  margin-right: 0.2em;
+  margin-left: 0;
 }
 
 .metric .metric-new {
@@ -3603,6 +3588,10 @@ main.shell .period-comparison-table > .empty {
 
 .dialog-heading {
   min-width: 0;
+}
+
+.dialog-heading h2[tabindex="-1"] {
+  outline: none;
 }
 
 .dialog-copy,

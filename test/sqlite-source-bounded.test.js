@@ -1,14 +1,15 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
+import { sourceAdapterDigest } from "../test-support/source-adapter-digest.mjs";
+import frozenDigests from "./fixtures/source-adapters/digests.json" with { type: "json" };
 
 import { parseOpencodeDb, streamOpencodeDbEvents } from "../src/opencode-usage.js";
 import { UsageSourceRows } from "../src/usage-source-rows.js";
 import { parseZcodeDb, streamZcodeDbEvents } from "../src/zcode-usage.js";
-import { API_PRICING_VERSION } from "../src/pricing.js";
 
 const TIME = Date.parse("2026-10-20T12:00:00Z");
 const adapters = {
@@ -20,8 +21,6 @@ const adapters = {
     usage: "session_message",
   },
 };
-const frozenRoot = new URL("../output/remaining-harnesses-20261105/baseline/src/", import.meta.url);
-const frozenAvailable = Object.keys(adapters).every((kind) => existsSync(new URL(`${kind}-usage.js`, frozenRoot)));
 const repositoryResolver = async (cwd) => ({ key: `directory:${cwd}`, path: cwd, kind: "directory" });
 
 function data(overrides = {}) {
@@ -92,7 +91,7 @@ function fixture(
     if (metadata === "missing-column") database.exec(`ALTER TABLE ${adapter.sessions} DROP COLUMN version`);
   }
   for (const row of rows) insert(database, adapter.usage, row);
-  return { file, database, source: { id: kind, label: kind, path: root, kind } };
+  return { caseName: t.name, file, database, source: { id: kind, label: kind, path: root, kind } };
 }
 
 async function collect(stream, input, consumer) {
@@ -110,20 +109,16 @@ async function collect(stream, input, consumer) {
   return { events, warnings };
 }
 
-async function frozen(kind) {
-  const module = await import(new URL(`${kind}-usage.js`, frozenRoot).href);
-  return kind === "zcode"
-    ? { stream: module.streamZcodeDbEvents, parse: module.parseZcodeDb }
-    : { stream: module.streamOpencodeDbEvents, parse: module.parseOpencodeDb };
-}
-
-function currentPriceRevision(result) {
-  // Keep the frozen extraction/amount oracle while accounting for the intentional catalog revision.
-  for (const event of result.events) {
-    assert.equal(event.priceVersion, "2026-10-12");
-    event.priceVersion = API_PRICING_VERSION;
-  }
-  return result;
+function assertFrozen(input, phase, actual) {
+  const key = `sqlite/${input.caseName}/${phase}`;
+  assert.equal(
+    sourceAdapterDigest(actual, [
+      [input.file, "<source>"],
+      [input.source.path, "<home>"],
+    ]),
+    frozenDigests[key],
+    key,
+  );
 }
 
 async function assertParity(kind, input) {
@@ -135,21 +130,8 @@ async function assertParity(kind, input) {
   });
   assert.deepEqual(actualWarnings, actual.warnings);
   assert.equal(parsed.events.length, actual.events.length);
-  if (frozenAvailable) {
-    const old = await frozen(kind);
-    assert.deepEqual(actual, currentPriceRevision(await collect(old.stream, input)));
-    const oldWarnings = [];
-    assert.deepEqual(
-      parsed,
-      currentPriceRevision(
-        await old.parse(input.file, input.source, {
-          repositoryResolver,
-          onWarning: (warning) => oldWarnings.push(warning),
-        }),
-      ),
-    );
-    assert.deepEqual(actualWarnings, oldWarnings);
-  }
+  assertFrozen(input, "stream", actual);
+  assertFrozen(input, "parse", parsed);
   return actual;
 }
 
@@ -309,7 +291,7 @@ for (const kind of Object.keys(adapters)) {
       const long = actual.events.find((event) => event.sessionId === "spaced");
       assert.deepEqual(
         [long.project, long.conversationName, long.contextLevel, long.requestInputTokens],
-        ["", "", "long", 300000],
+        ["", "", "known", 300000],
       );
       assert.deepEqual(
         [long.cacheWriteTokens, long.cacheWriteKnown, long.detailMask],
@@ -448,8 +430,7 @@ for (const kind of Object.keys(adapters)) {
         [165, 165, 215],
       );
       assert.deepEqual(after.warnings, []);
-      if (frozenAvailable)
-        assert.deepEqual(after, currentPriceRevision(await collect((await frozen(kind)).stream, input)));
+      assertFrozen(input, "after", after);
       const checkpoint = input.database.prepare("PRAGMA wal_checkpoint(TRUNCATE)").get();
       assert.equal(checkpoint.busy, 0, "snapshot must release its WAL reader");
     });

@@ -1,0 +1,239 @@
+#achievementDialog .detail-panel {
+  display: block;
+  height: auto;
+  min-height: 0;
+  max-height: none;
+  overflow: visible;
+  padding: 20px;
+  text-align: center;
+  min-width: 0;
+  border-color: transparent;
+}
+
+[data-theme="dark"] #achievementDialog .detail-panel {
+  box-shadow: 0 6px 14px #00000038;
+}
+
+#achievementDialog .detail-panel > .badge {
+  width: 120px;
+  height: 120px;
+  margin: 0 auto 8px;
+}
+
+#achievementDialog .detail-panel h3 {
+  font-size: 20px;
+  line-height: 1.4;
+  font-weight: 600;
+  margin: 5px 0 17px;
+  overflow-wrap: anywhere;
+}
+
+#achievementDialog .detail-panel.is-locked h3 {
+  color: color-mix(in srgb, var(--ink) 48%, var(--well));
+}
+
+#achievementDialog .detail-flavor {
+  font-size: 12px;
+  line-height: 19px;
+  color: var(--muted);
+  min-height: 38px;
+  white-space: pre-wrap;
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
+  margin: 0 0 17px;
+}
+
+#achievementDialog .flavor-attribution,
+#achievementDialog .flavor-word {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+#achievementDialog .tier-ladder {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+}
+
+#achievementDialog .tier-slot {
+  min-width: 0;
+  display: grid;
+  place-items: center;
+}
+
+#achievementDialog .metal-swatch {
+  width: 75%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  border-radius: 7px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-size: 12px;
+  font-weight: 650;
+  color: #30251b;
+  border: 1px solid #ffffff38;
+  box-shadow:
+    inset 0 1px 1px #ffffff99,
+    inset 0 -2px 2px #0004,
+    0 3px 6px #0003;
+  text-shadow: 0 1px 1px #ffffff60;
+  background:
+    repeating-linear-gradient(0deg, #ffffff0a 0px, #ffffff0a 0.5px, #00000012 0.7px, transparent 1.6px),
+    linear-gradient(
+      125deg,
+      var(--metal-dark),
+      var(--metal-light) 24%,
+      var(--metal-mid) 48%,
+      var(--metal-light) 71%,
+      var(--metal-dark)
+    );
+}
+
+#achievementDialog .metal-swatch::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 30%, #ffffff35 45%, transparent 58%);
+  pointer-events: none;
+}
+
+/* Match the S07 badge rims, including the neutral silver. */
+#achievementDialog .metal-swatch.bronze {
+  --metal-dark: #9c6647;
+  --metal-mid: #ad7655;
+  --metal-light: #cd8a65;
+}
+
+#achievementDialog .metal-swatch.silver {
+  --metal-dark: #9f9f9e;
+  --metal-mid: #b0aeaf;
+  --metal-light: #c6c4c4;
+  color: #2d2c2b;
+}
+
+#achievementDialog .metal-swatch.gold {
+  --metal-dark: #ae8855;
+  --metal-mid: #be985f;
+  --metal-light: #d7b279;
+}
+
+#achievementDialog .tier-check {
+  position: absolute;
+  right: 3px;
+  top: 2px;
+  font-size: 8px;
+  line-height: 1;
+  z-index: 1;
+}
+
+#achievementDialog .detail-progress {
+  text-align: left;
+  margin-top: 19px;
+}
+
+#achievementDialog .progress-meta {
+  display: flex;
+  justify-content: flex-end;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--muted);
+  margin-bottom: 7px;
+}
+
+#achievementDialog .progress-meta > span:last-child {
+  color: var(--ink);
+  text-align: right;
+}
+
+#achievementDialog .progress-track {
+  height: 5px;
+  background: var(--well);
+  box-shadow:
+    inset 1px 2px 4px var(--shade),
+    inset -1px -1px 1px var(--rim);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+#achievementDialog .progress-track > i {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  opacity: 0.7;
+  border-radius: inherit;
+}
+
+#achievementDialog .detail-date {
+  color: var(--faint);
+  font-size: 11px;
+  margin-top: 15px;
+}
+
+@media (max-width: 850px) {
+  #achievementDialog .detail-panel {
+    padding: 17px;
+  }
+
+  #achievementDialog .detail-panel h3 {
+    font-size: 18px;
+  }
+}
+
+@media (max-height: 680px) {
+  #achievementDialog .detail-panel {
+    min-height: 264px;
+    width: 100%;
+    display: grid;
+    grid-template-columns: 72px minmax(0, 1fr);
+    grid-template-rows: auto auto auto auto auto auto;
+    gap: 6px 12px;
+    padding: 14px;
+    text-align: left;
+    align-items: center;
+  }
+
+  #achievementDialog .detail-panel > .badge {
+    width: 72px;
+    height: 72px;
+    margin: 0;
+    grid-column: 1;
+    grid-row: 1 / 3;
+  }
+
+  #achievementDialog .detail-panel > h3 {
+    grid-column: 2;
+    grid-row: 1 / 3;
+    margin: 0;
+    font-size: 17px;
+    align-self: center;
+  }
+
+  #achievementDialog .detail-panel > .detail-flavor {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    margin: 0;
+  }
+
+  #achievementDialog .detail-panel > .tier-ladder {
+    grid-column: 1 / -1;
+    grid-row: 4;
+  }
+
+  #achievementDialog .detail-panel > .detail-progress {
+    grid-column: 1 / -1;
+    grid-row: 5;
+    margin: 0;
+  }
+
+  #achievementDialog .detail-panel > .detail-date {
+    grid-column: 1 / -1;
+    grid-row: 6;
+    margin: 0;
+    font-size: 10px;
+  }
+}

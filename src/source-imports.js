@@ -14,9 +14,9 @@ import {
   discoverZcodeHomes,
   importPathIdentity,
   sourceId,
-} from "./usage-core.js";
+} from "./usage-sources.js";
 
-export { importPathIdentity } from "./usage-core.js";
+export { importPathIdentity } from "./usage-sources.js";
 
 function importError(code, message, sourcePath = "") {
   return Object.assign(new Error(message), { code, path: sourcePath, statusCode: 400 });

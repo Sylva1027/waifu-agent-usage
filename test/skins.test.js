@@ -759,9 +759,32 @@ test("picker mini previews derive all nine colors from production tokens in both
   }
 });
 
-test("webp mime type is registered so the copies are served correctly", () => {
-  const server = readFileSync(path.join(root, "src/server.js"), "utf8");
+test("webp mime type is registered so the copies are served correctly", async (t) => {
+  const server = readFileSync(path.join(root, "src/server-core.js"), "utf8");
   assert.match(server, /\["\.webp",\s*"image\/webp"\]/);
+  const { createUsageServer } = await import("../src/server.js");
+  const { listenOnFetchPort } = await import("../test-support/fetch-port.mjs");
+  const homeDir = mkdtempSync(path.join(tmpdir(), "skin-mime-"));
+  const instance = createUsageServer({
+    homeDir,
+    env: {},
+    automaticDiscoveryEnabled: false,
+    pricingRefreshSchedulerEnabled: false,
+    achievementsEnabled: false,
+  });
+  t.after(async () => {
+    await instance.close();
+    rmSync(homeDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
+  });
+  await listenOnFetchPort(instance);
+  const asset = skinAssetUrl("chatgpt", "dark", "side");
+  const response = await fetch(`http://127.0.0.1:${instance.address().port}${asset}`);
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("content-type"), "image/webp");
+  assert.equal(
+    sha256(Buffer.from(await response.arrayBuffer())),
+    sha256(readFileSync(path.join(root, "public", asset))),
+  );
 });
 
 test("skin artwork URLs come from the shared runtime registry", () => {
@@ -912,9 +935,7 @@ test("per-image display parameters are re-derived from the recorded ink measurem
   // were the material ones), which silently mis-sized those views. Re-derive
   // every single value from `ink-bounds.json` so a transcription slip cannot
   // reach the page again.
-  const measured = JSON.parse(
-    readFileSync(path.join(root, "docs/validation/2026-10-02-model-character-skins/ink-bounds.json"), "utf8"),
-  );
+  const measured = JSON.parse(readFileSync(path.join(root, "test/fixtures/skins/ink-bounds.json"), "utf8"));
   const byFile = new Map(measured.map((entry) => [entry.file, entry]));
   const prefixes = {
     chatgpt: "ChatGPT",
@@ -945,6 +966,7 @@ test("per-image display parameters are re-derived from the recorded ink measurem
         assert.equal(params.anchorX, ink.inkCenterXFraction, `${id}/${mode}/${view} anchorX must be the ink centre`);
         assert.equal(params.inkWidth, ink.inkWidthFraction, `${id}/${mode}/${view} inkWidth must match`);
         assert.equal(params.inkHeight, ink.inkHeightFraction, `${id}/${mode}/${view} inkHeight must match`);
+        assert.equal(params.inkTop, ink.inkTopFraction, `${id}/${mode}/${view} inkTop must match`);
       }
     }
   }
@@ -1013,7 +1035,7 @@ test("missing or invalid face geometry retains the static fallback", () => {
   }
 });
 
-// Reviewed palettes, including the user-requested swap and dark materials on 2026-11-12.
+// Palette snapshots, including Qwen/Mimo/Muse dark surface contrast adjusted on 2026-11-16.
 test("all twenty production palettes match the current approved colors", () => {
   const rows = [
     [
@@ -1254,18 +1276,18 @@ test("all twenty production palettes match the current approved colors", () => {
       "qwen",
       "dark",
       [
-        "#101211",
-        "#1A1D1C",
-        "#242726",
-        "#2B2D2C",
-        "#040605",
+        "#0D100E",
+        "#272B29",
+        "#3D4340",
+        "#454B48",
+        "#020403",
         "#E8F2EB",
-        "#B1BAB3",
+        "#C4CEC7",
         "#6CCDAE",
-        "#1A1D1C",
-        "#242726",
+        "#272B29",
+        "#3D4340",
         "#E8F2EB",
-        "#B1BAB3",
+        "#C4CEC7",
       ],
     ],
     [
@@ -1326,18 +1348,18 @@ test("all twenty production palettes match the current approved colors", () => {
       "muse",
       "dark",
       [
-        "#0D1012",
-        "#161A1C",
-        "#222628",
-        "#25292B",
-        "#040607",
+        "#0C0F11",
+        "#272B2E",
+        "#3E4549",
+        "#464D51",
+        "#020405",
         "#E4F1F9",
-        "#ADB9C1",
+        "#C4CED5",
         "#8CB9FF",
-        "#161A1C",
-        "#222628",
+        "#272B2E",
+        "#3E4549",
         "#E4F1F9",
-        "#ADB9C1",
+        "#C4CED5",
       ],
     ],
     [
@@ -1362,18 +1384,18 @@ test("all twenty production palettes match the current approved colors", () => {
       "mimo",
       "dark",
       [
-        "#161514",
-        "#201F1F",
-        "#282727",
-        "#2C2B2B",
-        "#060505",
+        "#100F0E",
+        "#2C2A29",
+        "#45413F",
+        "#4D4947",
+        "#030202",
         "#F2EDEC",
-        "#BBB6B4",
+        "#CCC6C3",
         "#FF996C",
-        "#201F1F",
-        "#282727",
+        "#2C2A29",
+        "#45413F",
         "#F2EDEC",
-        "#BBB6B4",
+        "#CCC6C3",
       ],
     ],
   ];

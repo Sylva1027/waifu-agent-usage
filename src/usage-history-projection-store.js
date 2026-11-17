@@ -5,7 +5,6 @@ import { DatabaseSync } from "node:sqlite";
 import { setTimeout } from "node:timers/promises";
 import { UsageHistoryQuery } from "./usage-history-query.js";
 import { ensureUsageAllSummarySchema, markStoredHistoryAllSummaryDirty } from "./usage-all-summary-store.js";
-import { ensureUsageRecordSchema, markStoredHistoryRecordsDirty } from "./usage-record-store.js";
 
 const FORMAT = 1;
 const STATE = "usage_history_projection_inputs";
@@ -222,6 +221,20 @@ const CACHE_FORMAT = 1;
 const SOURCE_CURSORS = "usage_history_projection_sources";
 const AUX_TABLES = ["store_meta", "source_files", "archive_segments", "rate_limit_observations", "quota_usage_sources"];
 const quote = (name) => `"${String(name).replaceAll('"', '""')}"`;
+
+// UsageHistoryQuery's schema capture must not copy unrelated derived tables from an older/full source.
+function projectionSource(source) {
+  const names = [...AUX_TABLES, "events", "usage_business_revision", "usage_metadata_format", "usage_source_reparse"];
+  return {
+    exec: (sql) => source.exec(sql),
+    prepare(sql) {
+      if (sql.startsWith("SELECT name,sql FROM sqlite_master WHERE type=")) {
+        sql += ` AND (tbl_name IN (${names.map((name) => `'${name}'`).join(",")}) OR tbl_name GLOB 'usage_rollup_*')`;
+      }
+      return source.prepare(sql);
+    },
+  };
+}
 
 function copyRows(source, destination, table, where = "", params = []) {
   const preserveRowid = ["rate_limit_observations", "quota_usage_sources"].includes(table);
@@ -588,7 +601,7 @@ export class HistoryProjectionStore {
     source.exec("SAVEPOINT history_projection_capture");
     try {
       captured = readHistoryProjectionStamp(source);
-      query = new UsageHistoryQuery(source, this.canonicalPayload, {
+      query = new UsageHistoryQuery(projectionSource(source), this.canonicalPayload, {
         databaseFile: path.join(this.directory, file),
         calendar,
       });
@@ -635,75 +648,81 @@ export class HistoryProjectionStore {
     for (const row of rows) insert.run(segmentId, sourcePath, JSON.stringify(this.canonicalPayload(row, ["id"])));
   }
 
+  ensureDerivedSchema(database) {
+    ensureUsageAllSummarySchema(database, { mode: "history" });
+  }
+
+  markDerivedDirty(database, dirty) {
+    markStoredHistoryAllSummaryDirty(database, dirty);
+  }
+
   applyDelta(prepared, columns, project) {
     const { query, delta } = prepared,
       database = query.database,
       captured = delta.database;
-    ensureUsageAllSummarySchema(database, { mode: "history" });
-    ensureUsageRecordSchema(database, { mode: "history" });
-    database.exec("BEGIN IMMEDIATE");
     try {
-      for (const [from, to] of delta.rebindings) {
-        if (!this.imported(query, from) || this.imported(query, to))
-          throw new Error("Archive projection identity mapping is stale");
-        database.prepare("UPDATE history_query_rows SET segment_id=? WHERE segment_id=?").run(to, from);
-        database.prepare(`UPDATE ${IMPORTED} SET segment_id=? WHERE segment_id=?`).run(to, from);
-      }
-      for (const row of captured.prepare("SELECT * FROM changed_sources").iterate()) {
-        const rows = captured.prepare("SELECT * FROM events WHERE source_path=? ORDER BY id").iterate(row.path);
-        if (row.mode === "append") query.add(rows, "hot");
-        else query.replaceRows("hot", String(row.path), rows);
-        database
-          .prepare(`INSERT INTO ${SOURCE_CURSORS} VALUES(?,?)
-          ON CONFLICT(source_path) DO UPDATE SET last_id=excluded.last_id`)
-          .run(row.path, row.last_id);
-      }
-      for (const row of captured.prepare("SELECT * FROM changed_cold_sources").iterate()) {
-        const rows = captured
-          .prepare("SELECT payload FROM cold_rows WHERE segment_id=? AND source_path=?")
-          .iterate(row.segment_id, row.source_path);
-        function* decoded() {
-          for (const value of rows) yield JSON.parse(String(value.payload));
+      this.ensureDerivedSchema(database);
+      database.exec("BEGIN IMMEDIATE");
+      try {
+        for (const [from, to] of delta.rebindings) {
+          if (!this.imported(query, from) || this.imported(query, to))
+            throw new Error("Archive projection identity mapping is stale");
+          database.prepare("UPDATE history_query_rows SET segment_id=? WHERE segment_id=?").run(to, from);
+          database.prepare(`UPDATE ${IMPORTED} SET segment_id=? WHERE segment_id=?`).run(to, from);
         }
-        query.replaceRows(String(row.segment_id), String(row.source_path), decoded());
-      }
-      replaceAuxiliary(captured, database, delta.fullAuxiliary);
-      database.exec(`CREATE TEMP TABLE IF NOT EXISTS history_projection_dirty_times(timestamp_ms INTEGER PRIMARY KEY);
+        for (const row of captured.prepare("SELECT * FROM changed_sources").iterate()) {
+          const rows = captured.prepare("SELECT * FROM events WHERE source_path=? ORDER BY id").iterate(row.path);
+          if (row.mode === "append") query.add(rows, "hot");
+          else query.replaceRows("hot", String(row.path), rows);
+          database
+            .prepare(`INSERT INTO ${SOURCE_CURSORS} VALUES(?,?)
+          ON CONFLICT(source_path) DO UPDATE SET last_id=excluded.last_id`)
+            .run(row.path, row.last_id);
+        }
+        for (const row of captured.prepare("SELECT * FROM changed_cold_sources").iterate()) {
+          const rows = captured
+            .prepare("SELECT payload FROM cold_rows WHERE segment_id=? AND source_path=?")
+            .iterate(row.segment_id, row.source_path);
+          function* decoded() {
+            for (const value of rows) yield JSON.parse(String(value.payload));
+          }
+          query.replaceRows(String(row.segment_id), String(row.source_path), decoded());
+        }
+        replaceAuxiliary(captured, database, delta.fullAuxiliary);
+        database.exec(`CREATE TEMP TABLE IF NOT EXISTS history_projection_dirty_times(timestamp_ms INTEGER PRIMARY KEY);
         DELETE FROM history_projection_dirty_times;
         INSERT INTO history_projection_dirty_times SELECT timestamp_ms FROM history_query_changes WHERE added<>0 OR removed<>0`);
-      const work = query.finishChanges(columns, project);
-      if (delta.recalendar) {
-        const write = database.prepare(
-          "UPDATE events SET project=?,hour_key=?,day_key=?,week_key=?,month_key=? WHERE id=?",
-        );
-        for (const row of database
-          .prepare("SELECT event_id,payload FROM history_query_rows ORDER BY rowid")
-          .iterate()) {
-          const event = project(JSON.parse(String(row.payload)));
-          write.run(event.project, event.hour_key, event.day_key, event.week_key, event.month_key, row.event_id);
+        const work = query.finishChanges(columns, project);
+        if (delta.recalendar) {
+          const write = database.prepare(
+            "UPDATE events SET project=?,hour_key=?,day_key=?,week_key=?,month_key=? WHERE id=?",
+          );
+          for (const row of database
+            .prepare("SELECT event_id,payload FROM history_query_rows ORDER BY rowid")
+            .iterate()) {
+            const event = project(JSON.parse(String(row.payload)));
+            write.run(event.project, event.hour_key, event.day_key, event.week_key, event.month_key, row.event_id);
+          }
+          // Existing calendar proofs and derived memberships must be re-certified from retained facts.
+          database.exec("DELETE FROM usage_rollup_days; DELETE FROM usage_rollup_dirty_days");
+          database.prepare("DELETE FROM store_meta WHERE key='usage_rollup_local_zone_identity'").run();
+          const first = database.prepare("SELECT MIN(timestamp_ms) AS ms FROM events").get();
+          if (first.ms !== null) work.dirty = { ms: Number(first.ms), id: Number.MIN_SAFE_INTEGER };
+          this.work.recalendar = true;
         }
-        // Existing calendar proofs and derived memberships must be re-certified from retained facts.
-        database.exec("DELETE FROM usage_rollup_days; DELETE FROM usage_rollup_dirty_days");
-        database.prepare("DELETE FROM store_meta WHERE key='usage_rollup_local_zone_identity'").run();
-        const first = database.prepare("SELECT MIN(timestamp_ms) AS ms FROM events").get();
-        if (first.ms !== null) work.dirty = { ms: Number(first.ms), id: Number.MIN_SAFE_INTEGER };
-        this.work.recalendar = true;
-      }
-      if (work?.dirty) {
-        database.prepare("UPDATE usage_business_revision SET revision=revision+1 WHERE singleton=1").run();
-        markStoredHistoryAllSummaryDirty(database, work.dirty);
-        for (const row of database.prepare("SELECT timestamp_ms FROM history_projection_dirty_times").iterate()) {
-          markStoredHistoryRecordsDirty(database, { ms: Number(row.timestamp_ms), id: Number.MIN_SAFE_INTEGER });
+        if (work?.dirty) {
+          database.prepare("UPDATE usage_business_revision SET revision=revision+1 WHERE singleton=1").run();
+          this.markDerivedDirty(database, work.dirty);
         }
+        database.exec("DELETE FROM history_projection_dirty_times");
+        saveHeader(query, delta.identity, delta.stamp, delta.calendar, "ready");
+        database.exec("COMMIT");
+        this.work.delta = work;
+        return work;
+      } catch (error) {
+        database.exec("ROLLBACK");
+        throw error;
       }
-      database.exec("DELETE FROM history_projection_dirty_times");
-      saveHeader(query, delta.identity, delta.stamp, delta.calendar, "ready");
-      database.exec("COMMIT");
-      this.work.delta = work;
-      return work;
-    } catch (error) {
-      database.exec("ROLLBACK");
-      throw error;
     } finally {
       captured.close();
       delta.database = null;
@@ -711,8 +730,7 @@ export class HistoryProjectionStore {
   }
 
   publish(source, prepared, identity, calendar) {
-    ensureUsageAllSummarySchema(prepared.query.database, { mode: "history" });
-    ensureUsageRecordSchema(prepared.query.database, { mode: "history" });
+    this.ensureDerivedSchema(prepared.query.database);
     if (!sameHistoryProjectionStamp(readHistoryProjectionStamp(source), prepared.stamp)) {
       if (prepared.rebuilding) saveHeader(prepared.query, identity, prepared.stamp, calendar, "ready");
       this.work.superseded = true;

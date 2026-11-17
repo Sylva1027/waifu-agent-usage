@@ -8,6 +8,8 @@ import { createHistoryArchiveCandidate, prepareHistoryArchiveCommit } from "../s
 import { getPricingCatalog, setPricingCatalog } from "../src/pricing.js";
 import { readHistoryProjectionStamp, recordHistoryProjectionBatch } from "../src/usage-history-projection-store.js";
 import { UsageStore } from "../src/usage-store.js";
+import { UsageReader } from "../src/usage-reader.js";
+import { WaifuUsageQueries } from "../src/waifu/usage-reader.js";
 
 const DAY = 86_400_000;
 const START = Date.parse("2026-11-01T00:00:00Z");
@@ -70,8 +72,8 @@ async function fixture(t) {
   for (const file of packages)
     await store.commitHistoryArchiveEvents(await prepareHistoryArchiveCommit(store.database, file));
   let aggregations = 0;
-  const aggregate = UsageStore.prototype.periodAggregate;
-  t.mock.method(UsageStore.prototype, "periodAggregate", function (...args) {
+  const aggregate = WaifuUsageQueries.prototype.periodAggregate;
+  t.mock.method(WaifuUsageQueries.prototype, "periodAggregate", function (...args) {
     if (this.historyPersistentRead && args[0] === "model") aggregations++;
     return aggregate.apply(this, args);
   });
@@ -99,6 +101,46 @@ async function fixture(t) {
     },
   };
 }
+
+test("the pure reader queries a real two-package mixed view without maintaining business state", async (t) => {
+  const f = await fixture(t);
+  const dashboard = await f.store.withSqlHistoryReader((current) => {
+    assert.equal(current instanceof UsageStore, false);
+    for (const key of ["sourceProof", "sourceAcquisition", "repositoryResolver", "options"])
+      assert.equal(key in current, false);
+    const database = current.database;
+    const before = database.prepare("SELECT revision FROM usage_business_revision WHERE singleton=1").get().revision;
+    const reader = new UsageReader({
+      database,
+      homes: current.homes,
+      generatedAt: current.generatedAt,
+      warnings: current.warnings,
+      quotaSourceEvidence: current.quotaSourceEvidence,
+      sourceKinds: current.historySourceKinds,
+      verifiedHistorySqlRead: current.verifiedHistorySqlRead,
+      historyDiskRead: current.historyDiskRead,
+      historyPersistentRead: current.historyPersistentRead,
+    });
+    try {
+      const result = reader.dashboard(FILTERS, OPTIONS);
+      assert.equal(
+        database.prepare("SELECT revision FROM usage_business_revision WHERE singleton=1").get().revision,
+        before,
+      );
+      return result;
+    } finally {
+      reader.close();
+    }
+  });
+  assert.equal(dashboard.summary.totals.total, 33);
+  assert.equal(dashboard.periodComparison.totals.all.total, 77);
+  assert.equal(dashboard.metadata.eventCount, 6);
+  for (const name of ["costEstimate", "rangeMetrics", "records"]) assert.equal(name in dashboard.summary, false);
+  assert.equal(
+    dashboard.periodComparison.models.some((model) => model.name === "period-reuse-future"),
+    true,
+  );
+});
 
 test("two real archives reuse one period aggregation from today to all with exact dashboard parity", async (t) => {
   const f = await fixture(t);

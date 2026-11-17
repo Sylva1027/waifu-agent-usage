@@ -2,12 +2,8 @@ import { setSummaryFilters, summarize } from "../test-support/summary-reference.
 import assert from "node:assert/strict";
 import test from "node:test";
 import { resolveDateRange, selectQuotaWindows, summarizeUsage } from "../src/usage-core.js";
-import {
-  resolveNamedRecentRange,
-  hasSelectedCodexSource,
-  quotaRecordsForRange,
-  quotaRecordValues,
-} from "../public/timeline-utils.js";
+import { resolveNamedRecentRange, hasSelectedCodexSource } from "../public/timeline-utils.js";
+import { quotaRecordsForRange, quotaRecordValues } from "../public/waifu-timeline.js";
 import { nextRecentState } from "../public/app.js";
 
 const now = new Date("2026-09-26T12:00:00Z");

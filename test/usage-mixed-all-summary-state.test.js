@@ -5,15 +5,19 @@ import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 
-import { buildTimelineRows, sourceGroup } from "../public/timeline-utils.js";
+import { sourceGroup } from "../public/timeline-utils.js";
+import { buildTimelineRows } from "../public/waifu-timeline.js";
 import { createCostEstimateAccumulator } from "../src/pricing.js";
 import {
   buildStoredAllSummary,
   ensureUsageAllSummarySchema,
-  markStoredHistoryAllSummaryDirty,
+  markStoredHistoryAllSummaryDirty as markHistoryDirty,
   readStoredAllSummary,
-  USAGE_HISTORY_ALL_SUMMARY_TABLE_NAMES,
 } from "../src/usage-all-summary-store.js";
+import {
+  createWaifuAllSummaryExtension,
+  WAIFU_HISTORY_ALL_SUMMARY_TABLE_NAMES as USAGE_HISTORY_ALL_SUMMARY_TABLE_NAMES,
+} from "../src/waifu/usage-all-summary.js";
 
 const BASE = Date.parse("2026-07-01T02:00:00Z");
 const DAY = 86400_000;
@@ -47,6 +51,10 @@ const pricing = {
   },
 };
 
+function markStoredHistoryAllSummaryDirty(database, at) {
+  return markHistoryDirty(database, at, { extension: createWaifuAllSummaryExtension(pricing) });
+}
+
 function fact(physicalId, timestamp, id, overrides = {}) {
   return {
     physicalId,
@@ -78,7 +86,7 @@ async function fixture(t) {
     INSERT INTO usage_business_revision VALUES(1,0);
     CREATE TABLE facts(physical_id INTEGER PRIMARY KEY,timestamp_ms INTEGER NOT NULL,tie INTEGER NOT NULL,
       event_json TEXT NOT NULL,UNIQUE(timestamp_ms,tie)) STRICT;`);
-  ensureUsageAllSummarySchema(value.database, { mode: "history" });
+  ensureUsageAllSummarySchema(value.database, { mode: "history", extension: createWaifuAllSummaryExtension(pricing) });
   return value;
 }
 
@@ -132,6 +140,7 @@ function options(value, extra = {}) {
     },
     bucket: "day",
     pricing,
+    extension: createWaifuAllSummaryExtension(extra.pricing ?? pricing),
     pricingModels: {},
     sourceKinds: new Map([
       ["home-中文", "main"],
@@ -220,7 +229,7 @@ test("history append and reopen reuse logical ties, Unicode members and exact fl
 
   reopen(value);
   const schema = value.database.prepare("PRAGMA schema_version").get().schema_version;
-  ensureUsageAllSummarySchema(value.database, { mode: "history" });
+  ensureUsageAllSummarySchema(value.database, { mode: "history", extension: createWaifuAllSummaryExtension(pricing) });
   const reopened = options(value, {
     eventsAfter() {
       throw new Error("ready history reread");
@@ -465,7 +474,7 @@ test("FORMAT=4 hot cache retains its schema and ready reuse performs no writes",
       CREATE TABLE source_files(path TEXT PRIMARY KEY,kind TEXT,home_id TEXT,home_label TEXT,home_path TEXT);
       CREATE TABLE usage_business_revision(singleton INTEGER PRIMARY KEY,revision INTEGER NOT NULL);
       INSERT INTO usage_business_revision VALUES(1,0);`);
-    ensureUsageAllSummarySchema(db);
+    ensureUsageAllSummarySchema(db, { extension: createWaifuAllSummaryExtension(pricing) });
     const rows = [fact(1, BASE + DAY, 1).event, fact(2, BASE, 2).event];
     const input = {
       ...options({ database: db }),
@@ -478,7 +487,7 @@ test("FORMAT=4 hot cache retains its schema and ready reuse performs no writes",
     const snapshot = () => db.prepare("SELECT type,name,sql FROM sqlite_master ORDER BY type,name").all();
     const schema = snapshot();
     const writes = changes(db);
-    ensureUsageAllSummarySchema(db);
+    ensureUsageAllSummarySchema(db, { extension: createWaifuAllSummaryExtension(pricing) });
     const reused = {
       ...input,
       eventsAfter() {
@@ -498,7 +507,8 @@ test("FORMAT=4 hot cache retains its schema and ready reuse performs no writes",
         .map((x) => x.name),
       ["event_id"],
     );
-    assert.equal(schema.filter((x) => x.type === "trigger").length, 7);
+    assert.equal(schema.filter((x) => x.type === "trigger").length, 0);
+    assert.equal(db.prepare("SELECT COUNT(*) n FROM sqlite_temp_master WHERE type='trigger'").get().n, 8);
     assert.equal(
       schema.some((x) => x.name.startsWith("usage_history_all_")),
       false,

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createShareCardData, SHARE_METRICS, shareCardFilename } from "../public/share-card-data.js";
+import { createShareCardData, SHARE_METRICS, shareCardFilename, sharePeriodLabel } from "../public/share-card-data.js";
 import { summarizePeriodComparison } from "../public/period-comparison.js";
 import { summarizeUsage } from "../src/usage-core.js";
 import { UsageStore } from "../src/usage-store.js";
@@ -35,7 +35,7 @@ function dashboard(events, overrides = {}) {
   };
 }
 
-test("share projection uses the loaded summary's range and source scope, with only five model rows", () => {
+test("share projection uses the loaded summary's range and source scope, retaining model candidates for layout selection", () => {
   const rows = Array.from({ length: 7 }, (_, index) => event((7 - index) * 1e6, index));
   rows.push(event(999e6, 99, { homeId: "excluded" }));
   rows.push(event(888e6, 88, { timestamp: "2026-11-01T12:00:00.000Z" }));
@@ -48,10 +48,10 @@ test("share projection uses the loaded summary's range and source scope, with on
   assert.equal(snapshot.modelCount, 7);
   assert.deepEqual(
     snapshot.models.map((row) => row.total),
-    [7e6, 6e6, 5e6, 4e6, 3e6],
+    [7e6, 6e6, 5e6, 4e6, 3e6, 2e6, 1e6],
   );
   assert.equal(snapshot.filename, "usage_20261109-20261113.png");
-  assert.equal(SHARE_METRICS.length, 8);
+  assert.equal(SHARE_METRICS.length, 25);
   assert.doesNotMatch(JSON.stringify(snapshot), /private|sourcePath|sessionId|homeId|cwd|excluded/i);
 
   summary.totals.total = 1;
@@ -80,7 +80,7 @@ test("known cache data supplies the weighted hit rate and uncached input without
   assert.equal(snapshot.totals.uncached, 20);
   assert.notEqual(snapshot.totals.uncached, summary.totals.input - summary.totals.cached);
   assert.equal(snapshot.unavailableTokens.uncached, 900);
-  assert.equal(createShareCardData(summary).totals.uncached, null);
+  assert.equal(createShareCardData(summary).totals.uncached, 20);
 
   const unknown = dashboard([
     event(900, 1, {
@@ -105,6 +105,8 @@ test("zero usage is distinct from unknown details, and stale period details are 
   assert.equal(snapshot.cost, null);
 
   const current = dashboard([event(100)]);
+  assert.equal(createShareCardData(current.summary).totals.uncached, 20);
+  delete current.summary.details;
   const previous = dashboard([event(100)], { now: "2026-11-06T12:00:00.000Z" });
   assert.equal(
     createShareCardData(current.summary, { periodComparison: previous.periodComparison }).totals.uncached,
@@ -138,7 +140,7 @@ test("cost uses the same display currency and FX conversion as the homepage, pre
   assert.equal(createShareCardData(summary).cost, null);
 });
 
-test("only the loaded today, week, and month selections are shareable", () => {
+test("only loaded matching selections are shareable", () => {
   for (const preset of ["today", "week", "month"]) {
     const { summary } = dashboard([event(100)], { preset });
     assert.equal(createShareCardData(summary, { preset }).period, preset);
@@ -148,7 +150,7 @@ test("only the loaded today, week, and month selections are shareable", () => {
     assert.equal(createShareCardData(summary, { preset }), null);
   }
   summary.range.preset = "all";
-  assert.equal(createShareCardData(summary), null);
+  assert.equal(createShareCardData(summary).period, "all");
   assert.equal(createShareCardData(null), null);
 });
 
@@ -199,5 +201,48 @@ test("real dashboard payloads preserve canonical model identities and match trus
   } finally {
     store.close();
     fixture.close();
+  }
+});
+
+test("all target range identities, open bounds and empty history have safe labels and filenames", () => {
+  const selections = [
+    ...["today", "week", "month", "all"].map((preset) => ({ preset })),
+    ...["上个月", "今年", "去年"].map((recentValue) => ({ preset: "recent", recentValue })),
+    { preset: "custom", startDate: "2026-01-01", endDate: "2026-12-31" },
+    { preset: "custom", startDate: "2026-01-01" },
+    { preset: "custom", endDate: "2026-12-31" },
+    { preset: "custom" },
+  ];
+  for (const selection of selections) {
+    const { summary } = dashboard([event(100)], selection);
+    const data = createShareCardData(summary, selection);
+    assert.ok(data, JSON.stringify(selection));
+    assert.match(data.filename, /^usage_[a-z0-9_-]+\.png$/);
+    assert.ok(sharePeriodLabel(data));
+    assert.equal(data.totals.total, summary.totals.total);
+  }
+  const empty = createShareCardData(dashboard([], { preset: "all" }).summary);
+  assert.equal(empty.filename, "usage_all.png");
+  assert.equal(empty.totals.total, 0);
+  const summary = dashboard([], { preset: "recent", recentValue: "去年" }).summary;
+  assert.equal(createShareCardData(summary, { preset: "recent", recentValue: "今年" }), null);
+  for (const preset of ["quota_5h", "quota_week"]) {
+    const range = {
+      preset,
+      start: "2026-11-13T23:00:00Z",
+      end: "2026-11-14T00:59:59.999Z",
+      quotaWindow: true,
+      quotaState: "available",
+      calendarZone: "utc",
+    };
+    const summary = { range, totals: { total: 100 }, models: [] };
+    const d = createShareCardData(summary);
+    assert.ok(d);
+    assert.match(d.filename, /20261113_2300-20261114_0100/);
+    assert.equal(createShareCardData({ ...summary, range: { ...range, quotaState: "missing" } }), null);
+    for (const recentValue of ["上一个5h", "上周"])
+      assert.ok(
+        createShareCardData({ ...summary, range: { ...range, preset: "recent", recentValue, quotaPreset: preset } }),
+      );
   }
 });

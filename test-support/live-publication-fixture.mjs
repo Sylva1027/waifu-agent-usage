@@ -23,7 +23,7 @@ import { listenOnFetchPort } from "./fetch-port.mjs";
 const DAY = 86_400_000;
 const START = Date.parse("2026-11-01T00:00:00Z");
 const FILTERS = { preset: "all", calendarZone: "utc", bucket: "day", now: new Date(START + 9 * DAY) };
-const QUERY = "/api/usage?preset=all&view=dashboard&bucket=day&calendarZone=utc";
+const QUERY = "/api/usage?preset=all&view=dashboard&bucket=day";
 const HOOK = new URL("../test-support/live-source-recovery-hook.mjs", import.meta.url).href;
 const HOT_ONLY = process.env.LIVE_SOURCE_RECOVERY_HOT_ONLY === "1";
 const other = (kind) => (kind === "codex" ? "dsh" : "codex");
@@ -92,6 +92,7 @@ async function fixture(t, target, { hotOnly = HOT_ONLY, publication = false } = 
     pricingFile: path.join(root, "prices.json"),
     automaticDiscoveryEnabled: false,
     pricingRefreshSchedulerEnabled: false,
+    achievementsEnabled: false,
   };
   const paths = {
     codex: path.join(root, ".codex", "sessions", "recovery.jsonl"),
@@ -533,7 +534,8 @@ export function assertGeneration(payload, report, label = "admitted generation",
   assert.ok(payload.fingerprint, `${label}: fingerprint`);
   assert.ok(payload.usageVersion, `${label}: committed version`);
   const now = new Date(payload.periodComparison.asOf);
-  const filters = { ...FILTERS, ...scope, now, pricingModels: payload.pricingCatalog.models };
+  assert.equal(payload.summary.range.calendarZone, "local", "HTTP uses the service calendar");
+  const filters = { ...FILTERS, ...scope, calendarZone: "local", now, pricingModels: payload.pricingCatalog.models };
   runWithPricingCatalog(payload.pricingCatalog, () => {
     const summary = summarizeUsage(report, filters);
     for (const key of ["totals", "eventCount", "sessionCount", "costEstimate", "timeline"])

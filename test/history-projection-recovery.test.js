@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import { once } from "node:events";
 import {
   constants as fsConstants,
@@ -17,6 +17,7 @@ import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 
 import { createHistoryArchiveCandidate, prepareHistoryArchiveCommit } from "../src/history-archive.js";
 import { getPricingCatalog, setPricingCatalog } from "../src/pricing.js";
@@ -659,19 +660,45 @@ test("price, FX and service-tier evidence changes reprice without copying cold f
 });
 
 test("a timezone dependency change repartitions calendar results without copying cold facts", async (t) => {
-  const timezone = process.env.TZ;
-  t.after(() => {
-    if (timezone === undefined) delete process.env.TZ;
-    else process.env.TZ = timezone;
-  });
-  process.env.TZ = "UTC";
   const f = await fixture(t);
   const filters = { ...FILTERS, calendarZone: "local" };
-  const first = await f.read(filters);
-  const before = coldRows(f.store.historyProjectionStore.query);
-  process.env.TZ = "Asia/Shanghai";
-  const changed = await f.read(filters);
-  assert.deepEqual(clean(changed), clean(await f.oracle(filters)));
-  assert.notDeepEqual(changed.summary.timeline, first.summary.timeline);
-  assertNoColdCopy(f, before);
+  // SQLite caches libc's zone on Windows; production executors also restart when their IANA zone changes.
+  const script = `
+    import assert from 'node:assert/strict';
+    import { UsageStore } from ${JSON.stringify(new URL("../src/usage-store.js", import.meta.url).href)};
+    const {file,root,filters}=JSON.parse(process.argv[1]);
+    const options={databaseFile:file,homeDir:root,env:{},importDirs:[],automaticDiscoveryEnabled:false};
+    const store=new UsageStore(options), oracle=new UsageStore(options);
+    const clean=value=>JSON.parse(JSON.stringify(value,(key,item)=>key==='generatedAt'?undefined:item));
+    try {
+      await store.open(); await oracle.open();
+      store.homes=oracle.homes=[{id:'home',label:'Home',path:root,kind:'codex'}];
+      store.serviceTierEvidenceInput=oracle.serviceTierEvidenceInput='fixture-standard';
+      oracle.usageProjectionDatabaseIdentity=()=>null;
+      const dashboard=await store.dashboardHistory(filters,{includeDetails:false});
+      assert.deepEqual(clean(dashboard),clean(await oracle.dashboardHistory(filters,{includeDetails:false})));
+      assert.equal(dashboard.summary.details.total,303);
+      assert.equal(dashboard.summary.details.cacheRateCached,15);
+      assert.equal(dashboard.summary.cacheHitRate,15/273);
+      const cold=store.historyProjectionStore.query.database.prepare(
+        "SELECT rowid,payload,segment_id,event_id FROM history_query_rows WHERE segment_id<>'hot' ORDER BY rowid"
+      ).all();
+      console.log(JSON.stringify({dashboard,cold,work:store.lastHistoryQueryWork.projection}));
+    } finally { oracle.close(); store.close(); }
+  `;
+  const read = async (timeZone) => {
+    const { stdout } = await promisify(execFile)(
+      process.execPath,
+      ["--input-type=module", "-e", script, JSON.stringify({ file: f.file, root: f.root, filters })],
+      { env: { ...process.env, TZ: timeZone }, windowsHide: true },
+    );
+    return JSON.parse(stdout);
+  };
+  const first = await read("UTC");
+  const changed = await read("Asia/Shanghai");
+  assert.notDeepEqual(changed.dashboard.summary.timeline, first.dashboard.summary.timeline);
+  assert.deepEqual(changed.cold, first.cold, "sealed cold facts retain exactly the same rows and payloads");
+  assert.equal(changed.work.coldCopied, 0);
+  assert.equal(changed.work.rebuilt, false);
+  assert.equal(changed.work.recalendar, true);
 });

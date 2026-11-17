@@ -204,6 +204,13 @@ async function geometry(page) {
       toolbarControls: [...document.querySelector(".toolbar").children].map(box),
       toolbarHeadings: [...document.querySelectorAll(".toolbar > .control-group > .range-heading")].map(box),
       toolbarWells: ["#presetButtons", "#dateRangeButton", ".auto-refresh-well"].map(one),
+      refresh: {
+        headingOrder: [...document.querySelector(".auto-refresh-heading").children].map((node) => node.id),
+        liveRegion: document.querySelector(".auto-refresh-info").getAttribute("aria-live"),
+        relativeTimeIsLive: Boolean(document.querySelector("#lastSuccessfulCheck").closest("[aria-live]")),
+        statusIsInWell: Boolean(document.querySelector(".auto-refresh-well #runtimeStatusText")),
+        spinnerRole: document.querySelector("#autoRefreshSpinner").getAttribute("role"),
+      },
       panelWells: [
         [".chart-panel", ".timeline-chart-well"],
         [".period-comparison-panel", ".comparison-table-frame"],
@@ -250,7 +257,7 @@ function assertMainGeometry(g) {
   }
   near(s.topbar.height, 72, "topbar height");
   near(s.toolbar.height, 107, "toolbar height");
-  assert.deepEqual(g.actionOrder, ["languageToggle", "skinToggle", "themeToggle", "shareToggle"]);
+  assert.deepEqual(g.actionOrder, ["languageToggle", "skinToggle", "themeToggle", "achievementToggle", "shareToggle"]);
   assert.equal(g.archivePanels, 0, "maintenance archive panel is absent from dashboard");
   for (const [before, after] of [
     ["topbar", "toolbar"],
@@ -268,6 +275,11 @@ function assertMainGeometry(g) {
     if (i > 0) near(control.x - g.toolbarControls[i - 1].right, 20, "toolbar control gap");
   }
   assert.equal(g.toolbarHeadings.length, 3, "each toolbar frame has a heading");
+  assert.deepEqual(g.refresh.headingOrder, ["autoRefreshToggle", "lastSuccessfulCheck", "autoRefreshSpinner"]);
+  assert.equal(g.refresh.liveRegion, "polite");
+  assert.equal(g.refresh.relativeTimeIsLive, false, "the local minute tick must not be announced");
+  assert.equal(g.refresh.statusIsInWell, true);
+  assert.equal(g.refresh.spinnerRole, null, "busy text owns the live announcement");
   for (const heading of g.toolbarHeadings) {
     near(heading.y, g.toolbarHeadings[0].y, "toolbar heading tops align");
     near(heading.height, 19, "toolbar heading height");
@@ -402,7 +414,7 @@ async function verifyImportAndSkin(page, fixture) {
     assert.equal(await page.locator(selector).isVisible(), false, `${selector} starts hidden`);
   }
   await page.locator("#addImportButton").click();
-  await page.waitForFunction(() => document.activeElement?.id === "cancelImportButton");
+  await page.waitForFunction(() => document.activeElement?.id === "importDialogTitle");
   await page.locator("#manualImportButton").click();
   const empty = await dialogGeometry(page, "#importDialog .dialog");
   assertDialogGeometry(empty, "import");
@@ -919,7 +931,7 @@ test("UI geometry uses the production app and isolated source fixtures", async (
           [".date-range-controls .range-heading", ".date-range-controls"],
           ["#dateRangeButton", null],
           ["#autoRefreshStatus", "#autoRefreshStatus", { position: { x: 8, y: 8 } }],
-          ["#calendarZoneSelect", null],
+          ["#recentValue", null],
           ["#timelinePanelTitle", ".chart-panel"],
           ['#timelineModes button[aria-pressed="true"]', '#timelineModes button[aria-pressed="true"]'],
           ["#timelineChart", null],
@@ -954,10 +966,7 @@ test("UI geometry uses the production app and isolated source fixtures", async (
           );
           await hoverSurface(page, `.comparison-item:nth-child(${i}) > strong`, null, failures);
         }
-        for (const [button, menu] of [
-          ["#recentMenuButton", "#recentRangeMenu"],
-          ["#calendarZoneSelect", "#calendarZoneMenu"],
-        ]) {
+        for (const [button, menu] of [["#recentMenuButton", "#recentRangeMenu"]]) {
           await page.locator(button).click();
           await hoverSurface(page, menu, menu, failures, { position: { x: 3, y: 20 } });
           await hoverSurface(page, `${menu} button`, null, failures);

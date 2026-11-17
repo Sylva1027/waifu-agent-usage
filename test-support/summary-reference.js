@@ -1,17 +1,9 @@
+import { createRangeMetricsAccumulator } from "../public/range-metrics.js";
+import { addPeriodEvent, emptyPeriodMetrics } from "../public/period-comparison.js";
 // Independent event-by-event reference retained for memory/SQLite parity and literal boundary assertions.
 // The live dashboard receives its summary and metadata from the API.
-import {
-  buildTimelineRows,
-  channelForRange,
-  homeSourceKinds,
-  sourceGroup,
-  deriveTimelineBucket,
-  RECENT_SELECTIONS,
-  resolveNamedRecentRange,
-  previousQuotaRange,
-  quotaRecordsForRange,
-  quotaRecordValues,
-} from "../public/timeline-utils.js";
+import { channelForRange, homeSourceKinds, sourceGroup, deriveTimelineBucket, RECENT_SELECTIONS, resolveNamedRecentRange, previousQuotaRange } from "../public/timeline-utils.js";
+import { buildTimelineRows, quotaRecordsForRange, quotaRecordValues } from "../public/waifu-timeline.js";
 import { canonicalRecentValue } from "../public/i18n.js";
 import { buildModelActivity, canonicalModelName } from "../public/pricing-models.js";
 import { isQuotaUsage } from "../public/quota-usage.js";
@@ -239,10 +231,10 @@ function getRange(events, quotaSnapshot = state.quotaSnapshot) {
   }
   if (state.preset === "recent") {
     const named = resolveNamedRecentRange(state.recentValue, now, quotaSnapshot, zone);
-    if (named) return { ...named, calendarZone: zone };
+    if (named) return { ...named, asOf: now, calendarZone: zone };
     const range = recentDateRange(state.recentValue, now, zone);
     if (range) {
-      return { ...range, calendarZone: zone };
+      return { ...range, recentValue: state.recentValue, asOf: now, calendarZone: zone };
     }
   }
   let firstTimestamp = Infinity;
@@ -383,7 +375,7 @@ function previousPeriodRange(range) {
       end: endOfDay(addCalendarDays(previousWeekStart, 6, zone), zone),
     };
   }
-  if (state.preset === "month") {
+  if (state.preset === "month" || range.recentValue === "上个月") {
     const currentMonthStart = asDate(range.start);
     return {
       start:
@@ -392,6 +384,16 @@ function previousPeriodRange(range) {
           : new Date(currentMonthStart.getFullYear(), currentMonthStart.getMonth() - 1, 1),
       end: new Date(currentMonthStart.getTime() - 1),
     };
+  }
+  if (["今年", "去年"].includes(range.recentValue)) {
+    const utc = zone === "utc", year = utc ? range.start.getUTCFullYear() : range.start.getFullYear();
+    const date = (...parts) => utc ? new Date(Date.UTC(...parts)) : new Date(...parts);
+    const start = date(year - 1, 0, 1);
+    if (range.recentValue === "去年") return {start, end: new Date(range.start.getTime() - 1)};
+    const month = utc ? range.end.getUTCMonth() : range.end.getMonth();
+    const day = utc ? range.end.getUTCDate() : range.end.getDate();
+    const last = date(year - 1, month + 1, 0);
+    return {start, end: date(year - 1, month, Math.min(day, utc ? last.getUTCDate() : last.getDate()), 23,59,59,999)};
   }
   const durationMs = range.end.getTime() - range.start.getTime() + 1;
   return {
@@ -433,6 +435,9 @@ function averageTrend(currentTotals, previousTotals, range, previousRange, now) 
 }
 
 function comparisonLabel(range = null) {
+  if (range.recentValue === "今年") return "较去年同期";
+  if (range.recentValue === "去年") return "较前年";
+  if (range.recentValue === "上个月") return "较上月";
   const mode = range?.quotaPreset || range?.preset || state.preset;
   return (
     {
@@ -563,9 +568,13 @@ function summarize(report) {
   const models = groupEvents(events, (event) =>
     canonicalModelName(event.model || "Unknown model", report.pricingCatalog?.models),
   ).sort((a, b) => b.total.total - a.total.total);
+  const rangeMetrics = createRangeMetricsAccumulator(range.calendarZone, sourceKinds);
+  for(const event of events) rangeMetrics.add(event);
   return {
     range,
     totals,
+    rangeMetrics: rangeMetrics.result(),
+    details: events.reduce((detail,event)=>{addPeriodEvent(detail,event);return detail;},emptyPeriodMetrics()),
     costEstimate: summarizeEmbeddedCostEstimates(events, report.pricing),
     records: quotaPreset
       ? quotaRecordsForRange(range, report.quota, quotaObservations, (window) => {

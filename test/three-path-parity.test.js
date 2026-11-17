@@ -133,11 +133,11 @@ test("local quota sources, finite cycles and trends agree across memory, SQLite 
         { encoding: "utf8" },
       ),
     );
-    assert.equal(restored.total, 160, "a fresh process restores source evidence after native log rotation");
+    assert.equal(restored.total, 60160, "a fresh process restores source evidence after native log rotation");
     for (const [preset, recentValue, expected] of [
-      ["quota_5h", "", 160],
+      ["quota_5h", "", 60160],
       ["recent", "上一个5h", 50],
-      ["quota_week", "", 1209],
+      ["quota_week", "", 61209],
       ["recent", "上周", 25],
       ["all", "", report.events.reduce((sum, event) => sum + event.total.total, 0)],
     ]) {
@@ -170,7 +170,7 @@ test("local quota sources, finite cycles and trends agree across memory, SQLite 
       const frozen = await fetch(`${base}&freeze=1`).then((response) => response.json());
       const replay = await fetch(`${base}&snapshot=${frozen.snapshotId}`).then((response) => response.json());
       for (const body of [live, full, frozen, replay]) {
-        assert.equal(body.summary.totals.total, 160, JSON.stringify(body));
+        assert.equal(body.summary.totals.total, 60160, JSON.stringify(body));
         assert.equal(body.summary.comparison.previousTotals.total, 50);
         assert.equal(body.summary.range.windowEndExclusive, "2026-10-08T06:00:00.000Z");
       }
@@ -229,7 +229,7 @@ test("replacing a rollout with its compressed sibling removes obsolete source st
   }
 });
 
-test("auto-review stays in activity but is excluded from current and previous quota statistics", async () => {
+test("auto-review usage and zero costs agree across current and previous quota statistics", async () => {
   const homeDir = await mkdtemp(path.join(tmpdir(), "codex-auto-review-policy-"));
   const store = new UsageStore({ homeDir, env: {}, databaseFile: path.join(homeDir, "usage-index.sqlite") });
   const asOf = "2026-10-08T04:00:00.000Z";
@@ -304,10 +304,10 @@ test("auto-review stays in activity but is excluded from current and previous qu
     assert.equal(report.events.filter((event) => event.model.toLowerCase() === "codex-auto-review").length, 3);
     for (const [preset, recentValue, expectedTotal, expectedSessions] of [
       ["all", "", 6175, 6],
-      ["quota_5h", "", 100, 1],
-      ["quota_week", "", 150, 2],
-      ["recent", "上一个5h", 50, 1],
-      ["recent", "上周", 25, 1],
+      ["quota_5h", "", 1100, 2],
+      ["quota_week", "", 3150, 4],
+      ["recent", "上一个5h", 2050, 2],
+      ["recent", "上周", 3025, 2],
     ]) {
       const filters = { preset, recentValue, now: asOf, bucket: "day", calendarZone: "utc" };
       const memory = summarizeUsage(report, filters);
@@ -323,19 +323,18 @@ test("auto-review stays in activity but is excluded from current and previous qu
           summary.timeline.reduce((sum, row) => sum + row.total.total, 0),
           expectedTotal,
         );
-        assert.equal(summary.models.length, preset === "all" ? 2 : 1);
+        assert.equal(summary.models.length, 2);
         assert.equal(summary.quota.windows.quota_5h.usedPercent, 42.5, "keep observed quota percentage");
         assert.equal(summary.costEstimate.minimumRateModels.length, 0);
       }
       assert.deepEqual(summaryFields(indexed), summaryFields(memory));
       assert.deepEqual(summaryFields(compact), summaryFields(memory));
       assert.deepEqual(summaryFields(browser), summaryFields(memory));
-      if (preset.startsWith("quota_")) {
-        assert.equal(
-          indexed.records.totalTokens.value,
-          expectedTotal,
-          "previous free tokens cannot inflate record baseline",
-        );
+      if (preset === "quota_5h") {
+        assert.equal(indexed.records.totalTokens, undefined, "previous reviews belong in the baseline");
+      }
+      if (preset === "quota_week") {
+        assert.equal(indexed.records.totalTokens.value, expectedTotal, "review usage participates in window records");
         assert.equal(browser.records.totalTokens.value, expectedTotal);
       }
     }
@@ -514,6 +513,7 @@ function summaryFields(summary) {
       calendarZone: summary.range.calendarZone,
     },
     totals: summary.totals,
+    rangeMetrics: summary.rangeMetrics,
     quota: {
       state: summary.quota?.windows?.quota_5h?.state,
       usedPercent: summary.quota?.windows?.quota_5h?.usedPercent,
@@ -1435,7 +1435,7 @@ test("long GPT-6.1 requests agree across Codex, Work, external imports, compact 
     const report = await buildUsageReport(options);
     assert.equal(report.events.length, 3);
     assert.equal(report.events.find((event) => event.sessionId === "work").originator, "codex_work_desktop");
-    assert.ok(report.events.every((event) => event.contextLevel === "long"));
+    assert.ok(report.events.every((event) => event.contextLevel === "known"));
     const raw = JSON.stringify(report.events);
     const browserReport = pricedReport(report, asOf);
     closeTo(browserReport.events.find((event) => event.sessionId === "native").costEstimate.totalUsd, 0.411);

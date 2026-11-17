@@ -635,7 +635,12 @@ test("backup captures resolver evidence while preserving an explicit uncaptured 
   const sessionDir = path.join(codexHome, "sessions", "2026", "09", "24");
   const threadId = "tier-gap-thread";
   const eventTime = Date.parse("2026-09-24T10:01:05Z");
-  const store = new UsageStore({ homeDir: box.root, databaseFile: path.join(box.root, "usage.sqlite") });
+  const options = {
+    homeDir: box.root,
+    env: {},
+    confirmedSources: [{ id: "tier-gap", label: "fixture", path: codexHome, kind: "main" }],
+  };
+  const store = new UsageStore({ ...options, databaseFile: path.join(box.root, "usage.sqlite") });
   try {
     mkdirSync(sessionDir, { recursive: true });
     const log = new DatabaseSync(path.join(codexHome, "logs_2.sqlite"));
@@ -684,7 +689,7 @@ test("backup captures resolver evidence while preserving an explicit uncaptured 
       `${rows.map((row) => JSON.stringify(row)).join("\n")}\n`,
     );
 
-    await store.sync({ options: { homeDir: box.root } });
+    await store.sync({ options });
     assert.equal(store.database.prepare("SELECT service_tier FROM events").get().service_tier, "unknown");
     assert.equal(store.serviceTierEvidence.resolve(threadId, eventTime, "unknown"), "priority");
     const originalEvidence = costEvidence(store.summarize({ preset: "all" }));

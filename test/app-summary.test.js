@@ -350,16 +350,16 @@ test("reference quota comparison uses the previous real cycle and the quota-usag
       ],
     });
 
-    assert.equal(summary.totals.total, 350);
-    assert.equal(summary.records.totalTokens.value, 350);
+    assert.equal(summary.totals.total, 1350);
+    assert.equal(summary.records.totalTokens.value, 1350);
     assert.equal(summary.comparison.label, "较上一5h");
     assert.equal(summary.comparison.previousRange.start, "2026-09-25T04:00:00.000Z");
     assert.equal(summary.comparison.previousTotals.total, 100);
-    assert.equal(summary.comparison.totalDelta, 250);
-    assert.equal(summary.comparison.percentChange, 250);
+    assert.equal(summary.comparison.totalDelta, 1250);
+    assert.equal(summary.comparison.percentChange, 1250);
     assert.equal(summary.comparison.averageBaselineTotal, 60);
-    assert.equal(summary.comparison.averageDelta, 290);
-    assert.equal(summary.comparison.averagePercentChange, 483.33);
+    assert.equal(summary.comparison.averageDelta, 1290);
+    assert.equal(summary.comparison.averagePercentChange, 2150);
   } finally {
     setSummaryFilters({ preset: "today", bucket: "hour", now: null, excludedHomes: [] });
   }

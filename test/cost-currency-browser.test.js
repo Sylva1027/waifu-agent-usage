@@ -124,7 +124,7 @@ test("currency choice controls costs, survives refresh, and keeps typed FX separ
   };
   const openPricing = async () => {
     await page.locator("#updatePricingButton").click();
-    await page.waitForFunction(() => document.activeElement === document.querySelector("#pricingSearch"));
+    await page.waitForFunction(() => document.activeElement === document.querySelector("#pricingDialogTitle"));
   };
   await page.goto(`http://127.0.0.1:${server.address().port}/`);
   await page.locator("#homeList .home-row").first().waitFor();

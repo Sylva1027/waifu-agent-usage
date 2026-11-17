@@ -2,7 +2,6 @@ import { createHash } from "node:crypto";
 import { stat } from "node:fs/promises";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { pricingVersionForTimestamp } from "./pricing.js";
 import { createRepositoryResolver } from "./repository-identity.js";
 import { UsageSourceRows } from "./usage-source-rows.js";
 import { sqliteSourceStat } from "./sqlite-source-stat.js";
@@ -83,7 +82,7 @@ function count(value) {
   return value;
 }
 
-function normalize(row, source, kind, identity) {
+function normalize(row, source, kind, identity, decorateEvent) {
   const [input, cached, write, output, reasoning] = COUNTS.map((field) => count(row[field]));
   const usage = { input: input + cached + write, cached, output, reasoning, total: input + cached + write + output };
   if (!Number.isSafeInteger(usage.total)) throw new Error("Invalid Hermes token total");
@@ -108,7 +107,7 @@ function normalize(row, source, kind, identity) {
     .update(JSON.stringify([source.id, kind, identity]))
     .digest("hex");
   const sourceEventId = `hermes:${kind}:v1:${digest}`;
-  return {
+  const event = {
     eventId: sourceEventId,
     sourceEventId,
     timestampMs,
@@ -130,8 +129,9 @@ function normalize(row, source, kind, identity) {
     requestInputTokens: 0,
     contextLevel: "unknown",
     serviceTier: "unknown",
-    priceVersion: pricingVersionForTimestamp(new Date(timestampMs).toISOString()),
+    priceVersion: "",
   };
+  return decorateEvent ? decorateEvent(event, row) : event;
 }
 
 export async function streamHermesDbEvents(dbFile, source, onEvent, options = {}) {
@@ -156,7 +156,7 @@ export async function streamHermesDbEvents(dbFile, source, onEvent, options = {}
             .join(",")}`)
         .iterate()) {
         const identity = IDENTITY.map((field) => (modelColumns.has(field) ? [true, row[field]] : [false]));
-        const event = normalize(row, source, "model", identity);
+        const event = normalize(row, source, "model", identity, options.decorateEvent);
         if (event) {
           if (rows.has(event.sourceEventId)) throw new Error("Duplicate Hermes usage identity");
           rows.set(event.sourceEventId, event);
@@ -199,7 +199,7 @@ export async function streamHermesDbEvents(dbFile, source, onEvent, options = {}
     for (const row of database
       .prepare(`SELECT s.id AS session_id, ${fallback}, ${meta} FROM sessions s ${where} ORDER BY s.id`)
       .iterate()) {
-      const event = normalize(row, source, "session", [row.session_id]);
+      const event = normalize(row, source, "session", [row.session_id], options.decorateEvent);
       if (event) rows.set(event.sourceEventId, event);
     }
     database.exec("COMMIT");

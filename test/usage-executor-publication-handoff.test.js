@@ -46,6 +46,7 @@ async function fixture(t) {
   const input = createCodexIntegrationFixture(),
     points = new EventEmitter(),
     trace = [],
+    activities = [],
     holds = [],
     sockets = new Set(),
     children = [];
@@ -110,7 +111,12 @@ async function fixture(t) {
     return child;
   });
   syncBuiltinESMExports();
-  client = createUsageExecutor(input.serverOptions);
+  client = createUsageExecutor(input.serverOptions, {
+    onActivity: (event) => {
+      activities.push(event);
+      points.emit("activity", event);
+    },
+  });
   releaseWorker = client.retainWorker();
   const track = (promise) => {
     work.add(promise);
@@ -134,11 +140,26 @@ async function fixture(t) {
   return {
     client,
     trace,
+    activities,
     initial,
     read,
     sync,
     append,
     input,
+    async waitActivity(matches) {
+      const found = activities.findLast(matches);
+      if (found) return found;
+      const arrival = Promise.withResolvers();
+      const listener = (event) => {
+        if (matches(event)) arrival.resolve(event);
+      };
+      points.on("activity", listener);
+      try {
+        return await bounded(arrival.promise, "activity");
+      } finally {
+        points.off("activity", listener);
+      }
+    },
     hold(stage, matches = () => true) {
       const entered = Promise.withResolvers(),
         released = Promise.withResolvers();
@@ -203,6 +224,9 @@ test("sync waits for an admitted direct reader; later readers pin a whole genera
     syncing = f.sync();
   const waiting = await f.wait("sync-wait");
   assert.equal(waiting.liveReaders, 1);
+  const syncEvents = () => f.activities.filter((event) => event.id.endsWith(`:${waiting.requestId}`));
+  await f.waitActivity((event) => syncEvents().at(-1) === event && event.state === "queued" && syncEvents().length > 1);
+  assert.equal(syncEvents().at(-1).state, "queued", "sync really waits for the admitted reader");
   const pinGate = f.hold("reader-enter"),
     later = f.read();
   await f.wait("reader-wait", (row) => row.requestId !== directEntry.requestId);
@@ -227,7 +251,36 @@ test("sync waits for an admitted direct reader; later readers pin a whole genera
   const status = await syncing;
   pinGate.release();
   assertOld(await later, f.initial);
+  assert.equal(syncEvents().at(-1).state, "done");
   await assertNew(f, status);
+});
+
+test("serialized requests remain queued until the running sync releases its tail", { timeout: 20_000 }, async (t) => {
+  const f = await fixture(t),
+    gate = f.hold("sync-start");
+  const syncing = f.sync();
+  await gate.wait();
+  const checking = f.client.runWithActivity({ requestId: "queued-check", shared: false, kind: "check" }, () =>
+    f.client.checkSources(f.input.serverOptions),
+  );
+  const settled = Promise.all([syncing, checking]);
+  // A later direct request proves the child has received the check while sync remains held.
+  await f.client.metadataFor(FILTERS.now);
+  const events = () => f.activities.filter((event) => event.requestId === "queued-check");
+  assert.deepEqual(
+    events().map((event) => [event.state, event.phase]),
+    [["queued", "queued"]],
+  );
+  gate.release();
+  await settled;
+  assert.deepEqual(
+    events().map((event) => [event.state, event.phase]),
+    [
+      ["queued", "queued"],
+      ["running", "checking"],
+      ["done", "checking"],
+    ],
+  );
 });
 
 test("a reader resumed from the old barrier rechecks identity and waits for the new barrier before taking its pin", {

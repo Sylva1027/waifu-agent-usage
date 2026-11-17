@@ -1,11 +1,12 @@
 {
-  "name": "codex-usage",
-  "version": "0.9.5-a",
-  "releaseVersion": "0.95a",
+  "name": "waifu-agent-usage",
+  "version": "1.0.0",
+  "releaseVersion": "1.0",
   "private": true,
   "license": "MIT",
   "type": "module",
   "bin": {
+    "waifu-agent-usage": "./src/cli.js",
     "codex-usage": "./src/cli.js",
     "cud": "./src/cli.js"
   },

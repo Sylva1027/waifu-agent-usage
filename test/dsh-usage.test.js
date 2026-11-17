@@ -309,8 +309,8 @@ test("事件带 channel、模型、仓库与上下文分级", async () => {
   assert.equal(event.repositoryKind, "directory");
   assert.equal(event.serviceTier, "unknown");
   assert.equal(event.requestInputTokens, 8398);
-  assert.equal(event.contextLevel, "short");
-  assert.ok(event.priceVersion);
+  assert.equal(event.contextLevel, "known");
+  assert.equal(event.priceVersion, "");
   assert.equal(event.timestamp, "2026-09-27T10:00:02.000Z");
 });
 

@@ -1,0 +1,324 @@
+/* R04 geometry. Surface materials are shared with the portrait renderer. */
+.s-card {
+  position: relative;
+  isolation: isolate;
+  width: 1440px;
+  height: 1080px;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--ui-font-sans);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+.s-card * {
+  box-sizing: border-box;
+}
+.s-panel {
+  position: absolute;
+  z-index: 1;
+  border-radius: 32px;
+}
+.s-hero {
+  padding: 20px 24px;
+}
+.s-heading,
+.s-chart-title {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  height: 46px;
+  font-size: 26px;
+  font-weight: 500;
+  line-height: 32px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.s-heading::after,
+.s-chart-title::after {
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+.s-period {
+  font-size: 24px;
+  font-weight: 400;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.s-value-row {
+  position: absolute;
+  left: 24px;
+  right: 24px;
+  bottom: 36px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+.s-total {
+  display: flex;
+  align-items: baseline;
+  flex: none;
+  gap: 10px;
+  white-space: nowrap;
+}
+.s-total strong {
+  font-size: 108px;
+  letter-spacing: -4px;
+  font-weight: 700;
+  line-height: 1;
+}
+.s-total small {
+  font-size: 48px;
+  font-weight: 550;
+  line-height: 1;
+  color: var(--muted);
+}
+.s-total strong,
+.s-total small,
+.s-fee b {
+  text-box-trim: trim-both;
+  text-box-edge: cap alphabetic;
+}
+.s-fee {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1;
+}
+.s-fee b {
+  font-size: 28px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+.s-models {
+  padding: 22px 26px;
+  display: grid;
+  grid-auto-rows: calc(660px / 7);
+  min-width: 0;
+}
+.s-model {
+  min-width: 0;
+  padding: 6px 4px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.s-model-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: baseline;
+  line-height: 1.3;
+}
+.s-name {
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.s-value {
+  font-size: 28px;
+  color: var(--muted);
+  font-weight: 500;
+  white-space: nowrap;
+  flex: none;
+}
+.s-track {
+  height: 10px;
+  border-radius: 99px;
+  margin-top: 11px;
+  overflow: hidden;
+}
+.s-fill {
+  height: 100%;
+  background: var(--blue);
+  opacity: 0.82;
+  border-radius: inherit;
+}
+.s-metric {
+  padding: 18px 20px;
+  border-radius: 22px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.s-label {
+  display: block;
+  font-size: 26px;
+  font-weight: 500;
+  color: var(--muted);
+  line-height: 32px;
+  white-space: nowrap;
+}
+.s-readout {
+  flex: none;
+  height: 68px;
+  margin-top: 8px;
+  border-radius: 13px;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+}
+.s-readout strong {
+  font-size: 52px;
+  line-height: 1.1;
+  letter-spacing: -1px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.s-readout small {
+  font-size: 26px;
+  margin-left: 6px;
+  letter-spacing: 0;
+  color: var(--muted);
+  font-weight: 500;
+}
+.s-chart {
+  padding: 20px 24px;
+}
+.s-chart:not(.trend-chart) .s-chart-title {
+  font-size: 24px;
+}
+.s-plot {
+  position: absolute;
+  left: 24px;
+  right: 24px;
+  bottom: 20px;
+  top: 78px;
+}
+.trend-chart .s-plot {
+  bottom: 22px;
+}
+.s-plot svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.s-plot text {
+  font-family: var(--ui-font-sans);
+  fill: var(--muted);
+  font-size: 18px;
+}
+.s-composition {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+}
+.s-stack {
+  display: flex;
+  height: 12px;
+  flex: none;
+  overflow: hidden;
+  border-radius: 10px;
+}
+.s-composition-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 18px;
+  line-height: 22px;
+  color: var(--muted);
+  gap: 6px;
+}
+.s-composition-row i {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 4px;
+  margin-right: 6px;
+}
+.s-composition-row > span {
+  white-space: nowrap;
+}
+.s-character {
+  position: absolute;
+  z-index: 0;
+  max-width: none;
+  width: auto;
+  opacity: 0.66;
+  pointer-events: none;
+}
+.h-item {
+  display: grid;
+  grid-template-columns: 6px minmax(0, 1fr) auto;
+  gap: 4px;
+  align-items: center;
+  min-width: 0;
+  line-height: 22px;
+}
+.h-item i {
+  display: block;
+  width: 6px;
+  height: 6px;
+  border-radius: 2px;
+}
+.h-name {
+  font-size: 18px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.h-share {
+  font-size: 20px;
+  font-weight: 550;
+  white-space: nowrap;
+}
+.h-distribution {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+}
+.h-ribbon {
+  height: 18px;
+  flex: none;
+  display: flex;
+  overflow: hidden;
+  border-radius: 6px;
+}
+.h-ribbon span {
+  height: 100%;
+  flex: none;
+}
+.h-legend {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 4px 10px;
+}
+.h-legend.many-sources {
+  grid-template-columns: 0.85fr 1.15fr;
+  column-gap: 8px;
+}
+.many-sources .h-item {
+  gap: 3px;
+}
+.many-sources .h-name {
+  font-size: 15px;
+}
+.many-sources .h-share {
+  font-size: 16px;
+}
+.h-empty,
+.trend-empty {
+  height: 100%;
+  display: grid;
+  place-items: center;
+  font-size: 40px;
+  color: var(--muted);
+}

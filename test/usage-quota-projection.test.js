@@ -16,6 +16,7 @@ import {
   selectStoredQuotaWindows,
 } from "../src/usage-quota-store.js";
 import { UsageStore } from "../src/usage-store.js";
+import { WaifuUsageQueries } from "../src/waifu/usage-reader.js";
 import { createUsageIntegrationFixture } from "../test-support/usage-fixture.mjs";
 
 const MINUTE = 60_000;
@@ -622,9 +623,12 @@ test("projection review: unrelated source schema changes do not rebuild the quot
 test("history tracking preserves quota identity after reopen and consecutive single-archive reads", async (t) => {
   const f = createUsageIntegrationFixture();
   const store = new UsageStore(f.serverOptions);
-  const summarize = UsageStore.prototype.summarizeInReadTransaction;
+  const queryPrototype = WaifuUsageQueries.prototype;
+  const summarizeDescriptor = Object.getOwnPropertyDescriptor(queryPrototype, "summarizeInReadTransaction");
+  const summarize = queryPrototype.summarizeInReadTransaction;
   t.after(() => {
-    UsageStore.prototype.summarizeInReadTransaction = summarize;
+    if (summarizeDescriptor) Object.defineProperty(queryPrototype, "summarizeInReadTransaction", summarizeDescriptor);
+    else delete queryPrototype.summarizeInReadTransaction;
     store.close();
     f.close();
   });
@@ -652,7 +656,10 @@ test("history tracking preserves quota identity after reopen and consecutive sin
   incremental(reopened.work, 0);
 
   const reads = [];
-  UsageStore.prototype.summarizeInReadTransaction = function (...args) {
+  queryPrototype.summarizeInReadTransaction = function (...args) {
+    assert.equal(this instanceof UsageStore, false);
+    assert.equal(this.sourceManager, undefined);
+    assert.equal(this.sync, undefined);
     const summary = summarize.apply(this, args);
     assert.equal(this.verifiedHistorySqlRead, true);
     assert.equal(this.historyDiskRead, false);

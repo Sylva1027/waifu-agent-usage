@@ -311,18 +311,20 @@ test("W4-b1 · D1 · 集成契约（Store 级）：memo 是实例私有、路由
   assert.deepEqual(JSON.parse(JSON.stringify(again)), JSON.parse(JSON.stringify(summary)));
   // 轮次护栏在方法返回后必须收敛（不能留在"轮内"状态）。
   assert.equal(store.eventCostMemo.stats().bytes, 0);
+  assert.equal(store.eventCostMemo.stats().clears, stats.clears);
 
   // ③ 失效契约①：`storeRevision` 前进 ⇒ 清空 + 记录原因。
   store.storeRevision += 1;
   assert.equal(store.syncDerivedRevision(), true);
   assert.equal(store.eventCostMemo.stats().lastClearReason, "store-revision");
   assert.equal(store.eventCostMemo.size(), 0);
+  assert.equal(store.eventCostMemo.stats().clears, stats.clears + 1);
 
   // ④ 失效契约②：`close()` ⇒ 清空 + 记录原因 "close"。
   store.close();
   assert.equal(store.eventCostMemo.stats().lastClearReason, "close");
   assert.equal(store.eventCostMemo.size(), 0);
-  assert.equal(store.eventCostMemo.stats().clears, 2);
+  assert.equal(store.eventCostMemo.stats().clears, stats.clears + 2);
 });
 
 test("W4-b1 · D1 · 负例：memo 不含范围参数 —— 不同 calendarZone 的计价输入相同，但范围层各自重建（不互相冒充）", () => {

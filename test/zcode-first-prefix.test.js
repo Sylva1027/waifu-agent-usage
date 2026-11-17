@@ -251,24 +251,76 @@ for (const [label, mutate, count] of [
   });
 }
 
-test("ZCode append falls back when the active pricing catalog changes the stored price version", async (t) => {
+test("ZCode catalog changes neither reread source facts nor replace the append prefix or its stored price stamps", async (t) => {
   const original = getPricingCatalog();
   t.after(() => setPricingCatalog(original));
   const catalogA = setPricingCatalog(catalogFor("2026-10-19", 1));
   const { actual, legacy, file } = await fixture(t);
-  assert.deepEqual([...new Set(eventRows(actual).map(({ price_version }) => price_version))], [catalogA.version]);
+  assert.deepEqual([...new Set(eventRows(actual).map(({ price_version }) => price_version))], [""]);
+  await actual.dashboardHistory(FILTERS, DASHBOARD_OPTIONS);
+  const prefix = eventRows(actual);
+  const revision = actual.database
+    .prepare("SELECT revision FROM usage_business_revision WHERE singleton=1")
+    .get().revision;
 
   const attempts = captureReuseAttempts(actual);
   const catalogB = setPricingCatalog(catalogFor("2026-10-20", 1.5));
   assert.notEqual(catalogB.version, catalogA.version);
-  appendEvent(file, 3);
   installEventAudit(actual);
+  const prepare = DatabaseSync.prototype.prepare;
+  let sourceReads = 0;
+  t.mock.method(DatabaseSync.prototype, "prepare", function (sql, ...args) {
+    if (sql.includes("FROM model_usage")) sourceReads++;
+    return prepare.call(this, sql, ...args);
+  });
+  try {
+    await actual.dashboardHistory(FILTERS, DASHBOARD_OPTIONS);
+  } finally {
+    t.mock.restoreAll();
+  }
+  assert.equal(sourceReads, 0, "catalog-only queries must not reparse the source database");
+  assert.deepEqual(attempts, []);
+  assert.deepEqual(eventRows(actual), prefix);
+  assert.deepEqual(eventWrites(actual), { inserted: 0, updated: 0, deleted: 0 });
+  assert.equal(
+    actual.database.prepare("SELECT revision FROM usage_business_revision WHERE singleton=1").get().revision,
+    revision,
+  );
+
+  appendEvent(file, 3);
   const result = await publish(actual, file);
-  assert.deepEqual(attempts, [null]);
-  assert.notEqual(result.reusedPrefix, true);
-  assert.deepEqual([...new Set(eventRows(actual).map(({ price_version }) => price_version))], [catalogB.version]);
-  assert.deepEqual(eventWrites(actual), { inserted: 4, updated: 0, deleted: 3 });
+  assert.equal(attempts.length, 1);
+  assert.deepEqual(attempts[0], result);
+  assertPrefixReuse(actual, result, 3);
+  assert.deepEqual(eventRows(actual).slice(0, 3), prefix);
+  assert.deepEqual(
+    eventRows(actual).map(({ price_version }) => price_version),
+    ["", "", "", ""],
+  );
 
   await publish(legacy, file);
   await assertDashboardParity(actual, legacy);
+});
+
+test("ZCode append after a catalog change preserves every existing legacy-stamped fact", async (t) => {
+  const original = getPricingCatalog();
+  t.after(() => setPricingCatalog(original));
+  const catalogA = setPricingCatalog(catalogFor("2026-10-19", 1));
+  const { actual, file } = await fixture(t);
+  // A forced full reimport creates new blank stamps, so legacy retention has its own exact oracle.
+  actual.database.prepare("UPDATE events SET price_version=?").run(catalogA.version);
+  const prefix = eventRows(actual);
+  const catalogB = setPricingCatalog(catalogFor("2026-10-20", 1.5));
+  assert.notEqual(catalogB.version, catalogA.version);
+  appendEvent(file, 3);
+  installEventAudit(actual);
+
+  const result = await publish(actual, file);
+  assertPrefixReuse(actual, result, 3);
+  assert.deepEqual(eventRows(actual).slice(0, 3), prefix);
+  assert.deepEqual(
+    eventRows(actual).map(({ price_version }) => price_version),
+    [catalogA.version, catalogA.version, catalogA.version, ""],
+  );
+  assert.equal(eventRows(actual)[3].context_level, "known");
 });

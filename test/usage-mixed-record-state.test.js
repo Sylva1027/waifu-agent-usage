@@ -462,7 +462,7 @@ test("history supports a separate frozen source and destination without events",
   }
 });
 
-test("hot FORMAT=10 and cached reuse retain their schema, physical id order and writes", () => {
+test("hot FORMAT=11 and cached reuse retain their schema, physical id order and writes", () => {
   const db = new DatabaseSync(":memory:");
   try {
     createEvents(db);
@@ -495,7 +495,7 @@ test("hot FORMAT=10 and cached reuse retain their schema, physical id order and 
     assert.deepEqual(readStoredRecordChampions(input), first);
     assert.deepEqual(db.prepare("SELECT type,name,sql FROM sqlite_master ORDER BY type,name").all(), schema);
     assert.equal(db.prepare("SELECT total_changes() n").get().n, writes);
-    assert.equal(db.prepare("SELECT format_version FROM usage_record_cache_format").get().format_version, 10);
+    assert.equal(db.prepare("SELECT format_version FROM usage_record_cache_format").get().format_version, 11);
     assert.equal(
       db
         .prepare("PRAGMA table_info(usage_record_cache)")

@@ -18,7 +18,7 @@ async function usageReady(page) {
 async function imageReady(page) {
   await page.waitForFunction(() => !document.querySelector("#saveShareImage").disabled);
   await page.locator("#shareImage").evaluate((image) => image.decode());
-  return page.evaluate(async () => {
+  const result = await page.evaluate(async () => {
     const hash = async (url) =>
       Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", await fetch(url).then((r) => r.arrayBuffer()))))
         .map((byte) => byte.toString(16).padStart(2, "0"))
@@ -39,8 +39,13 @@ async function imageReady(page) {
       fee: card.querySelector(".p-fee")?.textContent ?? null,
       artwork: character ? await hash(character.getAttribute("src")) : null,
       classic: card.classList.contains("classic-hybrid"),
+      watermark: card.querySelector(".share-watermark")?.textContent,
+      watermarkCount: card.querySelectorAll(".share-watermark").length,
     };
   });
+  assert.equal(result.watermark, "waifu-agent-usage");
+  assert.equal(result.watermarkCount, 1);
+  return result;
 }
 
 async function openShare(page) {
@@ -255,7 +260,9 @@ test("production share dialog preserves the PNG, layout, snapshot and skin acros
     await closeShare(page);
   }
   await selectPreset("all");
-  assert.ok(await page.locator("#shareToggle").isDisabled());
+  assert.ok(await page.locator("#shareToggle").isEnabled());
+  assert.equal((await openShare(page)).period, "全部");
+  await closeShare(page);
   // Exercise unavailable presets even when this fixture has no live quota window.
   for (const preset of ["custom", "recent", "quota_5h", "quota_week"]) {
     await page.evaluate(async (preset) => {
@@ -269,9 +276,16 @@ test("production share dialog preserves the PNG, layout, snapshot and skin acros
 
   await selectPreset("week");
   const baseline = await openShare(page);
+  const availableMetrics = await appState.evaluate(async (state) => {
+    const { createShareCardData } = await import("/share-card-data.js");
+    return createShareCardData(state.summary).availableMetrics;
+  });
   await checkOriginalHint(page, "按 Esc 退出");
   const bounds = await geometry(page);
-  assert.equal(await page.locator(".customize-label").evaluate((label) => getComputedStyle(label).fontSize), "13px");
+  assert.equal(
+    await page.locator(".share-metrics-label").evaluate((label) => getComputedStyle(label).fontSize),
+    "13px",
+  );
   assert.equal(await page.locator("#shareDialog .share-footer button").count(), 2);
   assert.equal(await page.locator("#shareDialog [data-platform], #shareDialog #systemShare").count(), 0);
   assert.equal(await page.locator("#shareShowCost").isChecked(), false);
@@ -288,7 +302,9 @@ test("production share dialog preserves the PNG, layout, snapshot and skin acros
   ]) {
     await page.locator(`#${id}`).press("ArrowDown");
     const menu = page.locator(`#${id}Menu`);
-    assert.equal(await menu.locator('[role="option"]').count(), 7);
+    assert.equal(await menu.locator('[role="option"]').count(), availableMetrics.length - 1);
+    for (const removed of ["topModel", "topThree", "free", "freeShare", "review"])
+      assert.equal(await menu.locator(`[data-metric="${removed}"]`).count(), 0);
     assert.equal(await menu.locator(`[data-metric="${excluded}"]`).count(), 0);
     await page.keyboard.press("Escape");
     assert.ok(await menu.isHidden());
@@ -296,6 +312,48 @@ test("production share dialog preserves the PNG, layout, snapshot and skin acros
     assert.ok(await page.locator(`#${id}`).evaluate((button) => button === document.activeElement));
     assert.deepEqual(await geometry(page), bounds);
   }
+  let usageRequests = 0;
+  const countUsage = (request) => {
+    if (/\/api\/(usage|summary)(?:\?|$)/.test(request.url())) usageRequests++;
+  };
+  page.on("request", countUsage);
+  const expanded = [
+    "harnesses",
+    "providers",
+    "repositories",
+    "previous",
+    "delta",
+    "growth",
+    "activeDays",
+    "dailyAverage",
+    "activeAverage",
+    "peakDay",
+    "peakHour",
+    "maxSession",
+  ];
+  for (const metric of expanded.filter((id) => availableMetrics.includes(id))) {
+    await page.locator("#shareMetricFirst").click();
+    await page.locator(`#shareMetricFirstMenu [data-metric="${metric}"]`).click();
+    const rendered = await imageReady(page);
+    assert.equal(rendered.metrics.length, 2);
+    assert.deepEqual(await geometry(page), bounds);
+  }
+  await page.locator("#shareMetricFirst").press("End");
+  assert.equal(await page.evaluate(() => document.activeElement.dataset.metric), "maxSession");
+  await page.keyboard.press("Enter");
+  await imageReady(page);
+  const evidence = new URL("../output/share-metrics-production/", import.meta.url);
+  await mkdir(evidence, { recursive: true });
+  const png = await page
+    .locator("#shareImage")
+    .evaluate(async (image) => Array.from(new Uint8Array(await fetch(image.src).then((r) => r.arrayBuffer()))));
+  await writeFile(new URL("max-session.png", evidence), Buffer.from(png));
+  await page.locator("#shareDialog").screenshot({ path: fileURLToPath(new URL("menu-dialog.png", evidence)) });
+  assert.equal(usageRequests, 0, "Changing share metrics uses the captured aggregates without querying usage again");
+  page.off("request", countUsage);
+  await page.locator("#shareMetricFirst").click();
+  await page.locator('#shareMetricFirstMenu [data-metric="cacheHit"]').click();
+  await imageReady(page);
   await page.locator("#shareMetricFirst").click();
   await page.locator('#shareMetricFirstMenu [data-metric="sessions"]').click();
   assert.deepEqual((await imageReady(page)).metrics, ["会话", "输出"]);
@@ -383,8 +441,8 @@ test("production share dialog preserves the PNG, layout, snapshot and skin acros
   const character = await openShare(page);
   assert.equal(character.theme, "dark");
   assert.equal(character.classic, false);
-  assert.equal(character.fee, null, "A new share starts with fees hidden");
-  assert.equal(await page.locator("#shareShowCost").isChecked(), false);
+  assert.equal(character.fee, `API 估算$${expectedUsd}`, "A new share remembers that fees were enabled");
+  assert.equal(await page.locator("#shareShowCost").isChecked(), true);
   const art = await readFile(new URL(`../public${skinAssetUrl("deepseek", "dark", "front")}`, import.meta.url));
   assert.equal(character.artwork, sha256(art));
   await page.locator("#shareDialog").screenshot({ path: fileURLToPath(new URL("waifu-dark-zh.png", screenshots)) });
@@ -417,11 +475,27 @@ test("production share dialog preserves the PNG, layout, snapshot and skin acros
   await closeShare(page);
   const remembered = await openShare(page);
   assert.deepEqual(remembered.metrics, ["会话", "输入"]);
-  assert.equal(remembered.fee, null, "Remembering metrics must not persist the cost toggle");
+  assert.equal(remembered.fee, hidden.fee, "Reopening preserves the enabled cost toggle");
+  assert.equal(await page.locator("#shareShowCost").isChecked(), true);
+  assert.equal(await page.evaluate(() => localStorage.getItem("codexUsageShareShowCost")), "true");
   await closeShare(page);
   await page.reload();
   await usageReady(page);
-  assert.deepEqual((await openShare(page)).metrics, ["会话", "输入"], "A reload preserves metric order");
+  const reloaded = await openShare(page);
+  assert.deepEqual(reloaded.metrics, ["会话", "输入"], "A reload preserves metric order");
+  assert.notEqual(reloaded.fee, null, "A reload preserves enabled fees in the actual PNG");
+  assert.equal(await page.locator("#shareShowCost").isChecked(), true);
+  await page.locator("#shareShowCost").uncheck();
+  assert.equal((await imageReady(page)).fee, null);
+  assert.equal(await page.evaluate(() => localStorage.getItem("codexUsageShareShowCost")), "false");
+  await closeShare(page);
+  assert.equal((await openShare(page)).fee, null, "Reopening also remembers disabled fees");
+  assert.equal(await page.locator("#shareShowCost").isChecked(), false);
+  await closeShare(page);
+  await page.reload();
+  await usageReady(page);
+  assert.equal((await openShare(page)).fee, null, "A reload also remembers disabled fees");
+  assert.equal(await page.locator("#shareShowCost").isChecked(), false);
   await closeShare(page);
 
   for (const saved of ['["cacheHit","cacheHit"]', '["retired","output"]', "invalid JSON"]) {

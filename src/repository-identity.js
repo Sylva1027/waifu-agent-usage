@@ -1,4 +1,4 @@
-import { realpath, stat } from "node:fs/promises";
+import { readFile, realpath, stat } from "node:fs/promises";
 import path from "node:path";
 
 export function normalizeDirectoryPath(value, platform = process.platform) {
@@ -85,5 +85,45 @@ export function createRepositoryResolver({ platform = process.platform } = {}) {
       cache.set(cacheKey, resolveUncached(cwd));
     }
     return cache.get(cacheKey);
+  };
+}
+
+export const COMMON_REPOSITORY_IDENTITY_VERSION = "git-common-v1";
+
+/** Add proven worktree membership without changing the dashboard's existing repository key. */
+export function createCommonRepositoryResolver({ platform = process.platform } = {}) {
+  const resolve = createRepositoryResolver({ platform });
+  return async (cwd) => {
+    const repository = await resolve(cwd);
+    if (repository.kind !== "git" || platform !== process.platform) return { ...repository, commonKey: null };
+    try {
+      const entry = path.join(repository.path, ".git");
+      const info = await stat(entry);
+      let gitDirectory = entry;
+      if (!info.isDirectory()) {
+        const pointer = (await readFile(entry, "utf8")).trim().match(/^gitdir:\s*(.+)$/i);
+        if (!pointer) return { ...repository, commonKey: null };
+        gitDirectory = path.resolve(repository.path, pointer[1]);
+      }
+      gitDirectory = await realpath(gitDirectory);
+      let commonDirectory = gitDirectory;
+      try {
+        const relative = (await readFile(path.join(gitDirectory, "commondir"), "utf8")).trim();
+        if (!relative) return { ...repository, commonKey: null };
+        commonDirectory = path.resolve(gitDirectory, relative);
+      } catch (error) {
+        if (error.code !== "ENOENT") throw error;
+      }
+      commonDirectory = await realpath(commonDirectory);
+      if (!(await stat(commonDirectory)).isDirectory()) return { ...repository, commonKey: null };
+      return {
+        ...repository,
+        commonKey: `git-common:${normalizeDirectoryPath(commonDirectory, platform)}`,
+        evidence: { version: COMMON_REPOSITORY_IDENTITY_VERSION, gitDirectory, commonDirectory },
+      };
+    } catch {
+      // Historical paths may be gone; the achievement archive can retain earlier proven aliases.
+      return { ...repository, commonKey: null };
+    }
   };
 }

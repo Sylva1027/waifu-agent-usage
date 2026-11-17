@@ -1,0 +1,382 @@
+{
+  "rows": [
+    {
+      "id": "A01",
+      "name": "Token 远征",
+      "description": "累计使用 50B／200B／5T Token。",
+      "category": "用量规模",
+      "tiered": true,
+      "unit": "tokens",
+      "levels": ["50B", "200B", "5T"]
+    },
+    {
+      "id": "A06",
+      "name": "薅羊毛大王",
+      "description": "累计使用免费模型 10B／100B／1T Token。",
+      "category": "用量规模",
+      "tiered": true,
+      "unit": "tokens",
+      "levels": ["10B", "100B", "1T"]
+    },
+    {
+      "id": "A07",
+      "name": "你们都是我的翅膀",
+      "description": "使用 10／30／50 种模型，每种累计达到 100M Token。",
+      "category": "模型工具",
+      "tiered": true,
+      "unit": "模型",
+      "levels": ["10", "30", "50"]
+    },
+    {
+      "id": "A08",
+      "name": "福气不小",
+      "description": "使用 3／5／10 家厂商的模型，每家累计达到 1B Token。",
+      "category": "模型工具",
+      "tiered": true,
+      "unit": "厂商",
+      "levels": ["3", "5", "10"]
+    },
+    {
+      "id": "A09",
+      "name": "王之宝库",
+      "description": "使用 2／4／7 种 Harness，每种累计达到 1B Token。",
+      "category": "模型工具",
+      "tiered": true,
+      "unit": "Harness",
+      "levels": ["2", "4", "7"]
+    },
+    {
+      "id": "A10",
+      "name": "深度试驾",
+      "description": "让 3／7／15 种模型各累计使用 1B Token。",
+      "category": "模型工具",
+      "tiered": true,
+      "unit": "模型",
+      "levels": ["3", "7", "15"]
+    },
+    {
+      "id": "A11",
+      "name": "还是你最好",
+      "description": "通过 2／4／6 种 Harness 使用同一个模型，每种 Harness 累计达到 1B Token。",
+      "category": "模型工具",
+      "tiered": true,
+      "unit": "Harness",
+      "levels": ["2", "4", "6"]
+    },
+    {
+      "id": "A12",
+      "name": "下午咱们拉个会",
+      "description": "在同一仓库使用 5／7／12 种模型，每种累计达到 1B Token。",
+      "category": "项目经营",
+      "tiered": true,
+      "unit": "模型",
+      "levels": ["5", "7", "12"]
+    },
+    {
+      "id": "A13",
+      "name": "日积月累",
+      "description": "累计活跃 30／180／365 天，每天用量达到 10M Token。",
+      "category": "时间跨度",
+      "tiered": true,
+      "unit": "天",
+      "levels": ["30", "180", "365"]
+    },
+    {
+      "id": "A14",
+      "name": "明天见",
+      "description": "连续活跃 7／30／365 天，每天用量达到 10M Token。",
+      "category": "时间跨度",
+      "tiered": true,
+      "unit": "天",
+      "levels": ["7", "30", "365"]
+    },
+    {
+      "id": "A16",
+      "name": "月月都有你",
+      "description": "累计活跃 3／12／24 个月，每月至少有 10 天达到 10M Token。",
+      "category": "时间跨度",
+      "tiered": true,
+      "unit": "月",
+      "levels": ["3", "12", "24"]
+    },
+    {
+      "id": "A18",
+      "name": "在这住下了？",
+      "description": "在同一仓库累计活跃 30／90／180 天，每天用量达到 100M Token。",
+      "category": "项目经营",
+      "tiered": true,
+      "unit": "天",
+      "levels": ["30", "90", "180"]
+    },
+    {
+      "id": "A19",
+      "name": "有点上头",
+      "description": "单日用量达到 100M／1B／10B Token。",
+      "category": "时间跨度",
+      "tiered": true,
+      "unit": "tokens",
+      "levels": ["100M", "1B", "10B"]
+    },
+    {
+      "id": "A23",
+      "name": "注意力涣散...",
+      "description": "一个会话累计使用 500M／1B／5B Token。",
+      "category": "时间跨度",
+      "tiered": true,
+      "unit": "tokens",
+      "levels": ["500M", "1B", "5B"]
+    },
+    {
+      "id": "A24",
+      "name": "多线开花",
+      "description": "在 5／10／30 个仓库中使用模型，每个仓库累计达到 1B Token。",
+      "category": "项目经营",
+      "tiered": true,
+      "unit": "仓库",
+      "levels": ["5", "10", "30"]
+    },
+    {
+      "id": "A28",
+      "name": "往来无白丁",
+      "description": "一天内使用 4／7／10 种模型，每种当日用量达到 100M Token。",
+      "category": "模型工具",
+      "tiered": true,
+      "unit": "模型",
+      "levels": ["4", "7", "10"]
+    },
+    {
+      "id": "A29",
+      "name": "谈笑有鸿儒",
+      "description": "一周内使用 3／5／7 种 Harness，每种当周用量达到 1B Token。",
+      "category": "模型工具",
+      "tiered": true,
+      "unit": "Harness",
+      "levels": ["3", "5", "7"]
+    },
+    {
+      "id": "A30",
+      "name": "老搭档",
+      "description": "使用同一个模型累计活跃 7／15／45 天，每天用量达到 100M Token。",
+      "category": "时间跨度",
+      "tiered": true,
+      "unit": "天",
+      "levels": ["7", "15", "45"]
+    },
+    {
+      "id": "A31",
+      "name": "启程",
+      "description": "开始使用模型，产生第一笔 Token 用量。",
+      "category": "故事纪念",
+      "tiered": false,
+      "unit": "次",
+      "levels": ["1"]
+    },
+    {
+      "id": "A32",
+      "name": "百亿纪念",
+      "description": "累计使用 10B Token。",
+      "category": "用量规模",
+      "tiered": false,
+      "unit": "tokens",
+      "levels": ["10B"]
+    },
+    {
+      "id": "A33",
+      "name": "我觉得它说得不对",
+      "description": "同一个会话中使用 2 种模型，每种用量达到 100M Token。",
+      "category": "故事纪念",
+      "tiered": false,
+      "unit": "模型",
+      "levels": ["2"]
+    },
+    {
+      "id": "A36",
+      "name": "旧友重逢",
+      "description": "间隔 30 天后再次使用同一个模型，当天用量达到 100M Token。",
+      "category": "故事纪念",
+      "tiered": false,
+      "unit": "天",
+      "levels": ["30"]
+    },
+    {
+      "id": "A38",
+      "name": "明年也拜托啦",
+      "description": "在 12 月 31 日和次年 1 月 1 日，两天分别使用 1M Token。",
+      "category": "故事纪念",
+      "tiered": false,
+      "unit": "次",
+      "levels": ["1"]
+    },
+    {
+      "id": "A39",
+      "name": "闰日来客",
+      "description": "在 2 月 29 日使用 1M Token。",
+      "category": "故事纪念",
+      "tiered": false,
+      "unit": "次",
+      "levels": ["1"]
+    },
+    {
+      "id": "A43",
+      "name": "有图有真相",
+      "description": "复制或保存 1／10／50 份不同数据的用量战报。",
+      "category": "故事纪念",
+      "tiered": true,
+      "unit": "次",
+      "levels": ["1", "10", "50"]
+    },
+    {
+      "id": "A44",
+      "name": "我全都要！",
+      "description": "使用过 10 种角色皮肤。",
+      "category": "故事纪念",
+      "tiered": false,
+      "unit": "皮肤",
+      "levels": ["10"]
+    },
+    {
+      "id": "A46",
+      "name": "青铜龙的惠赠",
+      "description": "成功恢复一份历史备份。",
+      "category": "故事纪念",
+      "tiered": false,
+      "unit": "次",
+      "levels": ["1"]
+    },
+    {
+      "id": "A53",
+      "name": "你知道得太多了",
+      "description": "同一个模型累计使用 1B／5B／15B Token。",
+      "category": "模型工具",
+      "tiered": true,
+      "unit": "tokens",
+      "levels": ["1B", "5B", "15B"]
+    },
+    {
+      "id": "A54",
+      "name": "只是懒得换Harness",
+      "description": "同一个 Harness 累计使用 10B／200B／1T Token。",
+      "category": "模型工具",
+      "tiered": true,
+      "unit": "tokens",
+      "levels": ["10B", "200B", "1T"]
+    },
+    {
+      "id": "A55",
+      "name": "深坑",
+      "description": "同一个仓库累计使用 1B／50B／1T Token。",
+      "category": "项目经营",
+      "tiered": true,
+      "unit": "tokens",
+      "levels": ["1B", "50B", "1T"]
+    },
+    {
+      "id": "A56",
+      "name": "十亿日常",
+      "description": "累计有 5／10／30 天的单日用量达到 1B Token。",
+      "category": "时间跨度",
+      "tiered": true,
+      "unit": "天",
+      "levels": ["5", "10", "30"]
+    },
+    {
+      "id": "A58",
+      "name": "用量特别管够",
+      "description": "一个月内使用 3B／10B／100B Token。",
+      "category": "时间跨度",
+      "tiered": true,
+      "unit": "tokens",
+      "levels": ["3B", "10B", "100B"]
+    },
+    {
+      "id": "A59",
+      "name": "用量管够",
+      "description": "一周内使用 1B／3B／10B Token。",
+      "category": "时间跨度",
+      "tiered": true,
+      "unit": "tokens",
+      "levels": ["1B", "3B", "10B"]
+    },
+    {
+      "id": "A63",
+      "name": "Alt + Tab",
+      "description": "一天内使用 3／5／7 种 Harness，每种当日用量达到 100M Token。",
+      "category": "模型工具",
+      "tiered": true,
+      "unit": "Harness",
+      "levels": ["3", "5", "7"]
+    },
+    {
+      "id": "A65",
+      "name": "出勤率挺高啊",
+      "description": "累计完成 3／6／12 个月，每个月至少 20 天的用量达到 100M Token。",
+      "category": "时间跨度",
+      "tiered": true,
+      "unit": "月",
+      "levels": ["3", "6", "12"]
+    },
+    {
+      "id": "A69",
+      "name": "千亿纪念",
+      "description": "累计使用 100B Token。",
+      "category": "用量规模",
+      "tiered": false,
+      "unit": "tokens",
+      "levels": ["100B"]
+    },
+    {
+      "id": "A70",
+      "name": "万亿纪念",
+      "description": "累计使用 1T Token。",
+      "category": "用量规模",
+      "tiered": false,
+      "unit": "tokens",
+      "levels": ["1T"]
+    },
+    {
+      "id": "A71",
+      "name": "十万亿纪念",
+      "description": "累计使用 10T Token。",
+      "category": "用量规模",
+      "tiered": false,
+      "unit": "tokens",
+      "levels": ["10T"]
+    },
+    {
+      "id": "A73",
+      "name": "中满贯",
+      "description": "取得所有铜级成就。",
+      "category": "故事纪念",
+      "tiered": false,
+      "unit": "成就",
+      "levels": ["27"]
+    },
+    {
+      "id": "A74",
+      "name": "大满贯",
+      "description": "取得所有银级成就。",
+      "category": "故事纪念",
+      "tiered": false,
+      "unit": "成就",
+      "levels": ["27"]
+    },
+    {
+      "id": "A75",
+      "name": "超大满贯",
+      "description": "取得所有金级成就。",
+      "category": "故事纪念",
+      "tiered": false,
+      "unit": "成就",
+      "levels": ["27"]
+    },
+    {
+      "id": "A76",
+      "name": "千奇百怪的漫长旅行",
+      "description": "取得“故事纪念”中除本成就外的所有成就。",
+      "category": "故事纪念",
+      "tiered": false,
+      "unit": "成就",
+      "levels": ["11"]
+    }
+  ]
+}

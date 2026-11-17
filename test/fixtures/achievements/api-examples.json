@@ -1,0 +1,484 @@
+{
+  "initial": {
+    "body": {
+      "state": "ready",
+      "timeZone": "Asia/Shanghai",
+      "rows": [
+        {
+          "id": "A01",
+          "observedValue": "0",
+          "nextTarget": "50000000000",
+          "highestEarned": null,
+          "earnedAt": {
+            "bronze": null,
+            "silver": null,
+            "gold": null
+          },
+          "updatedAt": null
+        },
+        {
+          "id": "A06",
+          "observedValue": "0",
+          "nextTarget": "10000000000",
+          "highestEarned": null,
+          "earnedAt": {
+            "bronze": null,
+            "silver": null,
+            "gold": null
+          },
+          "updatedAt": null
+        },
+        {
+          "id": "A07",
+          "observedValue": "0",
+          "nextTarget": "10",
+          "highestEarned": null,
+          "earnedAt": {
+            "bronze": null,
+            "silver": null,
+            "gold": null
+          },
+          "updatedAt": null
+        },
+        {
+          "id": "A08",
+          "observedValue": "0",
+          "nextTarget": "3",
+          "highestEarned": null,
+          "earnedAt": {
+            "bronze": null,
+            "silver": null,
+            "gold": null
+          },
+          "updatedAt": null
+        },
+        {
+          "id": "A09",
+          "observedValue": "0",
+          "nextTarget": "2",
+          "highestEarned": null,
+          "earnedAt": {
+            "bronze": null,
+            "silver": null,
+            "gold": null
+          },
+          "updatedAt": null
+        },
+        {
+          "id": "A10",
+          "observedValue": "0",
+          "nextTarget": "3",
+          "highestEarned": null,
+          "earnedAt": {
+            "bronze": null,
+            "silver": null,
+            "gold": null
+          },
+          "updatedAt": null
+        },
+        {
+          "id": "A11",
+          "observedValue": "0",
+          "nextTarget": "2",
+          "highestEarned": null,
+          "earnedAt": {
+            "bronze": null,
+            "silver": null,
+            "gold": null
+          },
+          "updatedAt": null
+        },
+        {
+          "id": "A12",
+          "observedValue": "0",
+          "nextTarget": "5",
+          "highestEarned": null,
+          "earnedAt": {
+            "bronze": null,
+            "silver": null,
+            "gold": null
+          },
+          "updatedAt": null
+        },
+        {
+          "id": "A13",
+          "observedValue": "0",
+          "nextTarget": "30",
+          "highestEarned": null,
+          "earnedAt": {
+            "bronze": null,
+            "silver": null,
+            "gold": null
+          },
+          "updatedAt": null
+        },
+        {
+          "id": "A14",
+          "observedValue": "0",
+          "nextTarget": "7",
+          "highestEarned": null,
+          "earnedAt": {
+            "bronze": null,
+            "silver": null,
+            "gold": null
+          },
+          "updatedAt": null
+        },
+        {
+          "id": "A16",
+          "observedValue": "0",
+          "nextTarget": "3",
+          "highestEarned": null,
+          "earnedAt": {
+            "bronze": null,
+            "silver": null,
+            "gold": null
+          },
+          "updatedAt": null
+        },
+        {
+          "id": "A18",
+          "observedValue": "0",
+          "nextTarget": "30",
+          "highestEarned": null,
+          "earnedAt": {
+            "bronze": null,
+            "silver": null,
+            "gold": null
+          },
+          "updatedAt": null
+        },
+        {
+          "id": "A19",
+          "observedValue": "0",
+          "nextTarget": "100000000",
+          "highestEarned": null,
+          "earnedAt": {
+            "bronze": null,
+            "silver": null,
+            "gold": null
+          },
+          "updatedAt": null
+        },
+        {
+          "id": "A23",
+          "observedValue": "0",
+          "nextTarget": "500000000",
+          "highestEarned": null,
+          "earnedAt": {
+            "bronze": null,
+            "silver": null,
+            "gold": null
+          },
+          "updatedAt": null
+        },
+        {
+          "id": "A24",
+          "observedValue": "0",
+          "nextTarget": "5",
+          "highestEarned": null,
+          "earnedAt": {
+            "bronze": null,
+            "silver": null,
+            "gold": null
+          },
+          "updatedAt": null
+        },
+        {
+          "id": "A28",
+          "observedValue": "0",
+          "nextTarget": "4",
+          "highestEarned": null,
+          "earnedAt": {
+            "bronze": null,
+            "silver": null,
+            "gold": null
+          },
+          "updatedAt": null
+        },
+        {
+          "id": "A29",
+          "observedValue": "0",
+          "nextTarget": "3",
+          "highestEarned": null,
+          "earnedAt": {
+            "bronze": null,
+            "silver": null,
+            "gold": null
+          },
+          "updatedAt": null
+        },
+        {
+          "id": "A30",
+          "observedValue": "0",
+          "nextTarget": "7",
+          "highestEarned": null,
+          "earnedAt": {
+            "bronze": null,
+            "silver": null,
+            "gold": null
+          },
+          "updatedAt": null
+        },
+        {
+          "id": "A31",
+          "observedValue": "0",
+          "nextTarget": "1",
+          "highestEarned": null,
+          "earnedAt": {
+            "stone": null
+          },
+          "updatedAt": null
+        },
+        {
+          "id": "A32",
+          "observedValue": "0",
+          "nextTarget": "10000000000",
+          "highestEarned": null,
+          "earnedAt": {
+            "stone": null
+          },
+          "updatedAt": null
+        },
+        {
+          "id": "A33",
+          "observedValue": "0",
+          "nextTarget": "2",
+          "highestEarned": null,
+          "earnedAt": {
+            "stone": null
+          },
+          "updatedAt": null
+        },
+        {
+          "id": "A36",
+          "observedValue": "0",
+          "nextTarget": "30",
+          "highestEarned": null,
+          "earnedAt": {
+            "stone": null
+          },
+          "updatedAt": null
+        },
+        {
+          "id": "A38",
+          "observedValue": "0",
+          "nextTarget": "1",
+          "highestEarned": null,
+          "earnedAt": {
+            "stone": null
+          },
+          "updatedAt": null
+        },
+        {
+          "id": "A39",
+          "observedValue": "0",
+          "nextTarget": "1",
+          "highestEarned": null,
+          "earnedAt": {
+            "stone": null
+          },
+          "updatedAt": null
+        },
+        {
+          "id": "A43",
+          "observedValue": "0",
+          "nextTarget": "1",
+          "highestEarned": null,
+          "earnedAt": {
+            "bronze": null,
+            "silver": null,
+            "gold": null
+          },
+          "updatedAt": null
+        },
+        {
+          "id": "A44",
+          "observedValue": "0",
+          "nextTarget": "10",
+          "highestEarned": null,
+          "earnedAt": {
+            "stone": null
+          },
+          "updatedAt": null
+        },
+        {
+          "id": "A46",
+          "observedValue": "0",
+          "nextTarget": "1",
+          "highestEarned": null,
+          "earnedAt": {
+            "stone": null
+          },
+          "updatedAt": null
+        },
+        {
+          "id": "A53",
+          "observedValue": "0",
+          "nextTarget": "1000000000",
+          "highestEarned": null,
+          "earnedAt": {
+            "bronze": null,
+            "silver": null,
+            "gold": null
+          },
+          "updatedAt": null
+        },
+        {
+          "id": "A54",
+          "observedValue": "0",
+          "nextTarget": "10000000000",
+          "highestEarned": null,
+          "earnedAt": {
+            "bronze": null,
+            "silver": null,
+            "gold": null
+          },
+          "updatedAt": null
+        },
+        {
+          "id": "A55",
+          "observedValue": "0",
+          "nextTarget": "1000000000",
+          "highestEarned": null,
+          "earnedAt": {
+            "bronze": null,
+            "silver": null,
+            "gold": null
+          },
+          "updatedAt": null
+        },
+        {
+          "id": "A56",
+          "observedValue": "0",
+          "nextTarget": "5",
+          "highestEarned": null,
+          "earnedAt": {
+            "bronze": null,
+            "silver": null,
+            "gold": null
+          },
+          "updatedAt": null
+        },
+        {
+          "id": "A58",
+          "observedValue": "0",
+          "nextTarget": "3000000000",
+          "highestEarned": null,
+          "earnedAt": {
+            "bronze": null,
+            "silver": null,
+            "gold": null
+          },
+          "updatedAt": null
+        },
+        {
+          "id": "A59",
+          "observedValue": "0",
+          "nextTarget": "1000000000",
+          "highestEarned": null,
+          "earnedAt": {
+            "bronze": null,
+            "silver": null,
+            "gold": null
+          },
+          "updatedAt": null
+        },
+        {
+          "id": "A63",
+          "observedValue": "0",
+          "nextTarget": "3",
+          "highestEarned": null,
+          "earnedAt": {
+            "bronze": null,
+            "silver": null,
+            "gold": null
+          },
+          "updatedAt": null
+        },
+        {
+          "id": "A65",
+          "observedValue": "0",
+          "nextTarget": "3",
+          "highestEarned": null,
+          "earnedAt": {
+            "bronze": null,
+            "silver": null,
+            "gold": null
+          },
+          "updatedAt": null
+        },
+        {
+          "id": "A69",
+          "observedValue": "0",
+          "nextTarget": "100000000000",
+          "highestEarned": null,
+          "earnedAt": {
+            "stone": null
+          },
+          "updatedAt": null
+        },
+        {
+          "id": "A70",
+          "observedValue": "0",
+          "nextTarget": "1000000000000",
+          "highestEarned": null,
+          "earnedAt": {
+            "stone": null
+          },
+          "updatedAt": null
+        },
+        {
+          "id": "A71",
+          "observedValue": "0",
+          "nextTarget": "10000000000000",
+          "highestEarned": null,
+          "earnedAt": {
+            "stone": null
+          },
+          "updatedAt": null
+        },
+        {
+          "id": "A73",
+          "observedValue": "0",
+          "nextTarget": "27",
+          "highestEarned": null,
+          "earnedAt": {
+            "stone": null
+          },
+          "updatedAt": null
+        },
+        {
+          "id": "A74",
+          "observedValue": "0",
+          "nextTarget": "27",
+          "highestEarned": null,
+          "earnedAt": {
+            "stone": null
+          },
+          "updatedAt": null
+        },
+        {
+          "id": "A75",
+          "observedValue": "0",
+          "nextTarget": "27",
+          "highestEarned": null,
+          "earnedAt": {
+            "stone": null
+          },
+          "updatedAt": null
+        },
+        {
+          "id": "A76",
+          "observedValue": "0",
+          "nextTarget": "11",
+          "highestEarned": null,
+          "earnedAt": {
+            "stone": null
+          },
+          "updatedAt": null
+        }
+      ]
+    }
+  }
+}

@@ -5,7 +5,6 @@ import { DatabaseSync } from "node:sqlite";
 import { createHistoryBackup } from "./history-backup.js";
 import { verifyHistoryArchiveCandidate } from "./history-archive.js";
 import { compactHistoryDatabase, compareHistoryDatabases, syncHistoryArchiveFiles } from "./history-compact.js";
-import { serviceTierEvidenceFromSnapshot } from "./service-tier-evidence.js";
 
 async function saveMapping(file, value) {
   const handle = await open(file, "wx");
@@ -30,10 +29,17 @@ export async function compactHistoryArchivePackage(sourceFile, destinationFile) 
     let manifest;
     try {
       manifest = await createHistoryBackup(database, destinationFile, {
-        pricingCatalog: original.manifest.pricing.catalog,
-        serviceTierEvidence: original.manifest.serviceTierEvidence
-          ? serviceTierEvidenceFromSnapshot(original.manifest.serviceTierEvidence.snapshot)
-          : null,
+        formatVersion: original.manifest.formatVersion,
+        pricingCatalog: original.manifest.pricing?.catalog ?? null,
+        serviceTierSnapshot: original.manifest.serviceTierEvidence?.snapshot ?? null,
+        ...(original.manifest.achievements
+          ? {
+              achievementBackup: {
+                directory: path.dirname(original.databaseFile),
+                record: original.manifest.achievements,
+              },
+            }
+          : {}),
       });
     } finally {
       database.close();
@@ -97,6 +103,14 @@ export async function switchHistoryArchivePackages(store, mapping, { rollback = 
         assert.deepEqual(after.candidate, before.candidate);
         assert.deepEqual(after.manifest.pricing, before.manifest.pricing);
         assert.deepEqual(after.manifest.serviceTierEvidence, before.manifest.serviceTierEvidence);
+        assert.equal(after.manifest.formatVersion, before.manifest.formatVersion);
+        assert.deepEqual(
+          after.manifest.achievements && {
+            ...after.manifest.achievements,
+            filename: before.manifest.achievements.filename,
+          },
+          before.manifest.achievements,
+        );
         compareHistoryDatabases(before.databaseFile, after.databaseFile);
         const current = records.get(previous.segment_id);
         if (current) {

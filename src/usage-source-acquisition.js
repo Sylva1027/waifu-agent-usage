@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { lstat, opendir, stat } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
-import { discoverUsageSources } from "./usage-core.js";
+import { discoverUsageSources } from "./usage-sources.js";
 import { readUsageSourceProgress } from "./usage-source-progress.js";
 import { windowsSourceProofPosition } from "./usage-source-native.js";
 import { readUsageSourceInputs } from "./usage-source-inputs.js";
@@ -81,8 +81,9 @@ function progressSeal(store, file) {
 
 /** Rebuildable identities only. Facts and parser checkpoints remain in their existing tables. */
 export class UsageSourceAcquisition {
-  constructor(store) {
+  constructor(store, { readInputs = readUsageSourceInputs } = {}) {
     this.store = store;
+    this.readInputs = readInputs;
     this.work = null;
   }
 
@@ -131,7 +132,7 @@ export class UsageSourceAcquisition {
     if (!(await native.journal(options.homeDir || os.homedir()))) return null;
     const candidates = [];
     const homes = await discoverUsageSources({ ...options, sourceCandidates: candidates });
-    const auxiliary = await readUsageSourceInputs(options, homes, "");
+    const auxiliary = await this.readInputs(options, homes, "");
     const scopes = [...new Set([...candidates, ...homes.map((h) => h.path), ...auxiliary.files].map(normal))];
     if (!scopes.length || scopes.length > 256 || scopes.some((root) => within(normal(this.store.databaseFile), root)))
       return null;
@@ -393,7 +394,7 @@ export class UsageSourceAcquisition {
         throw unavailable("Hermes source requires a full snapshot");
       const native = state && (await this.provider());
       if (!native) return null;
-      const inputs = await readUsageSourceInputs(options, state.homes, "");
+      const inputs = await this.readInputs(options, state.homes, "");
       if (inputs.inputs !== state.auxiliary) throw unavailable("auxiliary input changed");
       // An open SQLite writer can change its WAL without another main-file journal record.
       const sqliteFiles = this.store.database
@@ -448,7 +449,7 @@ export class UsageSourceAcquisition {
     const changes = Number(this.store.database.prepare("SELECT total_changes() n").get().n);
     const plan = await this.prepare(options);
     if (!plan || plan.files.length || plan.directories?.length) return null;
-    const input = await readUsageSourceInputs(options, plan.homes, "");
+    const input = await this.readInputs(options, plan.homes, "");
     if (
       input.inputs !== plan.auxiliary ||
       Number(this.store.database.prepare("PRAGMA data_version").get().data_version) !== plan.dataVersion ||
@@ -647,7 +648,7 @@ export class UsageSourceAcquisition {
           }
         }
       }
-      const inputs = await readUsageSourceInputs(options, this.store.homes, "");
+      const inputs = await this.readInputs(options, this.store.homes, "");
       if (inputs.inputs !== plan.auxiliary) throw unavailable("auxiliary inputs changed while synchronizing");
       const state = {
         format: 1,

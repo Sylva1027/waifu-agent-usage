@@ -300,7 +300,9 @@ test("两候选服务同时存活、颜色互不串值；共享 fixture 数据�
     assert.equal(rightAccent, "#FF0001", "实例 B 必须只提供候选 B 的颜色");
     assert.notEqual(leftAccent, rightAccent);
     for (const preview of [leftPreview, rightPreview]) {
-      const usage = await fetch(new URL("/api/usage", preview.url)).then((response) => response.json());
+      const response = await fetch(new URL("/api/usage", preview.url));
+      const usage = await response.json();
+      assert.equal(response.status, 200, JSON.stringify(usage));
       assert.equal(usage.summary.totals.total, FIXTURE_TOTAL_TOKENS, "每个实例的 API 都有自己的 fixture 数据");
     }
   } finally {
@@ -609,6 +611,41 @@ test("代理保真：未知 API 走后端 404、POST 方法与 JSON 错误形状
   } finally {
     await preview.close();
     await fixture.close();
+  }
+});
+
+test("preview proxy preserves same-origin achievement operations and rejects foreign origins", async () => {
+  for (const candidate of [null, previewCandidate()]) {
+    const fixture = await createPaletteFixture();
+    let preview;
+    try {
+      preview = await startCandidatePreview({ candidate, fixture });
+      const mutate = (origin, site = "same-origin") =>
+        fetch(new URL("/api/achievements/operations", preview.url), {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Origin: origin, "Sec-Fetch-Site": site },
+          body: JSON.stringify({ kind: "skin", characterId: "chatgpt" }),
+        });
+      const origin = new URL(preview.url).origin;
+      const accepted = await mutate(origin);
+      assert.equal(accepted.status, 200, await accepted.clone().text());
+      assert.equal((await accepted.json()).recorded, true);
+      const replay = await mutate(origin);
+      assert.equal(replay.status, 200);
+      assert.equal((await replay.json()).recorded, false);
+      for (const [foreign, site] of [
+        ["https://foreign.example", "cross-site"],
+        ["https://foreign.example", "same-origin"],
+        [origin, "cross-site"],
+      ]) {
+        const rejected = await mutate(foreign, site);
+        assert.equal(rejected.status, 403);
+        assert.equal((await rejected.json()).code, "ACHIEVEMENT_ORIGIN_REJECTED");
+      }
+    } finally {
+      await preview?.close();
+      await fixture.close();
+    }
   }
 });
 
@@ -2529,16 +2566,21 @@ test("D8s5-warning：S8 独立登记告警状态，并在实际单元前置拒�
 
 test("D8u3B1: registered fixture trace is checked after evidence hashes and ordinary units stay readable", async (t) => {
   const fixtureUnit = matrixGroup("S8").units[0];
-  const evidenceRoot = path.resolve(
-    path.dirname(fileURLToPath(import.meta.url)),
-    "../docs/validation/2026-10-03-skin-palette-redesign/20261003T185748/integration/m52-c-d8s9-warning-paired/capture-output",
+  const sandbox = await mkdtemp(path.join(tmpdir(), "skin-palette-d8u3b1-state-proof-"));
+  t.after(() => rm(sandbox, { recursive: true, force: true }));
+  const evidenceRoot = path.join(sandbox, "reference", "capture");
+  const historicalHash = createHash("sha256").update("previous synthetic timeline-warning fixture").digest("hex");
+  const { progress: frozenProgress } = await writeMatrixCapture(
+    path.dirname(evidenceRoot),
+    "capture",
+    makeCandidate(),
+    {
+      groups: ["S8"],
+      modes: ["light"],
+      fixtureProofOverride: (proof) => ({ ...proof, expectedHash: historicalHash, actualHash: historicalHash }),
+    },
   );
-  if (!existsSync(evidenceRoot)) {
-    t.skip("dated frozen evidence is not in this tree (release archive); it stays in the authoring repository");
-    return;
-  }
   const frozenUnitDir = path.join(evidenceRoot, "light", "states", fixtureUnit.id);
-  const frozenProgress = JSON.parse(await readFile(path.join(evidenceRoot, "progress.json"), "utf8"));
   const frozenEvidenceHash = frozenProgress.units[`light/${fixtureUnit.id}`].evidenceHash;
   const frozenState = JSON.parse(await readFile(path.join(frozenUnitDir, "state.json"), "utf8"));
   const historicalFixtureUnit = {
@@ -2599,7 +2641,6 @@ test("D8u3B1: registered fixture trace is checked after evidence hashes and ordi
     sha256Canonical,
   );
 
-  const sandbox = await mkdtemp(path.join(tmpdir(), "skin-palette-d8u3b1-state-proof-"));
   try {
     const ordinaryCandidate = makeCandidate();
     const ordinaryRunDir = path.join(sandbox, "ordinary");
@@ -3784,7 +3825,16 @@ test("M4.3 真机矩阵：light 模式 S1/S2/S6 全覆盖、恢复无旧色残�
       if (state.status !== "failed") continue;
       for (let attempt = 1; attempt <= state.attempts; attempt += 1) {
         const evidence = await unitState(result.outDir, "light", `${unitId}/attempt-${attempt}`);
-        t.diagnostic(JSON.stringify({ unitId, attempt, failure: evidence.trace?.measurementFailure }));
+        t.diagnostic(
+          JSON.stringify({
+            unitId,
+            attempt,
+            blockers: evidence.blockers,
+            ready: evidence.trace?.ready,
+            errors: evidence.errors,
+            failure: evidence.trace?.measurementFailure,
+          }),
+        );
       }
     }
     const expectedUnits = ["S1", "S2", "S6"].flatMap((id) =>
@@ -3810,6 +3860,17 @@ test("M4.3 真机矩阵：light 模式 S1/S2/S6 全覆盖、恢复无旧色残�
       const entry = mode.states[unitId];
       assert.equal(entry.status, "captured", `${unitId} 必须完整捕获：${JSON.stringify(entry.blockers ?? [])}`);
     }
+    const enabled = await unitState(result.outDir, "light", "autorefresh-on");
+    assert.ok(
+      enabled.trace.closedUsageStreams.some(
+        (entry) =>
+          new URL(entry.url).pathname === "/api/usage-events" &&
+          new URL(entry.url).searchParams.get("watch") === "0" &&
+          entry.resourceType === "eventsource" &&
+          entry.error === "net::ERR_ABORTED",
+      ),
+      "开启自动刷新应保留被动 SSE 主动关闭的精确证据",
+    );
 
     // 每单元证据齐备：checks.json / geometry.json / state.png（有 clipSelector 的还有区域截图）
     for (const unitId of expectedUnits) {
@@ -4010,6 +4071,13 @@ test("M4.3 真机矩阵：light 模式 S1/S2/S6 全覆盖、恢复无旧色残�
       assert.equal(sha256(await readFile(path.join("public", name))), before[name], `${name} 全程不得被改写`);
     }
   } finally {
+    if (process.env.SKIN_PALETTE_RUNTIME_EVIDENCE_DIR) {
+      await cp(
+        path.join(sandbox, "docs", "validation", "m43", "matrix"),
+        path.join(process.env.SKIN_PALETTE_RUNTIME_EVIDENCE_DIR, "s1-s2-s6"),
+        { recursive: true },
+      );
+    }
     await rm(sandbox, { recursive: true, force: true });
     await fixture.close();
   }
@@ -4516,6 +4584,9 @@ test("M4.3 S3/S5 真实交互：完成目录选择、来源筛选和按模型/�
       );
     }
   } finally {
+    if (process.env.SKIN_PALETTE_RUNTIME_EVIDENCE_DIR) {
+      await cp(outDir, path.join(process.env.SKIN_PALETTE_RUNTIME_EVIDENCE_DIR, "s3-s5"), { recursive: true });
+    }
     await rm(sandbox, { recursive: true, force: true });
     await fixture.close();
   }

@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { selectQuotaWindows, resolveDateRange } from "../src/usage-core.js";
-import { completedQuotaWindows, previousQuotaRange, quotaRecordsForRange } from "../public/timeline-utils.js";
+import { completedQuotaWindows, previousQuotaRange } from "../public/timeline-utils.js";
+import { quotaRecordsForRange } from "../public/waifu-timeline.js";
 
 test("quota consumers preserve array results with a single-pass window source", () => {
   const asOf = new Date("2026-10-03T03:00:00Z");

@@ -38,7 +38,11 @@ async function json(base, query) {
 
 test("Q5 cache miss cannot label a newer dashboard with the previous source fingerprint", async () => {
   const fixture = createCodexIntegrationFixture();
-  const server = createUsageServer({ ...fixture.serverOptions, pricingRefreshSchedulerEnabled: false });
+  const server = createUsageServer({
+    ...fixture.serverOptions,
+    edition: "standard",
+    pricingRefreshSchedulerEnabled: false,
+  });
   const original = UsageSummaryCache.prototype.get;
   const entered = deferred();
   const release = deferred();
@@ -81,7 +85,7 @@ for (const check of ["status", "unchanged-sync", "unchanged-sync-miss", "append"
   test(`Q5 a read finishes without chasing repeated ${check} checks`, async () => {
     const fixture = createCodexIntegrationFixture();
     // These checks vary publications, not executor lifetime.
-    const server = createUsageServer({ ...fixture.serverOptions, executorIdleTimeoutMs: 60_000 });
+    const server = createUsageServer({ ...fixture.serverOptions, edition: "standard", executorIdleTimeoutMs: 60_000 });
     const original = UsageSummaryCache.prototype.get;
     let targetKey;
     let checking = false;
@@ -159,7 +163,7 @@ for (const stage of ["cache", "dashboard"]) {
       ]),
     );
     fixture.serverOptions.extraDshHomes = dshHome;
-    const server = createUsageServer(fixture.serverOptions);
+    const server = createUsageServer({ ...fixture.serverOptions, edition: "standard" });
     const originalGet = UsageSummaryCache.prototype.get;
     const originalPublish = UsageSummaryCache.prototype.publish;
     let targetKey;
@@ -270,7 +274,11 @@ test("Q5 poll collision publishes an admitted batch and retains the later append
     hints.push(callback);
     return { unref() {} };
   });
-  const server = createUsageServer({ ...fixture.serverOptions, pricingRefreshSchedulerEnabled: false });
+  const server = createUsageServer({
+    ...fixture.serverOptions,
+    edition: "standard",
+    pricingRefreshSchedulerEnabled: false,
+  });
   const originalRead = UsageSummaryCache.prototype.readSourceState;
   const originalCertifiedRead = UsageSummaryCache.prototype.readCertifiedSourceState;
   const entered = deferred();
@@ -379,7 +387,7 @@ test("Q5 continuous hints deliver each changed commit before a quiet round and d
     if (text.startsWith("event: usage-synced\n")) sent.push(JSON.parse(text.split("\ndata: ")[1]));
     return write.call(this, chunk, ...args);
   });
-  const server = createUsageServer(fixture.serverOptions);
+  const server = createUsageServer({ ...fixture.serverOptions, edition: "standard" });
   const originalRead = UsageSummaryCache.prototype.readSourceState;
   const originalCertifiedRead = UsageSummaryCache.prototype.readCertifiedSourceState;
   let fullReadPending = false;

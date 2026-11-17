@@ -134,16 +134,46 @@ function normalizePalette(raw) {
 // slip can never reach the page again.
 // ---------------------------------------------------------------------------
 const MEASURED_INK = {
-  ChatGPT: { front: { w: 0.96068, h: 0.985646, cx: 0.504782 }, side: { w: 0.920298, h: 0.994617, cx: 0.534538 } },
-  Claude: { front: { w: 0.98406, h: 0.992819, cx: 0.503719 }, side: { w: 0.980871, h: 0.987433, cx: 0.502125 } },
-  DeepSeek: { front: { w: 0.953241, h: 0.986244, cx: 0.507439 }, side: { w: 0.97237, h: 0.982645, cx: 0.503188 } },
-  GLM: { front: { w: 0.893555, h: 0.992839, cx: 0.507324 }, side: { w: 0.912109, h: 0.990234, cx: 0.512695 } },
-  Gemini: { front: { w: 0.954102, h: 0.990234, cx: 0.500488 }, side: { w: 0.981934, h: 0.985048, cx: 0.501594 } },
-  Kimi: { front: { w: 0.953125, h: 0.98763, cx: 0.511719 }, side: { w: 0.990436, h: 0.974267, cx: 0.503719 } },
-  Qwen: { front: { w: 0.97237, h: 0.985646, cx: 0.503188 }, side: { w: 0.955367, h: 0.977273, cx: 0.519129 } },
-  Grok: { front: { w: 0.987248, h: 0.983254, cx: 0.506376 }, side: { w: 0.971307, h: 0.98445, cx: 0.50797 } },
-  Muse: { front: { w: 0.912109, h: 0.992839, cx: 0.505859 }, side: { w: 0.756836, h: 0.988932, cx: 0.574707 } },
-  Mimo: { front: { w: 0.567383, h: 0.979818, cx: 0.502441 }, side: { w: 0.688477, h: 0.988281, cx: 0.596191 } },
+  ChatGPT: {
+    front: { w: 0.96068, h: 0.985646, cx: 0.504782, top: 0.007775 },
+    side: { w: 0.920298, h: 0.994617, cx: 0.534538, top: 0.004187 },
+  },
+  Claude: {
+    front: { w: 0.98406, h: 0.992819, cx: 0.503719, top: 0.005386 },
+    side: { w: 0.980871, h: 0.987433, cx: 0.502125, top: 0.007181 },
+  },
+  DeepSeek: {
+    front: { w: 0.953241, h: 0.986244, cx: 0.507439, top: 0.008971 },
+    side: { w: 0.97237, h: 0.982645, cx: 0.503188, top: 0.005984 },
+  },
+  GLM: {
+    front: { w: 0.893555, h: 0.992839, cx: 0.507324, top: 0.005208 },
+    side: { w: 0.912109, h: 0.990234, cx: 0.512695, top: 0.005859 },
+  },
+  Gemini: {
+    front: { w: 0.954102, h: 0.990234, cx: 0.500488, top: 0.005208 },
+    side: { w: 0.981934, h: 0.985048, cx: 0.501594, top: 0.007775 },
+  },
+  Kimi: {
+    front: { w: 0.953125, h: 0.98763, cx: 0.511719, top: 0.00651 },
+    side: { w: 0.990436, h: 0.974267, cx: 0.503719, top: 0.010174 },
+  },
+  Qwen: {
+    front: { w: 0.97237, h: 0.985646, cx: 0.503188, top: 0.007775 },
+    side: { w: 0.955367, h: 0.977273, cx: 0.519129, top: 0.004785 },
+  },
+  Grok: {
+    front: { w: 0.987248, h: 0.983254, cx: 0.506376, top: 0.007775 },
+    side: { w: 0.971307, h: 0.98445, cx: 0.50797, top: 0.00299 },
+  },
+  Muse: {
+    front: { w: 0.912109, h: 0.992839, cx: 0.505859, top: 0.003906 },
+    side: { w: 0.756836, h: 0.988932, cx: 0.574707, top: 0.005859 },
+  },
+  Mimo: {
+    front: { w: 0.567383, h: 0.979818, cx: 0.502441, top: 0.007812 },
+    side: { w: 0.688477, h: 0.988281, cx: 0.596191, top: 0.005859 },
+  },
 };
 
 // Manually marked visible face boundaries, as fractions of the SOURCE canvas.
@@ -212,7 +242,7 @@ function displayParamsFor(assetPrefix, view) {
   if (!measured) {
     // An unmeasured image still renders, at neutral parameters, rather than
     // disappearing or being sized by a guess.
-    return deepFreeze({ scale: 1, anchorX: 0.5, anchorY: 1, inkWidth: null, inkHeight: null });
+    return deepFreeze({ scale: 1, anchorX: 0.5, anchorY: 1, inkWidth: null, inkHeight: null, inkTop: null });
   }
   return deepFreeze({
     scale: Number((REFERENCE_INK_HEIGHT / measured.h).toFixed(4)),
@@ -220,6 +250,7 @@ function displayParamsFor(assetPrefix, view) {
     anchorY: 1,
     inkWidth: measured.w,
     inkHeight: measured.h,
+    inkTop: measured.top,
     face: pageFaceFor(assetPrefix, view),
   });
 }

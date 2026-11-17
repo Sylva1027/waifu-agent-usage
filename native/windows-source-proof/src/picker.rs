@@ -39,7 +39,7 @@ unsafe fn show_dialog(owner: HWND) -> Result<String> {
                 | FOS_NOCHANGEDIR
                 | FOS_FORCESHOWHIDDEN,
         )?;
-        dialog.SetTitle(w!("Agent Usage — 选择记录目录"))?;
+        dialog.SetTitle(w!("Waifu Agent Usage — 选择记录目录"))?;
         // An owned dialog stays above the window where the user requested it.
         if let Err(error) = dialog.Show(Some(owner)) {
             if error.code() == HRESULT::from_win32(ERROR_CANCELLED.0) {

@@ -1,6 +1,9 @@
 // Keep routing namespaces: a third-party GPT alias is not subscription evidence.
 export function isQuotaUsage(event) {
-  if (["api", "external", "credits"].includes(event.quotaSource)) return false;
+  if (["api", "external"].includes(event.quotaSource)) return false;
+  // Free reviews remain visible even during an inferred credits interval.
+  if (/^(?:(?:openai|codex)\/)?codex-auto-review$/i.test(String(event.model || "").trim())) return true;
+  if (event.quotaSource === "credits") return false;
   return /^(?:(?:openai|codex)\/)?(?:gpt-\d|o[134](?:-|$)|codex-mini-latest$)/i.test(String(event.model || "").trim());
 }
 

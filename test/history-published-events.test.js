@@ -124,14 +124,14 @@ test("publishedUsageEvents returns complete events after source loss without dup
         cacheWriteTokens: 300,
         cacheWriteKnown: true,
         requestInputTokens: 1000,
-        contextLevel: "short",
+        contextLevel: "known",
         serviceTier: "priority",
       },
     );
     assert.equal(published.repositoryKey, stored.repository_key);
     assert.ok(published.repositoryKey.startsWith("git:"));
     assert.equal(published.priceVersion, stored.price_version);
-    assert.ok(published.priceVersion);
+    assert.equal(published.priceVersion, "");
     assert.deepEqual(published.total, {
       total: usage.total,
       input: usage.input,

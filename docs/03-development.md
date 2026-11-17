@@ -1,90 +1,89 @@
-# 开发与接手
+# 开发指南
 
-更新：2026-11-11。先读[文档入口](00-index.md)和[任务清单](02-tasks.md)，交付操作见[构建、升级与回滚](15-delivery-upgrade.md)。
+项目使用 Node.js ESM、SQLite 和浏览器原生 JavaScript。v1.0 的包版本为 `1.0.0`，发布标识 `releaseVersion` 为 `1.0`，下载 tag 为 `v1.0`。
 
 ## 环境与启动
 
-项目使用 Node ESM，运行要求以 `package.json` 的 `engines` 为准（当前 `>=23.8`）。没有生产 npm 依赖；三个开发依赖是 TypeScript、Biome 和 Node 类型声明。TypeScript 也被配色工具用于源码解析。
+运行要求为 Node.js `>=23.8`。运行时没有生产 npm 依赖；开发依赖用于类型检查、格式检查和配色工具。
 
-Windows 使用 PowerShell 7（`pwsh`），运行 `npm.cmd` / `npx.cmd` 无需修改执行策略：
+Windows 使用 PowerShell 7（`pwsh`），在仓库根目录执行：
 
 ```powershell
-node --version
 npm.cmd ci
 node src/cli.js run
 ```
 
-默认页面为 `http://127.0.0.1:3765`，前台服务用 Ctrl+C 停止。后台服务与网关参数见 `node src/cli.js --help`。Windows 配套助手由 `native:build` 显式构建，`native:check` 只读校验；Rust/Cargo 只用于构建该助手，普通运行不调用编译器。
+源码 `src/cli.js` 默认运行 Waifu，`npm run serve` 使用同一入口。开发 Lite 可运行：
 
-## 界面设计与验收基准
+```powershell
+node src/cli-lite.js run --port 3766 --home-dir ./output/lite-home --state-file ./output/lite-services.json
+```
 
-页面面向 PC、鼠标键盘操作，以 16:9 高分辨率桌面为基准，优先检查 1920×1080、2560×1440 及实际并排／侧栏场景。记录 CSS 视口、OS 显示缩放和浏览器缩放，不能把显示器分辨率当成页面宽度。
+并行实例使用独立端口、用户数据根目录和服务注册文件。`--home-dir` 会影响默认数据与配置位置，不只是筛选来源。正式运行包的两版入口均为 `node src/cli.js run`。
 
-既有窄窗口适配保持操作可达，不为手机场景压缩桌面信息密度。分享图片本身才需要检查接收端约 360px 的阅读效果。机制、估算和边界解释放在主动展开的详情，避免增加常驻说明框。
+主命令为 `waifu-agent-usage`，`codex-usage` 和 `cud` 保留兼容别名。既有 `.codex-usage` 数据目录、`CODEX_USAGE_*` 环境变量与浏览器偏好继续沿用。
 
 ## 代码入口
 
-| 位置 | 职责 |
-| --- | --- |
-| `src/cli.js`、`src/server.js` | 命令、服务与 HTTP API、导入、刷新和价格调度 |
-| `src/usage-executor.js`、`src/usage-store.js` | 独立计算进程、SQLite 写入、迁移与查询 |
-| `src/usage-summary-cache.js` | 持久摘要、读侧发布版本核对与重开复用 |
-| `src/usage-core.js`、各 `*-usage.js` | 来源发现、标准事件、内存报告及各 Harness 解析 |
-| `src/usage-source-*.js`、`native/windows-source-proof/` | 来源指纹、增量证明、读取稳定性与 Windows 助手 |
-| `src/usage-*-store.js`、`src/usage-history*.js` | 持久派生视图、历史查询与归档维护 |
-| `src/pricing*.js`、`public/pricing-models.js` | 价目、费用、来源更新与共享模型映射 |
-| `public/app*.js`、`calendar.js`、`i18n.js`、CSS | 页面状态、交互、日期、语言及布局 |
-| `test-support/` | 夹具与独立统计对照；不进入浏览器加载链 |
+- [src/cli-core.js](../src/cli-core.js)、[src/server-core.js](../src/server-core.js)：共享 CLI、HTTP、刷新与历史操作；各版入口组合自己的功能。
+- [src/usage-core.js](../src/usage-core.js)和各 `*-usage.js`：来源发现、解析和标准事件。
+- [src/usage-fact-store.js](../src/usage-fact-store.js)：事实、迁移、来源与索引；[src/usage-reader.js](../src/usage-reader.js)负责已提交视图的查询。
+- [src/usage-executor-client.js](../src/usage-executor-client.js)：独立计算进程；[src/waifu/](../src/waifu/)提供 Waifu 扩展。
+- [src/history-archive.js](../src/history-archive.js)、[src/history-backup.js](../src/history-backup.js)：历史包和备份；[格式与操作](history-retention.md)。
+- [src/pricing.js](../src/pricing.js)、[public/pricing-models.js](../public/pricing-models.js)：Waifu 计价与价格模型映射。
+- [public/app.js](../public/app.js)、[public/lite/](../public/lite/)：两版页面；[public/dashboard-runtime.js](../public/dashboard-runtime.js)提供共享交互。
+- [test/](../test/)与 [test-support/](../test-support/)：测试和独立参考数据。
 
-皮肤源码、工作室和工具见[皮肤维护](13-skins.md)。[面板几何样板](panel-anatomy.html)直接复用生产 CSS，供布局维护参考。旧实验已移出，复现入口见[实验归档](archive/2026-11-11-experiments/README.md)。
+用量口径见[数据来源](10-data-sources.md)，角色资源与配色见[皮肤维护](13-skins.md)。新增来源需同时接入发现、解析、索引、导入标签、渠道归组、额度筛选和中英文字典，并补来源及三路一致性测试。
 
-## 执行、发布与数据边界
+Lite 的页面、样式和用量后端独立组合；公共模块不依赖 Waifu 的计价、分享或成就运行时。历史格式验证仍须保留旧包声明的附件。冻结与导入 reader 查询固定视图，来源采集和投影准备由相应 owner 执行。
 
-重同步和统计由独立计算进程执行，空闲后关闭索引连接并退出。服务持有轻量状态和摘要缓存，并短暂只读检查已发布版本；不能再把“只有执行器会打开任何 SQLite”当作架构约束。
-
-并发重请求通过既有 `syncPromise` 合并；执行器崩溃时在途请求明确失败，后续请求可以重启并重新发布完整状态。保留 WAL 变化检测、来源前后稳定性校验、事实事务、读侧发布与缓存失效边界。
-
-默认网关 old-space 为 512 MiB，执行器为 224 MiB、semi-space 4 MiB；这是堆预算，不是总内存保证。具体性能结论必须绑定测量版本和输入。
-
-使用隔离 home、fixture 和独立验证目录。保护真实索引、原始日志、配置、冷包、manifest 与恢复备份；活库连续两次查询不能当作相同快照对照。历史 `tools/out` 若存在，继续作为只读证据保留，不打开其中 SQLite 或重建它。
-
-## 检查命令
+## 检查与测试
 
 ```powershell
 npm.cmd run typecheck
 npm.cmd run lint -- --error-on-warnings
 npm.cmd run format:check
 npm.cmd run skins:check
+
+# 选择受影响的测试
+node scripts/test.mjs test/usage-core.test.js test/usage-store.test.js
+
+# 完整测试
+npm.cmd test -- --test-reporter=spec --test-concurrency=4 --test-timeout=720000
 ```
 
-### 怎么跑测试
+测试使用 Node 内置 `node:test`。以退出码及通过、失败、跳过汇总判断结果。使用隔离 home 和 fixture，避免读写日常用量数据库。
 
-使用 Node 内置 `node:test`，测试入口为 `test/**/*.test.js`。按改动选择已有用例；完整集成使用与[CI](../.github/workflows/ci.yml)相同的并发和超时：
+浏览器测试通过 `AGENT_USAGE_PLAYWRIGHT_MODULE` 指定已安装 Playwright 的 `index.mjs`，可用 `AGENT_USAGE_EDGE_PATH` 指定 Edge。浏览器依赖只用于开发。原生行为测试可用 `Q6_TEST_HELPER` 指定助手，构建测试由 `AGENT_USAGE_TEST_NATIVE_BUILD=1` 启用。完整命令与环境见 [CI](../.github/workflows/ci.yml)（Windows，Node 24/26）。
+
+界面以桌面鼠标键盘操作为主，检查大屏、并排窗口和窄窗口，保留键盘导航、焦点恢复及减少动态效果支持。机制和费用解释放在用户展开的详情中。
+
+## Windows 助手
+
+构建需要 PowerShell 7、Rust/Cargo 和 Windows 主机工具链所需的链接器：
 
 ```powershell
-node --test test/usage-core.test.js test/usage-store.test.js
-node --test --test-name-pattern="skins:check" test/skins.test.js
-node --test --test-reporter=spec --test-concurrency=4 --test-timeout=720000 "test/**/*.test.js"
+npm.cmd run native:build
+npm.cmd run native:check
 ```
 
-`--test-name-pattern` 不阻止文件级 import。完整运行以退出码和 `pass / fail / skipped / cancelled` 汇总判断，不把旧文档中的固定测试数当成门槛。CI 当前配置为 Windows、Node 24/26；运行要求仍以 package engines 和实际依赖能力为准。
+产物为 `native/windows-source-proof/bin/windows-source-proof.exe` 和相邻的 `windows-source-proof.build.json`，两者一起分发。`native:check` 只读校验源码与二进制摘要，不需要 Rust；普通运行也不调用编译器。
 
-多数测试在系统临时目录构造并清理数据；皮肤工具的集成夹具可能创建于 `docs/validation/`，因为被测接口会核对输出位置。沙箱 EPERM、符号链接权限和路径限制需与代码失败区分，不能因此放宽断言。
+助手利用已有 NTFS 变更日志加速来源核验，并提供归档读取租约。缺少来源证明时回退到内容核验；显式归档压实需要可用的文件租约。助手不会启用系统 journal。更多构建参数见[助手说明](../native/windows-source-proof/README.md)。
 
-浏览器测试使用 `AGENT_USAGE_PLAYWRIGHT_MODULE` 或本机 Codex Playwright 入口；Edge 可通过 `AGENT_USAGE_EDGE_PATH` 指定。CI 另行安装浏览器测试依赖，它不进入生产依赖。部分像素检查缺环境会明确失败，其余显式跳过；以各用例的实际原因判断。
+## 打包 v1.0
 
-原生助手行为测试可显式设置 `Q6_TEST_HELPER`；构建测试由 `AGENT_USAGE_TEST_NATIVE_BUILD=1` 启用。仅改文档时检查链接、命令与证据，不为文字调整重新构建助手。
+在完成检查并准备好匹配的 Windows 助手后执行：
 
-Git 保留运行所需的 WebP，作者 PNG 仅在本地保存。源码 ZIP 另通过 `.gitattributes` 排除多数日期证据；依赖本地素材和证据的用例会显式跳过。`skins:check` 验证发布资源，`skins:check:sources` 才额外检查作者源图，缺源图时报告 SKIP。完整素材验收使用作者工作树。
+```powershell
+npm.cmd run native:check
+npm.cmd run package:release -- output/releases-v1.0
+npm.cmd run package:check -- output/releases-v1.0 --browser
+```
 
-## 文档维护
+输出目录须为 `output/` 下尚不存在的新目录。包名来自 `releaseVersion: "1.0"`：`1.0-waifu.zip` 和 `1.0-lite.zip`；包内 `version` 为 `1.0.0`。
 
-### 旧 HTML 导出与历史验证
+打包脚本收集实际依赖、各版页面资源、许可和 Windows 助手，不包含用户数据、开发依赖或作者 PNG。生成的 `release-manifest.json` 保存 ZIP 与逐文件 SHA-256。`package:check` 校验实际解包内容并运行隔离 HTTP 检查，`--browser` 追加浏览器检查；省略该参数只运行包与 HTTP 检查。
 
-独立 HTML 导出已退出，在线冻结、CLI `summary --json` 和导入继续保留；[分享图片](plans/2026-10-03-mobile-share-card-consolidated-plan.md)已接入两种发行版，正式测试与当前规范见该计划。旧脚本依赖旧模块时，在对应版本或外部归档中复现。
-
-### 日常维护
-
-长期规则写入专题，状态写入 02，待实施方案放在 `plans/`。完成、暂停或被替代的施工材料移入 `archive/`，保留原失败和未完成项。日期截图、JSON、日志和哈希绑定夹具保持原样。
-
-调整路径时同步本地链接与索引；删除只做重复跳转的旧页，目录 README 可保留简短导航。多任务使用独立 worktree 并协调提交，提交前核对暂存内容及受测快照。
+发布资源检查用 `skins:check`；只有重生成作者素材时才需要额外 PNG，见[皮肤维护](13-skins.md)。用户安装与数据迁移见[升级说明](15-delivery-upgrade.md)。

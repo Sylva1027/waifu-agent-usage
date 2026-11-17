@@ -1,0 +1,22 @@
+.achievement-notice {
+  grid-area: zone;
+  justify-self: end;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--record);
+  font-size: 13px;
+  line-height: 19px;
+  font-weight: 650;
+  white-space: nowrap;
+  text-shadow: 0 0 6px color-mix(in srgb, var(--record) 55%, transparent);
+}
+.achievement-notice[hidden] {
+  display: none;
+}
+.achievement-notice:focus-visible {
+  outline: 2px solid var(--record);
+  outline-offset: 4px;
+  border-radius: 3px;
+}

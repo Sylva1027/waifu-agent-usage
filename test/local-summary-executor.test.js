@@ -223,7 +223,7 @@ test("request timeout terminates the stuck child before close settles", async ()
   }
 });
 
-test("parent disconnect closes the executor child and releases the database", async () => {
+test("parent disconnect closes the executor child and releases the database", async (t) => {
   const root = await mkdtemp(path.join(tmpdir(), "local-summary-parent-exit-"));
   const options = isolatedOptions(root);
   await seedEmptyStore(options);
@@ -243,6 +243,22 @@ setInterval(() => {}, 1000);
   );
   const parent = spawn(process.execPath, [scriptFile], { stdio: "ignore", windowsHide: true });
   let childPid = null;
+  let retiredPid = null;
+  let signalledReusedPid = false;
+  const kill = process.kill.bind(process);
+  t.mock.method(process, "kill", (pid, signal) => {
+    // Model Windows reusing the PID after this test has observed the original child exit.
+    if (pid === retiredPid) {
+      if (signal !== 0) signalledReusedPid = true;
+      return true;
+    }
+    try {
+      return kill(pid, signal);
+    } catch (error) {
+      if (pid === childPid && signal === 0 && error.code === "ESRCH") retiredPid = pid;
+      throw error;
+    }
+  });
   try {
     await waitFor(() => existsSync(marker), 10_000);
     childPid = JSON.parse(await readFile(marker, "utf8")).childPid;
@@ -251,6 +267,7 @@ setInterval(() => {}, 1000);
     parent.kill("SIGKILL");
     await new Promise((resolve) => parent.once("exit", resolve));
     await waitFor(() => !processAlive(childPid), 10_000);
+    childPid = null;
     await rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
     assert.equal(existsSync(root), false);
   } finally {
@@ -264,4 +281,5 @@ setInterval(() => {}, 1000);
     }
     await rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
   }
+  assert.equal(signalledReusedPid, false, "cleanup must never signal a PID after observing its original process exit");
 });

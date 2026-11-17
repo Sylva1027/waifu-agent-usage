@@ -1217,7 +1217,7 @@ test("server starts directly when its script path contains spaces", async () => 
       const timer = setTimeout(() => reject(new Error(`Timed out waiting for server startup: ${text}`)), 5_000);
       child.stdout.on("data", (chunk) => {
         text += chunk.toString();
-        if (text.includes("Agent Usage dashboard:")) {
+        if (text.includes("Waifu Agent Usage dashboard:")) {
           clearTimeout(timer);
           resolve(text);
         }

@@ -37,7 +37,13 @@ function createEventsTable(database) {
       output REAL NOT NULL,
       reasoning REAL NOT NULL
     ) STRICT;
+    CREATE TABLE usage_business_revision(singleton INTEGER PRIMARY KEY, revision INTEGER NOT NULL) STRICT;
+    INSERT INTO usage_business_revision VALUES (1, 0);
   `);
+  for (const operation of ["INSERT", "UPDATE", "DELETE"]) {
+    database.exec(`CREATE TRIGGER usage_business_events_${operation} AFTER ${operation} ON events BEGIN
+      UPDATE usage_business_revision SET revision = revision + 1 WHERE singleton = 1; END`);
+  }
 }
 
 async function withDatabase(run) {
@@ -372,11 +378,7 @@ test("a format-7 derived schema is replaced without touching retained event or a
   await withDatabase(async ({ database }) => {
     insertEvent(database, event({ id: 1, total: 100 }));
     database.exec(`
-      CREATE TABLE usage_business_revision (
-        singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
-        revision INTEGER NOT NULL
-      ) STRICT;
-      INSERT INTO usage_business_revision VALUES (1, 42);
+      UPDATE usage_business_revision SET revision = 42 WHERE singleton = 1;
       UPDATE usage_record_cache_format SET format_version = 7 WHERE slot = 1;
     `);
 
@@ -391,7 +393,7 @@ test("a format-7 derived schema is replaced without touching retained event or a
       Number(
         database.prepare("SELECT format_version FROM usage_record_cache_format WHERE slot = 1").get().format_version,
       ),
-      10,
+      11,
     );
     assert.ok(
       database
@@ -1199,7 +1201,7 @@ test("event update and delete rebuild their old/new periods and lower the champi
   });
 });
 
-test("old-id inserts and external updates/deletes persist a rebuild requirement", async () => {
+test("old-id inserts and external updates/deletes invalidate tracked record coverage", async () => {
   await withDatabase(async ({ database, databaseFile }) => {
     for (const [id, day, total] of [
       [10, 10, 300],
@@ -1250,13 +1252,14 @@ test("old-id inserts and external updates/deletes persist a rebuild requirement"
     const writer = new DatabaseSync(databaseFile);
     try {
       writer.prepare("UPDATE events SET total = 20, input = 10 WHERE id = 10").run();
-      assert.equal(operationState(), 1);
+      assert.equal(operationState(), 0, "another connection does not execute Waifu TEMP triggers");
+      assert.equal(readStoredRecordChampions(options), null, "the persisted revision rejects the old champion");
       const afterUpdate = buildStoredRecordChampions({ ...options, factsKey: "events-3" });
       assert.deepEqual(afterUpdate.day.totalTokens, { period: "2026-07-11", value: 200 });
       assert.equal(operationState(), 0);
 
       writer.prepare("DELETE FROM events WHERE id = 20").run();
-      assert.equal(operationState(), 1);
+      assert.equal(operationState(), 0, "external deletes leave record maintenance to the next Waifu prepare");
       const afterDelete = buildStoredRecordChampions({ ...options, factsKey: "events-4" });
       assert.deepEqual(afterDelete.day.totalTokens, { period: "2026-07-12", value: 100 });
       assert.equal(operationState(), 0);
@@ -1479,7 +1482,7 @@ test("an interrupted fixed-id build resumes without replaying committed event ba
   });
 });
 
-test("an interrupted append resumes at its persisted batch boundary and keeps old facts published", async () => {
+test("an interrupted append resumes its batch boundary while stale published facts stay unreadable", async () => {
   await withDatabase(async ({ database, databaseFile }) => {
     for (let id = 1; id <= 2; id += 1) {
       insertEvent(
@@ -1492,7 +1495,7 @@ test("an interrupted append resumes at its persisted batch boundary and keeps ol
       );
     }
     const key = "append-resume|pricing|evidence|utc|all";
-    const initial = buildStoredRecordChampions({
+    buildStoredRecordChampions({
       database,
       key,
       factsKey: "facts-1",
@@ -1533,7 +1536,11 @@ test("an interrupted append resumes at its persisted batch boundary and keeps ol
     );
     assert.deepEqual(firstIds, [3, 4]);
     assert.deepEqual(projectionSnapshot(database), oldSnapshot, "partial append stays in durable staging");
-    assert.deepEqual(readStoredRecordChampions({ database, key, factsKey: "facts-1" }), initial);
+    assert.equal(
+      readStoredRecordChampions({ database, key, factsKey: "facts-1" }),
+      null,
+      "an older publication cannot serve the current fact revision during an interrupted append",
+    );
     assert.equal(readStoredRecordChampions({ database, key, factsKey: "facts-2" }), null);
     const candidate = database
       .prepare("SELECT state, build_mode, target_facts_key, published_facts_key FROM usage_record_cache WHERE slot = 1")

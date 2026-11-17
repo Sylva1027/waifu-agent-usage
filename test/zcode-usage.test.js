@@ -226,7 +226,7 @@ test("streamZcodeDbEvents 映射 token 明细、渠道与长上下文", async ()
   assert.deepEqual(event.usage, { total: longInput + 20, input: longInput, cached: 0, output: 20, reasoning: 5 });
   assert.equal(event.detailMask, 15);
   assert.equal(event.requestInputTokens, longInput);
-  assert.equal(event.contextLevel, "long");
+  assert.equal(event.contextLevel, "known");
   assert.equal(event.cacheWriteTokens, 10);
   assert.equal(event.cacheWriteKnown, true);
   assert.equal(event.serviceTier, "unknown");

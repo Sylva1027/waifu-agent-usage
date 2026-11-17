@@ -431,6 +431,7 @@ for (const change of [
     const input = createUsageIntegrationFixture();
     const options = {
       ...input.serverOptions,
+      achievementsEnabled: false,
       executorIdleTimeoutMs: 61_347,
       pricingFetcher: async () => {
         throw new Error("controlled offline price check");
@@ -576,6 +577,7 @@ for (const change of [
     const before = await get("/api/status");
     const responsePrices = getPricingCatalog();
     const exited = once(children.at(-1), "exit");
+    assert.equal(typeof idleTimers.at(-1), "function", "the query-only worker must arm idle retirement");
     idleTimers.at(-1)();
     await exited;
     sources.length = 0;

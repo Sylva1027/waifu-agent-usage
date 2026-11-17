@@ -36,9 +36,9 @@ jobs:
           "TMP=$env:RUNNER_TEMP" >> $env:GITHUB_ENV
       - name: Set up browser checks
         env:
-          AGENT_USAGE_PLAYWRIGHT_MODULE: ${{ runner.temp }}/agent-usage-browser/node_modules/playwright/index.mjs
+          AGENT_USAGE_PLAYWRIGHT_MODULE: ${{ runner.temp }}/waifu-agent-usage-browser/node_modules/playwright/index.mjs
         run: |
-          npm.cmd install --prefix "$env:RUNNER_TEMP/agent-usage-browser" --no-package-lock --no-save playwright@1.62.1
+          npm.cmd install --prefix "$env:RUNNER_TEMP/waifu-agent-usage-browser" --no-package-lock --no-save playwright@1.62.1
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           "AGENT_USAGE_PLAYWRIGHT_MODULE=$env:AGENT_USAGE_PLAYWRIGHT_MODULE" >> $env:GITHUB_ENV
       - name: Build matching Windows helper
@@ -65,19 +65,19 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run format:check
-      - name: Package and accept both release ZIPs
+      - name: Package and accept actual Waifu and Lite ZIPs
         if: matrix.node-version == 24
         timeout-minutes: 10
         run: |
-          npm.cmd run package:release
+          npm.cmd run package:release -- output/releases/${{ github.run_id }}-${{ github.run_attempt }}
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          npm.cmd run package:check -- output/releases --browser
+          npm.cmd run package:check -- output/releases/${{ github.run_id }}-${{ github.run_attempt }} --browser
       - uses: actions/upload-artifact@v4
         if: always() && matrix.node-version == 24
         with:
-          name: agent-usage-windows
+          name: waifu-agent-usage-waifu-lite-windows
           path: |
-            output/releases/*.zip
-            output/releases/release-manifest.json
-            output/releases/acceptance-*.json
+            output/releases/${{ github.run_id }}-${{ github.run_attempt }}/*.zip
+            output/releases/${{ github.run_id }}-${{ github.run_attempt }}/release-manifest.json
+            output/releases/${{ github.run_id }}-${{ github.run_attempt }}/acceptance-*.json
           if-no-files-found: ignore

@@ -52,7 +52,14 @@ test("source dialog scans without importing and only completes after the dashboa
   ]);
   await page.locator("#addImportButton").click();
   await page.waitForSelector("#importCandidates input");
+  assert.equal(await page.evaluate(() => document.activeElement?.id), "importDialogTitle");
   assert.equal(await page.locator("#manualImportArea").isVisible(), false);
+  await page.locator("#manualImportButton").click();
+  assert.equal(await page.evaluate(() => document.activeElement?.id), "manualImportButton");
+  assert.equal(await page.locator("#importPath").evaluate((input) => input.matches(":focus-visible")), false);
+  await page.locator("#manualImportButton").press("Tab");
+  assert.equal(await page.evaluate(() => document.activeElement?.id), "importPath");
+  await page.locator("#manualImportButton").click();
   assert.equal(await page.locator("#importCandidates input:checked").count(), 1);
   const manifest = () => readFile(options.importStoreFile, "utf8").then(JSON.parse);
   assert.deepEqual((await manifest()).imports, []);
@@ -112,7 +119,10 @@ test("source dialog scans without importing and only completes after the dashboa
     route.fulfill({ json: { candidates: [], errors: [{ path: "C:\\records", code: "EACCES" }], platform: "win32" } }),
   );
   await page.evaluate(() => localStorage.setItem("codexUsageLocale", "en-US"));
-  await page.reload();
+  await Promise.all([
+    page.waitForResponse((response) => response.url().includes("/api/usage?") && response.status() === 200),
+    page.reload(),
+  ]);
   await page.locator("#addImportButton").click();
   await page.waitForSelector("#manualImportArea:visible");
   assert.match(await page.locator("#importMessage").textContent(), /could not be accessed/);

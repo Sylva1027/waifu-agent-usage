@@ -12,7 +12,7 @@ import { DatabaseSync } from "node:sqlite";
 import { deserialize, serialize } from "node:v8";
 import { zstdDecompressSync } from "node:zlib";
 
-import { LONG_CONTEXT_INPUT_THRESHOLD, pricingVersionForTimestamp } from "./pricing.js";
+import { requestInputFacts } from "./usage-event-inputs.js";
 import { createRepositoryResolver } from "./repository-identity.js";
 import { SourceProgressUnsupportedError, readZstdFrames } from "./dsh-frame-progress.js";
 import { USAGE_DETAIL_MASK, emptyUsage, isZeroUsage, validateUsageDetails } from "../public/usage-fields.js";
@@ -745,15 +745,9 @@ export async function streamDshSessionEvents(filePath, source, onEvent, options 
         reconciliationGap: detailValidation.reconciliationGap,
         cacheWriteTokens: mapped.cacheWriteTokens,
         cacheWriteKnown: mapped.cacheWriteKnown,
-        requestInputTokens: mapped.requestInputTokens,
-        contextLevel:
-          mapped.requestInputTokens > LONG_CONTEXT_INPUT_THRESHOLD
-            ? "long"
-            : mapped.requestInputTokens > 0
-              ? "short"
-              : "unknown",
+        ...requestInputFacts(mapped.requestInputTokens > 0, mapped.requestInputTokens),
         serviceTier: "unknown",
-        priceVersion: pricingVersionForTimestamp(timestamp),
+        priceVersion: "",
         turn: nonNegativeInt(data.turn),
         step: nonNegativeInt(data.step),
       });

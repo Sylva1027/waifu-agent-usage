@@ -6,12 +6,12 @@ dist/
 coverage/
 .nyc_output/
 /output/
+/.tmp/
 
 # Local runtime state
 .codex-usage/
 *.history-cache/
 *.log
-!/docs/validation/**/*.log
 npm-debug.log*
 yarn-debug.log*
 pnpm-debug.log*
@@ -41,6 +41,7 @@ pnpm-debug.log*
 
 # Local authoring originals; the app uses public/assets/skins/*.webp
 /lineart assets/
+/badge assets/
 /docs/validation/2026-10-02-gpt-skin-preview/
 
 # Local-only archived handoff notes (not approved for publication)
@@ -62,3 +63,19 @@ __pycache__/
 .vscode/
 .DS_Store
 Thumbs.db
+
+# Local plans, authoring previews, and internal execution records
+/docs/plans/
+/docs/archive/
+/docs/validation/
+/docs/01-roadmap.md
+/docs/02-tasks.md
+/docs/14-project-log.md
+/docs/panel-anatomy.html
+/public/model-editor-designs.html
+/public/pricing-card-a.html
+/public/pricing-designs.html
+/public/provider-dialog-designs.html
+/scripts/validate-achievement-candidate.mjs
+/scripts/achievement-runtime-performance.mjs
+/scripts/windows-closeout-cleanup.ps1

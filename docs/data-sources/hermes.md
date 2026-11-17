@@ -1,25 +1,27 @@
 # Hermes 数据源
 
-Hermes 从各 home 的 `state.db` 读取普通用量。Windows 默认目录是 `%LOCALAPPDATA%/hermes`，macOS 和 Linux 是 `~/.hermes`；同时发现 `HERMES_HOME` 和默认根目录下的命名 profiles。`CODEX_USAGE_HERMES_HOMES` 可按系统路径分隔符追加目录，`CODEX_USAGE_HERMES=0` 关闭自动发现；手动导入仍可使用。
+从各 home 的 `state.db` 读取累计用量。Windows 默认目录为 `%LOCALAPPDATA%/hermes`，macOS/Linux 为 `~/.hermes`；同时发现 `HERMES_HOME` 与默认根目录下的命名 profiles。
 
-看板扫描产生候选，确认后才读取；CLI 继续自动发现。导入选择包含数据库的 home，而不是单个文件。来源确认、排除、刷新、冻结、分享、历史归档、完整包恢复和归档压实沿用其他来源的流程。
+`CODEX_USAGE_HERMES_HOMES` 可追加目录，`CODEX_USAGE_HERMES=0` 关闭自动发现。导入选择包含数据库的 home，扫描确认后才读取，操作见[数据来源](../10-data-sources.md)。
 
-## 数值和归属
+## 数值与时间
 
-`session_model_usage` 的每一行是 session、模型、路由和 task 的累计账本；包含主循环与辅助调用。输入为普通输入、缓存读取和缓存写入之和；输出已包含推理，缓存读取属于输入。数据库默认零不能证明提供方完整上报，明细和费用沿用产品的未知／估算口径。
+`session_model_usage` 每行是 session、模型、路由和 task 的累计账本，包含主循环与辅助调用：
 
-没有模型用量行的 session 使用 session 总量回退，并归入 Unknown model；已有模型行时不再叠加 session 总量。时间使用聚合行最后活动时间，长会话更新时其归属日期可能移动。记录行数不是底层 HTTP 请求数。
+- 输入为普通输入、缓存读取和缓存写入之和。
+- 输出已包含推理，缓存读取属于输入。
+- 没有模型用量行的会话使用 session 总量，归入 Unknown model；已有模型行时不重复叠加 session 总量。
 
-session 总量与模型账本不一致时，沿用来源诊断报告各项计数差额；两侧都有 `api_call_count` 时也比较调用计数。缺失字段不按零比较，差额不会补入用量或费用。
+时间取累计行最后活动时间，长会话继续更新时，整行用量的归属日期可能移动。记录行数不是底层 HTTP 请求数。数据库默认零值也不证明提供方完整上报所有明细。
 
-渠道根据 session 来源识别 Hermes 和 Hermes Subagent，仓库使用实际记录的 git 根目录或 cwd。未记录仓库时显示未知。Hermes 不参与 Codex 5h／week 限额。
+session 总量与模型账本的差额作为来源诊断，不补入用量或费用。渠道按来源识别 Hermes／Hermes Subagent；仓库使用记录的 Git 根目录或工作目录，缺失时为未知。不参与 Codex 额度窗口。
 
-费用是公开 API 等价估算，不是 Hermes 支付账单。累计 token、最后活动时间不能确定单次请求的上下文、输出档或峰谷时段；估算沿用可行费率的最低场景。Hermes 原生 Codex 路径可能与单独导入的 Codex 数据重叠，可通过现有来源筛选选择统计范围。
+Waifu 按可行的最低场景估算费用：累计量与最后活动时间不足以确定逐请求上下文或时段。Hermes 原生 Codex 路径可能和另行导入的 Codex 日志重叠，可通过来源筛选避免重复选择。
 
 ## 更新与历史
 
-适配器只读查询用量和必要元数据，不读取消息正文、system prompt、model config 或凭据。主库与 WAL 的正常更新通过完整账本快照重新读取；读取期间来源发生改变时重试并保留上次已发布结果。正常数据库内删除会更新当前统计，旧事实保留在恢复证据中；数据库不可读或消失不会被解释为空账本。
+适配器只读查询用量及必要元数据，不读取消息正文、system prompt、模型配置或凭据。同步读取一致的累计账本快照，来源变化时重试并保留上次成功结果。
 
-刷新检查共用 SQLite 主库／非空 WAL 的文件身份、大小与时间观察，并对 Hermes 的最小用量投影计算摘要；相同大小或保留修改时间的数据库替换也会刷新。扫描中单个 profile 不可读时保留其他正常候选，已确认来源的读取失败保留原身份与上次成功用量。
+数据库内的行修订或删除会更新当前统计，旧事实保留恢复证据；数据库不可读或消失时保留已索引历史。冷历史的后续修订由现有修订机制处理，完整包包含冷段与修订，冻结快照独立于后续变化，见[历史保留](../history-retention.md)。
 
-可变聚合行使用稳定身份。封存后的修改、跨日及冷热迁移通过既有不可变冷包和修订覆盖处理；完整包包括冷段和修订，冻结快照独立于后续来源变化。详情见[历史保留](../history-retention.md)。
+开发入口：[hermes-usage.js](../../src/hermes-usage.js)、[Hermes 测试](../../test/hermes-usage.test.js)。

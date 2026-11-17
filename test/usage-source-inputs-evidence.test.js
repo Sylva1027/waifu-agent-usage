@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, rm, stat } from "node:fs/promises";
+import { mkdtemp, mkdir, rm, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -7,7 +7,8 @@ import test from "node:test";
 
 import { loadQuotaSourceEvidence, quotaSourceEvidenceSnapshot } from "../src/quota-source-evidence.js";
 import { loadServiceTierEvidence, serviceTierEvidenceSnapshot } from "../src/service-tier-evidence.js";
-import { readUsageSourceInputs } from "../src/usage-source-inputs.js";
+import { readWaifuUsageSourceInputs as readUsageSourceInputs } from "../src/waifu/usage-source-inputs.js";
+import { readUsageSourceInputs as readPureUsageSourceInputs } from "../src/usage-source-inputs.js";
 
 const TIER_TARGET = "codex_core::session::handlers";
 const AUTH_TARGET = "feedback_tags";
@@ -42,6 +43,7 @@ async function fixture(t, journal = "WAL", supported = true) {
     homes,
     file,
     read: () => readUsageSourceInputs({ homeDir: root }, homes, "fixed-history-fingerprint"),
+    readPure: () => readPureUsageSourceInputs({ homeDir: root }, homes, "fixed-history-fingerprint"),
     insert({ id, target, message, threadId = "thread", seconds = TIME / 1000 }) {
       database
         .prepare("INSERT INTO logs (id, ts, ts_nanos, thread_id, target, feedback_log_body) VALUES (?, ?, 0, ?, ?, ?)")
@@ -49,6 +51,23 @@ async function fixture(t, journal = "WAL", supported = true) {
     },
   };
 }
+
+test("pure source inputs ignore prices and tier evidence while retaining quota changes", async (t) => {
+  const f = await fixture(t);
+  const initial = await f.readPure();
+  const waifu = await f.read();
+  const priceFile = waifu.files.find((file) => !initial.files.includes(file));
+  assert.ok(priceFile, "Waifu has explicit price inputs");
+  await mkdir(path.dirname(priceFile), { recursive: true });
+  await writeFile(priceFile, "changed price metadata");
+  f.insert({ id: 1, target: TIER_TARGET, message: tierMessage('Some(Some("priority"))') });
+  assert.deepEqual(await f.readPure(), initial, "neither price nor tier-only evidence invalidates facts");
+  assert.notEqual((await f.read()).inputs, waifu.inputs);
+  f.insert({ id: 2, target: AUTH_TARGET, message: "auth_mode=Some(Chatgpt)" });
+  const quota = await f.readPure();
+  assert.notEqual(quota.inputs, initial.inputs);
+  assert.equal(loadQuotaSourceEvidence(f.homes).resolve("fixture", "thread", TIME), "plan");
+});
 
 function assertChanged(before, after, label) {
   for (const key of ["inputs", "auxiliary", "routingFingerprint"]) {

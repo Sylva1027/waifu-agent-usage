@@ -517,11 +517,27 @@ test("browser auto-refresh reconnects through the full check and reloads only th
     harness.api.setAutoRefreshEnabled(false);
     await harness.settle();
     assert.equal(source.closed, true);
+    const passive = FakeEventSource.instances.at(-1);
+    assert.notEqual(passive, source);
+    assert.equal(passive.url, "/api/usage-events?watch=0");
+    assert.equal(passive.closed, false);
+    const checksBefore = harness.counts.statusChecks;
     const usageBefore = harness.counts.usageSyncs;
+    passive.onopen?.();
+    passive.emit("ready");
+    passive.emit("usage-synced");
+    source.onopen?.();
+    source.emit("ready");
     source.emit("usage-synced");
     await harness.flush();
+    assert.equal(harness.counts.statusChecks, checksBefore, "passive and replaced streams cannot check sources");
     assert.equal(harness.counts.usageSyncs, usageBefore, "closed/frozen auto-refresh ignores late SSE events");
-    assert.equal(harness.activeIntervals(60_000).length, 0);
+    assert.equal(harness.state.snapshotId, "frozen-snapshot");
+    assert.equal(harness.state.autoRefreshTimer, null);
+    assert.deepEqual(
+      harness.activeIntervals(60_000).map((timer) => timer.id),
+      [harness.state.relativeTimeTimer],
+    );
   } finally {
     harness.dispose();
   }

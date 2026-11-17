@@ -18,7 +18,8 @@ const query = "/api/usage?preset=custom&startDate=2026-10-03&endDate=2026-10-03&
 
 async function fixture(t, { direct = false, server: serve = false, probe = "", idleTimeoutMs = 60_000 } = {}) {
   const input = createUsageIntegrationFixture();
-  const options = { ...input.serverOptions, executorIdleTimeoutMs: idleTimeoutMs };
+  // Core acquisition and idle retirement must not retain a Waifu achievement worker.
+  const options = { ...input.serverOptions, achievementsEnabled: false, executorIdleTimeoutMs: idleTimeoutMs };
   const store = new UsageStore(options);
   const argv = [...process.execArgv],
     children = [],

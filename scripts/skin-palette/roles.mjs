@@ -61,7 +61,9 @@
 // v39（M5.2 recovery A）：聚光覆盖改为装饰；详情条形按已有可见名称/数值降为冗余图形。
 // v40：费用估算直接展示，取证不再操作已移除的折叠入口。
 // v41：自动刷新标题移至凸起面，时间留在凹槽，按实际文字色与承载面登记。
-export const ROLES_VERSION = 41;
+// v42：凹槽改为运行状态叶节点，相对检查时间移入标题行，保留角色数量与原阈值。
+// v43：保留历史选择器角色 ID，迁至主页实际的近期范围文字与凹槽表面。
+export const ROLES_VERSION = 43;
 
 /** {kind:"var"} 颜色表达式简写。 */
 const v = (name) => ({ kind: "var", name });
@@ -400,14 +402,18 @@ export const ROLE_CATALOG = Object.freeze([
   {
     id: "select.zone-label",
     kind: "text",
-    selector: CSS("#calendarZoneSelect"),
+    selector: CSS("#recentValue"),
     states: ["dashboard-default"],
-    foreground: v("--muted"),
-    background: BG_GROUP_CERAMIC,
+    foreground: v("--ink"),
+    background: BG_INPUT,
     threshold: 4.5,
     required: true,
-    applicability: "hover/focus 时转 --blue（styles.css 502-505），归入强调文字角色复测",
-    sourceRefs: [REF("public/styles.css", "#calendarZoneSelect", 491)],
+    applicability: "历史角色 ID 保留；默认看板近期范围的只读值，实际为 --ink／--ceramic-well；hover/focus 时转 --blue",
+    sourceRefs: [
+      REF("public/styles.css", ".recent-segment-input", 889),
+      REF("public/styles.css", ".recent-combobox --ceramic-well", 2635),
+      REF("public/styles.css", ".recent-segment:is(.active, :hover, :focus-within, .menu-open)", 3251),
+    ],
   },
 
   // --- 普通按钮与菜单文字 ------------------------------------------------------
@@ -567,17 +573,17 @@ export const ROLE_CATALOG = Object.freeze([
   {
     id: "toolbar.autorefresh-text",
     kind: "text",
-    selector: CSS("#lastSuccessfulCheck"),
+    selector: CSS("#runtimeStatusText"),
     states: ["dashboard-default"],
     foreground: v("--muted"),
     background: solid(v("--ceramic-well")),
     threshold: 4.5,
     required: true,
     applicability:
-      "自动刷新凹槽内的上次成功检查时间，继承控件组 span 的 --muted 前景，承载于 .auto-refresh-well 的 --ceramic-well 表面；实际像素比值与实机可测性仍待实机核验",
+      "自动刷新凹槽内的普通运行状态，继承控件组 span 的 --muted 前景，承载于 .auto-refresh-well 的 --ceramic-well 表面；实际像素比值与实机可测性仍待实机核验",
     sourceRefs: [
-      REF("public/index.html", "#lastSuccessfulCheck", 151),
-      REF("public/app.js", "renderAutoRefreshControls", 3225),
+      REF("public/index.html", "#runtimeStatusText", 164),
+      REF("public/app.js", "setAutoRefreshStatus", 2460),
       REF("public/styles.css", ".control-group span --muted", 154),
       REF("public/styles.css", ".auto-refresh-well --ceramic-well", 159),
     ],
@@ -585,18 +591,18 @@ export const ROLE_CATALOG = Object.freeze([
   {
     id: "toolbar.autorefresh-muted",
     kind: "text",
-    selector: CSS("#autoRefreshStatus .auto-refresh-label, #autoRefreshInterval"),
+    selector: CSS("#lastSuccessfulCheck"),
     states: ["dashboard-default"],
     foreground: v("--muted"),
     background: BG_GROUP_CERAMIC,
     threshold: 4.5,
     required: true,
     applicability:
-      "自动刷新标题行的标签与间隔数值，使用 --muted 前景，承载于工具栏控件组的陶瓷渐变表面；实际像素比值与实机可测性仍待实机核验",
+      "自动刷新标题行的相对检查时间，使用 --muted 前景，承载于工具栏控件组的陶瓷渐变表面；实际像素比值与实机可测性仍待实机核验",
     sourceRefs: [
-      REF("public/index.html", ".auto-refresh-label", 143),
-      REF("public/index.html", "#autoRefreshInterval", 143),
-      REF("public/styles.css", ".auto-refresh-label --muted", 201),
+      REF("public/index.html", "#lastSuccessfulCheck", 154),
+      REF("public/app.js", "renderAutoRefreshControls", 2492),
+      REF("public/styles.css", ".control-group span --muted", 231),
       REF("public/styles.css", ".toolbar > .control-group", 703),
     ],
   },

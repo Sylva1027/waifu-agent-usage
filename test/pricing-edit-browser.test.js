@@ -73,7 +73,10 @@ for (const locale of ["zh-CN", "en-US"]) {
     await page.locator("#homeList .home-row").first().waitFor();
     const openPricing = async () => {
       await page.locator("#updatePricingButton").click();
-      await page.waitForFunction(() => document.activeElement?.id === "pricingSearch");
+      await page.waitForFunction(() => document.activeElement?.id === "pricingDialogTitle");
+      assert.equal(await page.locator("#pricingSearch").evaluate((input) => input.matches(":focus-visible")), false);
+      await page.locator("#pricingDialogTitle").press("Tab");
+      assert.equal(await page.locator("#pricingSearch").evaluate((input) => input.matches(":focus-visible")), true);
       await page.locator(`[data-pricing-provider="${pricingProvider(model).id}"]`).click();
     };
     await openPricing();
@@ -86,6 +89,9 @@ for (const locale of ["zh-CN", "en-US"]) {
     assert.equal(await page.locator("[data-pricing-rematch]").count(), 0);
     await row.focus();
     await row.press("Enter");
+    assert.equal(await page.evaluate(() => document.activeElement?.id), "modelPricingTitle");
+    await page.locator("#modelPricingTitle").press("Tab");
+    assert.equal(await fields.first().evaluate((input) => input === document.activeElement), true);
     assert.equal(await fields.count(), 4);
     assert.equal(await page.locator("#modelPricingFields .pricing-mode-group").count(), 1);
     assert.equal(await page.locator("#modelPricingFields .pricing-context").count(), 1);

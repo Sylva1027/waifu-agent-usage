@@ -275,9 +275,9 @@ test("事件带模型、仓库、上下文分级与会话标题", async () => {
   assert.equal(event.modelProvider, "opencode");
   assert.equal(event.conversationName, "demo title");
   assert.equal(event.requestInputTokens, 9695);
-  assert.equal(event.contextLevel, "short");
+  assert.equal(event.contextLevel, "known");
   assert.equal(event.serviceTier, "unknown");
-  assert.ok(event.priceVersion, "priceVersion 应有值");
+  assert.equal(event.priceVersion, "", "source facts do not stamp the current local catalog");
 });
 
 test("高缓存事件仍判 short（聚合比高不等于事件分布高）", async () => {
@@ -287,7 +287,7 @@ test("高缓存事件仍判 short（聚合比高不等于事件分布高）", as
   const { events } = await collectEvents(dbFile, homeDir);
   assert.equal(events[0].requestInputTokens, 9695);
   assert.ok(9695 < 272_000);
-  assert.equal(events[0].contextLevel, "short");
+  assert.equal(events[0].contextLevel, "known");
 });
 
 test("模型缺失回落 Unknown model，标题截断到 120 字符", async () => {

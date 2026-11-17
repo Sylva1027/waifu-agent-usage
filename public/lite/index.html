@@ -1,0 +1,498 @@
+<!doctype html>
+<html lang="zh-CN" data-edition="lite" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="data:," />
+    <title>Agent Usage</title>
+    <script>
+      (() => {
+        document.documentElement.dataset.theme = "dark";
+        let locale;
+        try {
+          locale = localStorage.getItem("codexUsageLocale");
+        } catch {
+          // A local snapshot may not have access to browser storage.
+        }
+        if (locale !== "zh-CN" && locale !== "en-US") {
+          locale = (navigator.languages?.[0] || navigator.language || "")
+            .toLowerCase()
+            .startsWith("zh")
+            ? "zh-CN"
+            : "en-US";
+        }
+        document.documentElement.lang = locale;
+        document.documentElement.dataset.locale = locale;
+        if (locale === "en-US") {
+          document.documentElement.dataset.i18nPending = "";
+          window.setTimeout(
+            () => document.documentElement.removeAttribute("data-i18n-pending"),
+            3000,
+          );
+        }
+      })();
+    </script>
+
+    <link rel="stylesheet" href="/lite/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <h1>Agent Usage</h1>
+        <div class="topbar-actions">
+          <button
+            class="language-toggle"
+            id="languageToggle"
+            type="button"
+            aria-label="切换语言"
+            aria-pressed="false"
+            title="切换语言"
+          >
+            <span data-language="zh-CN" aria-hidden="true">文</span
+            ><span class="language-divider" aria-hidden="true">/</span
+            ><span data-language="en-US" aria-hidden="true">A</span>
+          </button>
+        </div>
+      </header>
+
+      <section class="toolbar" aria-label="筛选">
+        <div class="control-group range-controls">
+          <div class="range-heading">
+            <span>范围</span>
+          </div>
+          <div class="segmented" id="presetButtons">
+            <button
+              type="button"
+              id="quotaPresetToggle"
+              class="quota-preset-toggle"
+              aria-label="当前范围为今日；点击切换到 5 小时限额"
+              aria-pressed="false"
+              title="点击切换到 5 小时限额"
+            >
+              <span class="quota-preset-mode" data-quota-mode="quota_5h"
+                >5h</span
+              >
+              <span class="quota-preset-divider" aria-hidden="true">/</span>
+              <span class="quota-preset-mode" data-quota-mode="quota_week"
+                >7d</span
+              >
+            </button>
+            <button type="button" data-preset="today" class="active">
+              今日
+            </button>
+            <button type="button" data-preset="week" data-i18n-en="Week">
+              本周
+            </button>
+            <button type="button" data-preset="month" data-i18n-en="Month">
+              本月
+            </button>
+            <button type="button" data-preset="all" data-i18n-en="All">
+              全部
+            </button>
+            <div class="recent-segment" data-preset="recent">
+              <span class="recent-combobox">
+                <input
+                  id="recentValue"
+                  class="recent-segment-input"
+                  type="text"
+                  role="combobox"
+                  value="上个月"
+                  readonly
+                  autocomplete="off"
+                  aria-label="最近范围"
+                  aria-controls="recentRangeMenu"
+                  aria-expanded="false"
+                  aria-haspopup="listbox"
+                />
+                <button
+                  id="recentMenuButton"
+                  class="recent-menu-button"
+                  type="button"
+                  aria-label="展开最近范围选项"
+                  aria-controls="recentRangeMenu"
+                  aria-expanded="false"
+                ></button>
+              </span>
+              <div
+                id="recentRangeMenu"
+                class="recent-range-menu"
+                role="listbox"
+                hidden
+              >
+                <button
+                  type="button"
+                  role="option"
+                  data-recent-option="上一个5h"
+                  aria-selected="false"
+                >
+                  上一个5h
+                </button>
+                <button
+                  type="button"
+                  role="option"
+                  data-recent-option="上周"
+                  aria-selected="false"
+                >
+                  上一个7d
+                </button>
+                <button
+                  type="button"
+                  role="option"
+                  data-recent-option="上个月"
+                  aria-selected="true"
+                >
+                  上个月
+                </button>
+                <button
+                  type="button"
+                  role="option"
+                  data-recent-option="今年"
+                  aria-selected="false"
+                >
+                  今年
+                </button>
+                <button
+                  type="button"
+                  role="option"
+                  data-recent-option="去年"
+                  aria-selected="false"
+                >
+                  去年
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="control-group date-range-controls">
+          <div class="range-heading">
+            <span>自定义</span>
+          </div>
+          <button
+            id="dateRangeButton"
+            class="date-range-button"
+            type="button"
+            aria-label="打开日期范围日历"
+            aria-controls="dateRangePicker"
+            aria-haspopup="dialog"
+            aria-expanded="false"
+          >
+            <span class="date-range-values">
+              <span id="dateRangeStart">年/月/日</span>
+              <span id="dateRangeSeparator" aria-hidden="true" hidden>—</span>
+              <span id="dateRangeEnd" hidden></span>
+            </span>
+            <span class="date-range-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                <rect x="4" y="5" width="16" height="15" rx="2" />
+                <path d="M4 9h16M8 3v4M16 3v4" />
+              </svg>
+            </span>
+          </button>
+          <div
+            id="dateRangePicker"
+            class="date-picker-popover"
+            role="dialog"
+            aria-label="日期范围日历"
+            hidden
+          ></div>
+        </div>
+        <div id="autoRefreshStatus" class="control-group auto-refresh-status">
+          <div class="range-heading auto-refresh-heading">
+            <button id="autoRefreshToggle" type="button" aria-pressed="true">
+              自动刷新</button
+            ><span id="lastSuccessfulCheck">上次：尚无</span
+            ><span
+              id="autoRefreshSpinner"
+              class="auto-refresh-spinner"
+              aria-hidden="true"
+            ></span>
+          </div>
+          <div class="auto-refresh-well">
+            <div
+              class="auto-refresh-info"
+              aria-live="polite"
+              aria-atomic="true"
+            >
+              <span id="runtimeStatusText">正在加载数据…</span>
+              <button
+                id="autoRefreshError"
+                class="auto-refresh-error"
+                type="button"
+                aria-controls="autoRefreshErrorDetails"
+                aria-expanded="false"
+              ></button>
+            </div>
+            <div
+              id="autoRefreshErrorDetails"
+              class="auto-refresh-details"
+              hidden
+            >
+              <div class="auto-refresh-details-heading">
+                <span>错误详情</span
+                ><button id="autoRefreshErrorBack" type="button">‹ 返回</button>
+              </div>
+              <textarea
+                id="autoRefreshErrorText"
+                class="auto-refresh-error-text"
+                aria-label="完整错误信息"
+                readonly
+              ></textarea>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="metrics" aria-label="用量概览">
+        <article class="metric">
+          <span>总 tokens</span>
+          <strong id="totalTokens">-</strong>
+        </article>
+        <article class="metric">
+          <span>总输入</span>
+          <strong id="inputTokens">-</strong>
+        </article>
+        <article class="metric">
+          <span>缓存读取</span>
+          <strong id="cachedTokens">-</strong>
+        </article>
+        <article class="metric">
+          <span>输出</span>
+          <strong id="outputTokens">-</strong>
+        </article>
+        <article class="metric">
+          <span>推理</span>
+          <strong id="reasoningTokens">-</strong>
+        </article>
+        <article class="metric">
+          <span>缓存命中率</span>
+          <strong id="cacheHitRate">—</strong>
+        </article>
+      </section>
+      <section
+        id="comparisonSummary"
+        class="comparison-strip"
+        aria-label="趋势变化"
+      >
+        <article class="comparison-item flat">
+          <span>较昨日</span>
+          <strong>—</strong>
+          <small>—</small>
+        </article>
+        <article class="comparison-item flat">
+          <span>同比流速</span>
+          <strong>—</strong>
+          <small>—</small>
+        </article>
+        <article class="comparison-item previous-period flat">
+          <span>昨日 tokens</span>
+          <strong>—</strong>
+        </article>
+      </section>
+
+      <section class="main-grid">
+        <section class="panel chart-panel" aria-labelledby="timelinePanelTitle">
+          <div class="panel-heading timeline-heading">
+            <div class="timeline-title">
+              <h2 id="timelinePanelTitle">时间分布</h2>
+              <span id="rangeLabel"></span>
+            </div>
+            <!-- biome-ignore lint/a11y/useSemanticElements: 按键组样式依赖 div 布局，改用 fieldset 需重置默认边框与内边距，风险大于收益 -->
+            <div
+              class="segmented segmented-well timeline-mode-select"
+              id="timelineModes"
+              role="group"
+              aria-label="查看方式"
+            >
+              <button
+                type="button"
+                data-timeline-mode="channel"
+                data-i18n-en="Source"
+                aria-pressed="true"
+              >
+                按渠道
+              </button>
+              <button
+                type="button"
+                data-timeline-mode="model"
+                data-i18n-en="Model"
+                aria-pressed="false"
+              >
+                按模型
+              </button>
+            </div>
+          </div>
+          <div class="timeline-chart-well">
+            <canvas
+              id="timelineChart"
+              width="960"
+              height="320"
+              tabindex="0"
+              role="img"
+              aria-label="时间分布柱状图；聚焦后可查看用量详情"
+            ></canvas>
+          </div>
+          <p
+            id="timelineRangeWarning"
+            class="timeline-range-warning"
+            role="status"
+            hidden
+          ></p>
+          <!-- biome-ignore lint/a11y/useSemanticElements: 图例由 JS 渲染 span 列表，改用 ul 需同步重置列表默认样式与缩进 -->
+          <div
+            id="timelineLegend"
+            class="timeline-legend"
+            role="list"
+            aria-label="图表图例"
+          ></div>
+        </section>
+
+        <section
+          class="panel detail-panel"
+          id="detailPanel"
+          aria-labelledby="detailPanelTitle"
+        >
+          <div class="panel-heading">
+            <h2 id="detailPanelTitle">详情</h2>
+            <span id="detailModeLabel">按渠道</span>
+          </div>
+          <div id="detailList" class="bar-list"></div>
+        </section>
+      </section>
+
+      <section class="period-comparison-grid" aria-label="跨时间范围用量对比">
+        <section class="panel period-comparison-panel">
+          <div class="panel-heading period-comparison-heading">
+            <h2>按模型</h2>
+            <input
+              id="modelComparisonSearch"
+              type="search"
+              autocomplete="off"
+              placeholder="搜索模型"
+              aria-label="搜索模型用量对比"
+            />
+          </div>
+          <div
+            id="modelComparisonTable"
+            class="period-comparison-table"
+            aria-live="polite"
+          ></div>
+        </section>
+        <section class="panel period-comparison-panel">
+          <div class="panel-heading period-comparison-heading">
+            <h2>按仓库</h2>
+            <input
+              id="repositoryComparisonSearch"
+              type="search"
+              autocomplete="off"
+              placeholder="搜索仓库"
+              aria-label="搜索仓库用量对比"
+            />
+          </div>
+          <div
+            id="repositoryComparisonTable"
+            class="period-comparison-table"
+            aria-live="polite"
+          ></div>
+        </section>
+      </section>
+
+      <section class="bottom-grid">
+        <section class="panel homes-panel">
+          <div class="panel-heading">
+            <h2>扫描目录</h2>
+            <button id="addImportButton" class="panel-action" type="button">
+              编辑
+            </button>
+          </div>
+          <div id="homeList" class="home-list"></div>
+        </section>
+      </section>
+    </main>
+    <span
+      id="quotaPresetStatus"
+      class="quota-preset-status"
+      role="status"
+      aria-live="polite"
+      hidden
+    ></span>
+    <div id="importDialog" class="dialog-backdrop" hidden>
+      <section
+        class="dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="importDialogTitle"
+      >
+        <form id="importForm">
+          <div class="dialog-heading">
+            <h2 id="importDialogTitle" tabindex="-1">数据来源</h2>
+          </div>
+          <fieldset class="source-picker-field">
+            <legend>统计来源</legend>
+            <div id="sourcePicker" class="source-picker"></div>
+          </fieldset>
+          <fieldset
+            id="importCandidatesField"
+            class="source-picker-field"
+            hidden
+          >
+            <legend>发现的记录目录</legend>
+            <div id="importCandidates" class="source-picker"></div>
+          </fieldset>
+          <div class="import-tools">
+            <button id="rescanImportsButton" class="panel-action" type="button">
+              重新扫描
+            </button>
+            <button
+              id="manualImportButton"
+              class="panel-action"
+              type="button"
+              aria-expanded="false"
+              aria-controls="manualImportArea"
+            >
+              添加其他位置
+            </button>
+          </div>
+          <div id="manualImportArea" hidden>
+            <label for="importPath">记录目录</label>
+            <div class="path-picker">
+              <input
+                id="importPath"
+                type="text"
+                autocomplete="off"
+                placeholder="输入完整目录路径"
+              />
+              <button id="pickImportDirectoryButton" type="button">
+                选择文件夹
+              </button>
+            </div>
+            <details class="import-help">
+              <summary>如何找到记录目录</summary>
+              <p id="importHelp"></p>
+              <ul id="importLocations"></ul>
+            </details>
+          </div>
+          <details id="importDiagnostics" class="import-help" hidden>
+            <summary>扫描详情</summary>
+            <p id="importDiagnosticsText"></p>
+          </details>
+          <p
+            id="importMessage"
+            class="dialog-message"
+            role="status"
+            aria-live="polite"
+          ></p>
+          <div class="dialog-actions">
+            <button id="cancelImportButton" type="button">关闭</button>
+            <button id="submitImportButton" type="submit" disabled>
+              导入所选
+            </button>
+          </div>
+        </form>
+      </section>
+    </div>
+
+    <div id="usageTooltip" class="usage-tooltip" role="tooltip" hidden></div>
+
+    <script src="/lite/app.js" type="module"></script>
+  </body>
+</html>

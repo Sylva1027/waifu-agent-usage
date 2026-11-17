@@ -426,12 +426,14 @@ function buildBootstrapReadySource(mode) {
 })()`;
 }
 
-/** app 模块已执行（__skinTestHook 由 app.js 安装）且基准触发按钮可用。 */
+/** Skin hook precedes awaited achievement imports; the existing stream starts after control binding. */
 function buildAppReadySource() {
-  return `(() => Boolean(
-  window.__skinTestHook
-    && document.querySelector('#presetButtons button[data-preset="all"]'),
-))()`;
+  return (state) =>
+    Boolean(
+      window.__skinTestHook &&
+        state.usageEventsSource &&
+        document.querySelector('#presetButtons button[data-preset="all"]'),
+    );
 }
 
 /** 非零指标就绪（M0 dashboard-default 的 nonZeroText：解析文本数值，仅数元素不够）。 */
@@ -1047,6 +1049,8 @@ async function createModeContext({ browser, previewUrl, mode, skinId, viewport =
     }
   };
   const heldRoutes = [];
+  const lifecycleRequests = new Set();
+  const navigationRequests = new WeakSet();
   let resolveFirstModuleRequestHeld;
   const firstModuleRequestHeld = new Promise((resolve) => {
     resolveFirstModuleRequestHeld = resolve;
@@ -1059,10 +1063,22 @@ async function createModeContext({ browser, previewUrl, mode, skinId, viewport =
         url,
         error: request.failure()?.errorText ?? null,
         ...(request.resourceType() === "eventsource" ? { resourceType: "eventsource" } : {}),
+        ...(navigationRequests.has(request) && request.failure()?.errorText === "net::ERR_ABORTED"
+          ? { navigationAbort: true }
+          : {}),
       });
     }
   });
-  context.on("request", (request) => quotaHook("onRequest", request));
+  context.on("request", (request) => {
+    quotaHook("onRequest", request);
+    if (
+      request.url().startsWith(previewUrl) &&
+      ["/api/achievements/operations", "/api/usage-events"].includes(new URL(request.url()).pathname)
+    )
+      lifecycleRequests.add(request);
+  });
+  context.on("requestfinished", (request) => lifecycleRequests.delete(request));
+  context.on("requestfailed", (request) => lifecycleRequests.delete(request));
   context.on("response", (response) => {
     const url = response.url();
     let resourceFailureIndex;
@@ -1076,6 +1092,21 @@ async function createModeContext({ browser, previewUrl, mode, skinId, viewport =
   await context.addInitScript(
     buildPreferenceSeedSource({ theme: mode, skinId, showCharacters: true, opacity: 0.5, autoRefresh }),
   );
+  await context.addInitScript(() => {
+    const closedKey = "skinPaletteClosedUsageStreams";
+    window.__closedUsageEventStreams = JSON.parse(sessionStorage.getItem(closedKey) || "[]");
+    const closed = new WeakSet();
+    const close = window.EventSource?.prototype.close;
+    if (!close) return;
+    window.EventSource.prototype.close = function () {
+      if (!closed.has(this) && new URL(this.url, location.href).pathname === "/api/usage-events") {
+        closed.add(this);
+        window.__closedUsageEventStreams.push(this.url);
+        sessionStorage.setItem(closedKey, JSON.stringify(window.__closedUsageEventStreams));
+      }
+      return close.call(this);
+    };
+  });
 
   // 外网阻断：预览服务自身之外的一切 http(s) abort 并记账（data:/blob:/about: 放行）
   await context.route("**/*", (route) => {
@@ -1174,6 +1205,9 @@ async function createModeContext({ browser, previewUrl, mode, skinId, viewport =
     heldRoutes,
     firstModuleRequestHeld,
     releaseHeldRoutes,
+    markNavigationRequests: () => {
+      for (const request of lifecycleRequests) navigationRequests.add(request);
+    },
     close,
   });
 }
@@ -1184,7 +1218,12 @@ async function createModeContext({ browser, previewUrl, mode, skinId, viewport =
  * 收敛——不用固定 sleep 代替就绪条件（应用在数据到达后会二次重画时间分布图）。
  */
 async function awaitRuntimeReady({ page, stateTimeoutMs, readiness, durations, blockers }) {
-  await waitOk({ page, blockers, durations }, "appReady", buildAppReadySource(), stateTimeoutMs);
+  const appState = await page.evaluateHandle(async () => (await import("/app-state.js")).state);
+  try {
+    await waitOk({ page, blockers, durations }, "appReady", buildAppReadySource(), stateTimeoutMs, appState);
+  } finally {
+    await appState.dispose();
+  }
   await page.click('#presetButtons button[data-preset="all"]').catch((error) => {
     blockers.push(`点击『全部』失败：${error instanceof Error ? error.message : String(error)}`);
   });
@@ -1226,10 +1265,10 @@ async function awaitRuntimeReady({ page, stateTimeoutMs, readiness, durations, b
 }
 
 /** 就绪等待（记录耗时；失败进 blockers 但不抛——由成功判定统一收口）。 */
-async function waitOk({ page, blockers, durations }, name, source, timeout) {
+async function waitOk({ page, blockers, durations }, name, source, timeout, arg = undefined) {
   const started = Date.now();
   try {
-    await page.waitForFunction(source, undefined, { timeout });
+    await page.waitForFunction(source, arg, { timeout });
     durations[name] = Date.now() - started;
     return true;
   } catch (error) {
@@ -4950,6 +4989,7 @@ async function runStateUnit({
           trace,
           blockers,
           shots,
+          markNavigationRequests: ctx.markNavigationRequests,
         });
       } else if (unit.handler === "skin-roundtrip") {
         await runSkinRoundtrip({ page, skinId, expectedPairs, stateTimeoutMs, trace, blockers, step, shots });
@@ -5396,6 +5436,16 @@ async function runStateUnit({
       quotaFailure("handler", new Error("原生事件 hook 异常，原错误继续阻断"));
   }
   const deltaErrors = errorDelta(errors, errorStart);
+  if (unit.handler === "reload-preferences") {
+    trace.navigationAborts = deltaErrors.requestFailed.filter((entry) => entry.navigationAbort);
+    deltaErrors.requestFailed = deltaErrors.requestFailed.filter((entry) => !entry.navigationAbort);
+  }
+  if (deltaErrors.requestFailed.some((entry) => entry.resourceType === "eventsource")) {
+    const closedUrls = await page.evaluate(() => window.__closedUsageEventStreams || []);
+    const classified = classifyClosedUsageStreams(errors.requestFailed, closedUrls);
+    trace.closedUsageStreams = classified.closed.filter((entry) => deltaErrors.requestFailed.includes(entry));
+    deltaErrors.requestFailed = deltaErrors.requestFailed.filter((entry) => !trace.closedUsageStreams.includes(entry));
+  }
   // 故障注入的伴生错误不计入阻断：abort 掉 /api/usage 必然产生 requestFailed 与
   // 浏览器那句 "Failed to load resource" 控制台噪声——它们正是本状态的触发因，
   // 不是缺陷。两类 induced 错误完整留在 trace.faultInducedErrors 供审计，其余
@@ -5527,6 +5577,7 @@ async function runReloadPreferences({
   trace,
   blockers,
   shots,
+  markNavigationRequests,
 }) {
   const readDeclarations = () => page.evaluate(buildDeclarationsProbeSource());
   const before = await readDeclarations();
@@ -5541,6 +5592,7 @@ async function runReloadPreferences({
     checks: [],
   };
   const started = Date.now();
+  markNavigationRequests?.();
   await page.reload({ timeout: baselineTimeoutMs, waitUntil: "commit" });
   trace.durations.reload = Date.now() - started;
   const bootstrapReady = await waitOk(
@@ -6837,14 +6889,6 @@ export async function captureOnlineFreezeRegression({
       const nativeSetInterval = window.setInterval.bind(window);
       window.setInterval = (callback, delay, ...args) =>
         nativeSetInterval(callback, delay === 60_000 ? intervalMs : delay, ...args);
-      window.__closedUsageEventStreams = [];
-      const close = window.EventSource.prototype.close;
-      window.EventSource.prototype.close = function () {
-        if (new URL(this.url, location.href).pathname === "/api/usage-events") {
-          window.__closedUsageEventStreams.push(this.url);
-        }
-        return close.call(this);
-      };
     }, pollIntervalMs);
 
     const baseline = await runBaselineCapture({
@@ -6865,7 +6909,6 @@ export async function captureOnlineFreezeRegression({
       const url = new URL("/api/usage", preview.url);
       url.searchParams.set("preset", "all");
       url.searchParams.set("bucket", "day");
-      url.searchParams.set("calendarZone", "local");
       url.searchParams.set("view", "dashboard");
       const response = await ctx.page.request.get(url.toString(), { timeout: stateTimeoutMs });
       if (!response.ok()) throw new Error(`初始 /api/usage 返回 ${response.status()}`);
@@ -7043,7 +7086,6 @@ export async function captureOnlineFreezeRegression({
           const restoreUrl = new URL("/api/usage", preview.url);
           restoreUrl.searchParams.set("preset", "all");
           restoreUrl.searchParams.set("bucket", "day");
-          restoreUrl.searchParams.set("calendarZone", "local");
           restoreUrl.searchParams.set("view", "dashboard");
           const restored = await ctx.page.request.get(restoreUrl.toString(), { timeout: stateTimeoutMs });
           if (!restored.ok()) result.blockers.push(`隔离 fixture 原始日志复同步失败（API ${restored.status()}）`);

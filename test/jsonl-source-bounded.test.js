@@ -3,11 +3,12 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { sourceAdapterDigest } from "../test-support/source-adapter-digest.mjs";
+import frozenDigests from "./fixtures/source-adapters/digests.json" with { type: "json" };
 
 import { streamClaudeSessionEvents } from "../src/claude-code-usage.js";
 import { UsageSourceRows } from "../src/usage-source-rows.js";
 import { streamWorkbuddySessionEvents } from "../src/workbuddy-usage.js";
-import { API_PRICING_VERSION } from "../src/pricing.js";
 
 const HOME = { id: "bounded-home", label: "Bounded home", path: "/unused" };
 const TIME = 1793836800000;
@@ -230,34 +231,16 @@ test("WorkBuddy forced spill retains first eligible compact record, original gro
   });
 });
 
-// The independent frozen oracle is a local acceptance artifact, not a dependency of a fresh checkout.
-let baseline;
-try {
-  baseline = {
-    claude: (await import("../output/remaining-harnesses-20261105/baseline/src/claude-code-usage.js"))
-      .streamClaudeSessionEvents,
-    workbuddy: (await import("../output/remaining-harnesses-20261105/baseline/src/workbuddy-usage.js"))
-      .streamWorkbuddySessionEvents,
-  };
-} catch (error) {
-  if (error.code !== "ERR_MODULE_NOT_FOUND") throw error;
-}
-
-test("forced spill exactly matches independent frozen JSONL adapters including -0 and overflowing totals", {
-  skip: !baseline,
-}, async () => {
+test("forced spill exactly matches independent frozen JSONL outputs including -0 and overflowing totals", async () => {
   for (const [kind, stream, rows] of [
     ["claude", streamClaudeSessionEvents, claudeRows],
     ["workbuddy", streamWorkbuddySessionEvents, workbuddyRows],
   ]) {
     await fixture(rows, async (file) => {
-      const expected = await capture(baseline[kind], file);
-      // The frozen parser keeps its old pricing revision; extraction and amounts remain independent.
-      for (const event of expected.events) {
-        assert.equal(event.priceVersion, "2026-10-12");
-        event.priceVersion = API_PRICING_VERSION;
-      }
-      await withBudget(2048, async () => assert.deepEqual(await capture(stream, file), expected));
+      await withBudget(2048, async () => {
+        const actual = await capture(stream, file);
+        assert.equal(sourceAdapterDigest(actual, [[file, "<source>"]]), frozenDigests[`jsonl/${kind}`]);
+      });
     });
   }
 });
@@ -317,7 +300,7 @@ test("WorkBuddy out-of-range finite date fails after warnings and before any res
   rows.push(workbuddy("invalid", { timestamp: 8.64e15 + 1 }), workbuddy("invalid"), "{broken");
   await fixture(rows, async (file) =>
     withBudget(2048, async (closed) => {
-      for (const stream of [streamWorkbuddySessionEvents, ...(baseline ? [baseline.workbuddy] : [])]) {
+      for (const stream of [streamWorkbuddySessionEvents]) {
         const trace = [];
         await assert.rejects(
           stream(file, HOME, () => trace.push("event"), {

@@ -1,4 +1,5 @@
 import { sessionIdentity } from "../public/usage-fields.js";
+import { removeLegacyUsageRecordTriggers } from "./usage-record-migration.js";
 
 const CACHE_TABLE = "usage_record_cache";
 const PERIOD_TABLE = "usage_record_cache_periods";
@@ -9,7 +10,7 @@ const WORK_TABLE = "usage_record_cache_work";
 const OPERATION_TABLE = "usage_record_cache_operations";
 const FORMAT_TABLE = "usage_record_cache_format";
 const BUILD_SAVEPOINT = "usage_record_store_build";
-const FORMAT_VERSION = 10;
+const FORMAT_VERSION = 11;
 const DEFAULT_BATCH_SIZE = 1024;
 
 const DIRTY_TRIGGER_NAMES = Object.freeze([
@@ -156,7 +157,7 @@ function currentFormatVersion(database, mode = "hot") {
 }
 
 function dropDirtyTriggers(database) {
-  database.exec(DIRTY_TRIGGER_NAMES.map((name) => `DROP TRIGGER IF EXISTS ${name};`).join("\n"));
+  database.exec(DIRTY_TRIGGER_NAMES.map((name) => `DROP TRIGGER IF EXISTS temp.${name};`).join("\n"));
 }
 
 function dropSchema(database, mode) {
@@ -199,43 +200,40 @@ function dirtyRowsSql(rowName) {
 function createDirtyTriggers(database) {
   const conflict = `ON CONFLICT(calendar_zone, unit, period_key) DO UPDATE SET
     minimum_ms = MIN(minimum_ms, excluded.minimum_ms), maximum_ms = MAX(maximum_ms, excluded.maximum_ms)`;
+  const published = `EXISTS (SELECT 1 FROM ${CACHE_TABLE} WHERE slot = 1 AND published_facts_key IS NOT NULL)`;
   database.exec(`
-    CREATE TRIGGER IF NOT EXISTS usage_record_dirty_insert
-    AFTER INSERT ON events
-    WHEN EXISTS (
-      SELECT 1 FROM ${CACHE_TABLE} WHERE slot = 1 AND published_facts_key IS NOT NULL
-    )
+    CREATE TEMP TRIGGER IF NOT EXISTS usage_record_dirty_insert
+    AFTER INSERT ON main.events
     BEGIN
+      UPDATE ${OPERATION_TABLE} SET maintained_revision = CASE
+        WHEN NEW.id <= (SELECT last_event_id FROM ${CACHE_TABLE} WHERE slot = 1) THEN NULL
+        ELSE maintained_revision + 1 END WHERE slot = 1;
       INSERT INTO ${DIRTY_TABLE} (calendar_zone, unit, period_key, minimum_ms, maximum_ms)
-      ${dirtyRowsSql("NEW")} ${conflict};
+      SELECT * FROM (${dirtyRowsSql("NEW")}) WHERE ${published} ${conflict};
       UPDATE ${OPERATION_TABLE}
       SET rebuild_required = 1
       WHERE slot = 1
         AND NEW.id <= (SELECT last_event_id FROM ${CACHE_TABLE} WHERE slot = 1);
     END;
 
-    CREATE TRIGGER IF NOT EXISTS usage_record_dirty_update
-    AFTER UPDATE ON events
-    WHEN EXISTS (
-      SELECT 1 FROM ${CACHE_TABLE} WHERE slot = 1 AND published_facts_key IS NOT NULL
-    )
+    CREATE TEMP TRIGGER IF NOT EXISTS usage_record_dirty_update
+    AFTER UPDATE ON main.events
     BEGIN
+      UPDATE ${OPERATION_TABLE} SET maintained_revision = maintained_revision + 1 WHERE slot = 1;
       INSERT INTO ${DIRTY_TABLE} (calendar_zone, unit, period_key, minimum_ms, maximum_ms)
-      ${dirtyRowsSql("OLD")}
+      SELECT * FROM (${dirtyRowsSql("OLD")}
       UNION ALL
-      ${dirtyRowsSql("NEW")} ${conflict};
-      UPDATE ${OPERATION_TABLE} SET rebuild_required = 1 WHERE slot = 1;
+      ${dirtyRowsSql("NEW")}) WHERE ${published} ${conflict};
+      UPDATE ${OPERATION_TABLE} SET rebuild_required = 1 WHERE slot = 1 AND ${published};
     END;
 
-    CREATE TRIGGER IF NOT EXISTS usage_record_dirty_delete
-    AFTER DELETE ON events
-    WHEN EXISTS (
-      SELECT 1 FROM ${CACHE_TABLE} WHERE slot = 1 AND published_facts_key IS NOT NULL
-    )
+    CREATE TEMP TRIGGER IF NOT EXISTS usage_record_dirty_delete
+    AFTER DELETE ON main.events
     BEGIN
+      UPDATE ${OPERATION_TABLE} SET maintained_revision = maintained_revision + 1 WHERE slot = 1;
       INSERT INTO ${DIRTY_TABLE} (calendar_zone, unit, period_key, minimum_ms, maximum_ms)
-      ${dirtyRowsSql("OLD")} ${conflict};
-      UPDATE ${OPERATION_TABLE} SET rebuild_required = 1 WHERE slot = 1;
+      SELECT * FROM (${dirtyRowsSql("OLD")}) WHERE ${published} ${conflict};
+      UPDATE ${OPERATION_TABLE} SET rebuild_required = 1 WHERE slot = 1 AND ${published};
     END;
   `);
 }
@@ -252,6 +250,7 @@ function ensureSchema(database, installDirtyTriggers = true, mode = "hot") {
     FORMAT_TABLE,
   } = recordTables(mode);
   const history = mode === "history";
+  if (!history) removeLegacyUsageRecordTriggers(database);
   if (currentFormatVersion(database, mode) !== FORMAT_VERSION || !schemaReady(database, mode)) {
     dropSchema(database, mode);
     database.exec(`
@@ -266,6 +265,8 @@ function ensureSchema(database, installDirtyTriggers = true, mode = "hot") {
         stable_key TEXT NOT NULL,
         target_facts_key TEXT NOT NULL,
         published_facts_key TEXT,
+        target_revision INTEGER,
+        published_revision INTEGER,
         zone TEXT NOT NULL CHECK (zone IN ('local', 'utc')),
         where_sql TEXT NOT NULL,
         params_json TEXT NOT NULL,
@@ -343,9 +344,10 @@ function ensureSchema(database, installDirtyTriggers = true, mode = "hot") {
 
       CREATE TABLE ${OPERATION_TABLE} (
         slot INTEGER PRIMARY KEY CHECK (slot = 1),
-        rebuild_required INTEGER NOT NULL CHECK (rebuild_required IN (0, 1))
+        rebuild_required INTEGER NOT NULL CHECK (rebuild_required IN (0, 1)),
+        maintained_revision INTEGER
       ) STRICT;
-      INSERT INTO ${OPERATION_TABLE} VALUES (1, 0);
+      INSERT INTO ${OPERATION_TABLE} (slot, rebuild_required) VALUES (1, 0);
 
     `);
   }
@@ -355,8 +357,7 @@ function ensureSchema(database, installDirtyTriggers = true, mode = "hot") {
 }
 
 /**
- * Create record projection tables and event dirty triggers during store open.
- * Call before the shared projection tracker installs its triggers.
+ * Create Waifu record tables and connection-local triggers, after common fact migration.
  *
  * @param {import("node:sqlite").DatabaseSync} database
  */
@@ -369,7 +370,7 @@ function cacheRow(database, mode = "hot") {
   const { CACHE_TABLE } = recordTables(mode);
   return database
     .prepare(
-      `SELECT stable_key, target_facts_key, published_facts_key, zone, where_sql, params_json,
+      `SELECT stable_key, target_facts_key, published_facts_key, target_revision, published_revision, zone, where_sql, params_json,
         state, build_mode, last_event_id, ${mode === "history" ? "last_ms," : ""} champion_json
        FROM ${CACHE_TABLE} WHERE slot = 1`,
     )
@@ -399,7 +400,24 @@ export function readStoredRecordChampions({ database, key, factsKey, mode = "hot
   if (!schemaReady(database, mode) || currentFormatVersion(database, mode) !== FORMAT_VERSION) return null;
   const row = cacheRow(database, mode);
   if (!row || row.stable_key !== key || row.published_facts_key !== factsKey || row.champion_json === null) return null;
+  const revision = mode === "history" ? null : factRevision(database);
+  if (revision !== null && row.published_revision !== revision) return null;
   return parseChampionJson(row.champion_json);
+}
+
+function factRevision(database) {
+  if (
+    !database
+      .prepare("SELECT 1 FROM main.sqlite_schema WHERE type = 'table' AND name = 'usage_business_revision'")
+      .get()
+  ) {
+    return null;
+  }
+  const revision = Number(
+    database.prepare("SELECT revision FROM main.usage_business_revision WHERE singleton = 1").get()?.revision,
+  );
+  if (!Number.isSafeInteger(revision) || revision < 0) throw new Error("Invalid usage business revision");
+  return revision;
 }
 
 function clearPublished(database, mode = "hot") {
@@ -459,19 +477,43 @@ function populateDirtyWork(database, zone, mode = "hot") {
 function prepareCandidate(database, sourceDatabase, input, allowAppend) {
   const { mode } = input;
   const { CACHE_TABLE, DIRTY_TABLE } = recordTables(mode);
-  const current = cacheRow(database, mode);
+  let current = cacheRow(database, mode);
+  if (
+    current?.stable_key === input.key &&
+    (current.zone !== input.zone ||
+      current.where_sql !== input.where ||
+      current.params_json !== JSON.stringify(input.params))
+  ) {
+    throw recordError("USAGE_RECORD_KEY_CONFLICT", "the same stable key was used with a different scope");
+  }
+  const revision = mode !== "history" && sourceDatabase === database ? factRevision(database) : null;
+  if (revision !== null) {
+    const maintained = database.prepare(`SELECT maintained_revision FROM ${OPERATION_TABLE} WHERE slot = 1`).get();
+    if (
+      maintained?.maintained_revision !== revision ||
+      (current?.state === "building" && current.target_revision !== revision)
+    ) {
+      // A revision gap has no complete dirty proof, including writes made while this connection was closed.
+      clearPublished(database, mode);
+      clearWork(database, mode);
+      clearAppendMembers(database, mode);
+      database.prepare(`DELETE FROM ${DIRTY_TABLE}`).run();
+      database.prepare(`DELETE FROM ${CACHE_TABLE}`).run();
+      current = undefined;
+    }
+    if (maintained?.maintained_revision !== revision) {
+      database.prepare(`UPDATE ${OPERATION_TABLE} SET maintained_revision = ? WHERE slot = 1`).run(revision);
+    }
+  }
   if (current?.stable_key === input.key) {
     if (
-      current.zone !== input.zone ||
-      current.where_sql !== input.where ||
-      current.params_json !== JSON.stringify(input.params)
+      current.published_facts_key === input.factsKey &&
+      current.champion_json !== null &&
+      (revision === null || current.published_revision === revision)
     ) {
-      throw recordError("USAGE_RECORD_KEY_CONFLICT", "the same stable key was used with a different scope");
-    }
-    if (current.published_facts_key === input.factsKey && current.champion_json !== null) {
       return parseChampionJson(current.champion_json);
     }
-    if (current.target_facts_key === input.factsKey) {
+    if (current.state === "building" && current.target_facts_key === input.factsKey) {
       if (
         current.state === "building" &&
         current.build_mode === "append" &&
@@ -764,6 +806,7 @@ function finishBuild(database, input, expectedDataVersion, sourceFrozen) {
   const { mode } = input;
   const { WORK_TABLE, CACHE_TABLE, OPERATION_TABLE, DIRTY_TABLE } = recordTables(mode);
   assertDataVersion(input.sourceDatabase, expectedDataVersion, sourceFrozen);
+  assertFactRevision(input);
   if (database.prepare(`SELECT 1 FROM ${WORK_TABLE} LIMIT 1`).get()) {
     throw recordError("USAGE_RECORD_STATE_INVALID", "record work remains before publication");
   }
@@ -779,7 +822,7 @@ function finishBuild(database, input, expectedDataVersion, sourceFrozen) {
   database
     .prepare(
       `UPDATE ${CACHE_TABLE}
-       SET published_facts_key = ?, state = 'complete', last_event_id = ?,
+       SET published_facts_key = ?, published_revision = target_revision, state = 'complete', last_event_id = ?,
          ${mode === "history" ? "last_ms = ?," : ""} champion_json = ?
        WHERE slot = 1 AND stable_key = ?`,
     )
@@ -816,6 +859,12 @@ function dataVersion(database) {
 function assertDataVersion(database, expected, frozen) {
   if (!frozen && dataVersion(database) !== expected) {
     throw recordError("USAGE_RECORD_FACTS_CHANGED", "events changed while building stored record champions");
+  }
+}
+
+function assertFactRevision(input) {
+  if (input.mode !== "history" && cacheRow(input.database).target_revision !== factRevision(input.sourceDatabase)) {
+    throw recordError("USAGE_RECORD_FACTS_CHANGED", "fact revision changed while building stored record champions");
   }
 }
 
@@ -1091,6 +1140,7 @@ function writePublishedPeriod(database, state) {
 function publishAppend(database, input, expectedDataVersion) {
   return transaction(database, () => {
     assertDataVersion(input.sourceDatabase, expectedDataVersion, false);
+    assertFactRevision(input);
     if (operationState(database) !== 0) {
       throw recordError("USAGE_RECORD_FACTS_CHANGED", "events changed after append classification");
     }
@@ -1128,7 +1178,7 @@ function publishAppend(database, input, expectedDataVersion) {
     database
       .prepare(
         `UPDATE ${CACHE_TABLE}
-         SET published_facts_key = ?, state = 'complete', champion_json = ?
+         SET published_facts_key = ?, published_revision = target_revision, state = 'complete', champion_json = ?
          WHERE slot = 1 AND stable_key = ? AND target_facts_key = ?`,
       )
       .run(input.factsKey, JSON.stringify(champions), input.key, input.factsKey);
@@ -1198,9 +1248,16 @@ export function buildStoredRecordChampions(options) {
   const run = () => {
     ensureSchema(database, sourceDatabase === database, mode);
     const expectedDataVersion = sourceFrozen ? null : dataVersion(sourceDatabase);
-    const published = destinationInTransaction
-      ? prepareCandidate(database, sourceDatabase, input, allowAppend)
-      : transaction(database, () => prepareCandidate(database, sourceDatabase, input, allowAppend));
+    const prepare = () => {
+      const published = prepareCandidate(database, sourceDatabase, input, allowAppend);
+      if (published === null && mode !== "history") {
+        database
+          .prepare(`UPDATE ${CACHE_TABLE} SET target_revision = ? WHERE slot = 1`)
+          .run(factRevision(sourceDatabase));
+      }
+      return published;
+    };
+    const published = destinationInTransaction ? prepare() : transaction(database, prepare);
     if (published !== null) return published;
 
     const buildMode = cacheRow(database, mode).build_mode;

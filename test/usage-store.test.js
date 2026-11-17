@@ -8,7 +8,7 @@ import { backup, DatabaseSync } from "node:sqlite";
 import { zstdCompressSync } from "node:zlib";
 
 import { STORE_SCHEMA_VERSION, UsageStore } from "../src/usage-store.js";
-import { API_PRICING_VERSION, getPricingCatalog, setPricingCatalog } from "../src/pricing.js";
+import { getPricingCatalog, setPricingCatalog } from "../src/pricing.js";
 import { buildUsageIndex, buildUsageReport, summarizeUsageIndex } from "../src/usage-core.js";
 
 test("model activity ages without file changes, agrees with reference metadata, and ignores future maxima", async () => {
@@ -258,7 +258,7 @@ test("inherited rollout counters do not inflate gpt-6-sol usage or cost", async 
     );
     assert.deepEqual(
       report.events.map((event) => event.contextLevel),
-      ["short", "short"],
+      ["known", "known"],
     );
 
     await store.sync();
@@ -463,7 +463,7 @@ test("UsageStore upgrades schema v2 and reindexes old source files with unknown 
     assert.equal(event.cache_write_known, 0);
     assert.equal(event.context_level, "unknown");
     assert.equal(event.service_tier, "unknown");
-    assert.equal(event.price_version, API_PRICING_VERSION);
+    assert.equal(event.price_version, "", "raw facts do not stamp the current local price catalog");
   } finally {
     migrated.close();
   }

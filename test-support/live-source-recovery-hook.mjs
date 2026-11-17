@@ -136,7 +136,7 @@ function installPublicationHandoffHooks(point) {
   registerHooks({
     load(url, context, next) {
       const loaded = next(url, context);
-      if (url !== new URL("../src/usage-executor.js", import.meta.url).href) return loaded;
+      if (url !== new URL("../src/usage-executor-worker.js", import.meta.url).href) return loaded;
       let source = String(loaded.source);
       const inject = (needle, replacement) => {
         assert.equal(source.split(needle).length, 2, `Publication handoff hook moved: ${needle}`);

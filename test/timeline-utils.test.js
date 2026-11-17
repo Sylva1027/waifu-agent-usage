@@ -4,13 +4,13 @@ import { spawnSync } from "node:child_process";
 
 import {
   MAX_TIMELINE_SLOTS,
-  buildTimelineRows,
   channelForRange,
   deriveTimelineBucket,
   generateQuotaTimelineSlots,
   homeSourceKinds,
   sourceGroup,
 } from "../public/timeline-utils.js";
+import { buildTimelineRows } from "../public/waifu-timeline.js";
 import { estimateCostForEvents, estimateEventCost } from "../src/pricing.js";
 
 const dateAt = (year, month, day, hour = 0) => new Date(year, month - 1, day, hour);

@@ -1165,18 +1165,27 @@ function peakLocalTuple(timeZone, timestampMs) {
 }
 
 function contextTierFor(entry, event, usage, modelKey) {
+  const input = finiteNonNegative(event.requestInputTokens);
+  const contextLevel =
+    event.contextLevel === "known"
+      ? input === null
+        ? "unknown"
+        : input > LONG_CONTEXT_INPUT_THRESHOLD
+          ? "long"
+          : "short"
+      : event.contextLevel;
   if (Number.isInteger(entry?.longContextThreshold)) {
     if (modelKey === "gpt-6.1-sol" || event.sourceKind === "hermes") {
       const requestInput = finiteNonNegative(event.requestInputTokens);
       if (requestInput !== null && requestInput > 0)
         return requestInput > entry.longContextThreshold ? "long" : "short";
-      return event.contextLevel === "long" ? "long" : event.contextLevel === "short" ? "short" : "unknown";
+      return contextLevel === "long" ? "long" : contextLevel === "short" ? "short" : "unknown";
     }
     const requestInput = finiteNonNegative(event.requestInputTokens) || usage.input;
     if (requestInput === null || !(requestInput > 0)) return "unknown";
     return requestInput > entry.longContextThreshold ? "long" : "short";
   }
-  return event.contextLevel === "long" ? "long" : event.contextLevel === "short" ? "short" : "unknown";
+  return contextLevel === "long" ? "long" : contextLevel === "short" ? "short" : "unknown";
 }
 
 function rateSetsFor(entry, contextTier, usage, aggregate = false) {

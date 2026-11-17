@@ -1,0 +1,215 @@
+{
+  "revision": 382,
+  "rows": [
+    {
+      "id": "A01",
+      "zh": "国家电网合作伙伴",
+      "en": "Proud partner of FPL. "
+    },
+    {
+      "id": "A06",
+      "zh": "AI 云厂最痛恨之人",
+      "en": "Not welcomed by NeoCloud. "
+    },
+    {
+      "id": "A07",
+      "zh": "“妳...妳们是...我的翅膀！” - 超时空要塞 Frontier",
+      "en": "“It's okay to love them both. I did.” — Katherine Pierce"
+    },
+    {
+      "id": "A08",
+      "zh": "“两大强国侍候着我一个人，这点福气还小吗？” - 茶馆",
+      "en": "“Hooray! People are paying attention to me!” — Zoidberg"
+    },
+    {
+      "id": "A09",
+      "zh": "“听本王的命令！全部炮门，解锁！” - Fate/Grand Order",
+      "en": "“Heed my voice! Ready the ballistas!” — Fate/Grand Order"
+    },
+    {
+      "id": "A10",
+      "zh": "有时候，我的天才程度……连我自己都感到害怕。 - 杰里米·克拉克森",
+      "en": "“Sometimes my genius is... it's almost frightening.” - Jeremy Clarkson"
+    },
+    {
+      "id": "A11",
+      "zh": "思钱想厚，还是你最好",
+      "en": "I've weighed my heart and my wallet. You're still the one."
+    },
+    {
+      "id": "A12",
+      "zh": "Call一下？",
+      "en": "Quick call?"
+    },
+    {
+      "id": "A13",
+      "zh": "居然是JVAV高手",
+      "en": "I reverse-engineered the Linux source with REA, rewrote it in Rust, then open-sourced the whole thing."
+    },
+    {
+      "id": "A14",
+      "zh": "“明天见！” - 金针菇",
+      "en": "“See you tomorrow!” — Corn"
+    },
+    {
+      "id": "A16",
+      "zh": "阴晴圆缺不足为奇，可曾窥视月之暗面？",
+      "en": "The moon's phases are old news. Ever seen its dark side?"
+    },
+    {
+      "id": "A18",
+      "zh": "臻善尽美，不知疲倦",
+      "en": "Tireless in the pursuit of perfection."
+    },
+    {
+      "id": "A19",
+      "zh": "UTC-8 比 UTC+8 慢16小时，记好了",
+      "en": "WHERE IS MY BANKED RESET!?"
+    },
+    {
+      "id": "A23",
+      "zh": "善用 handoff 解决 99% 问题",
+      "en": "(compaction: 400 Bad Request)"
+    },
+    {
+      "id": "A24",
+      "zh": "别把鸡蛋都放在一个篮子里",
+      "en": "Don't put all your eggs in one basket."
+    },
+    {
+      "id": "A28",
+      "zh": "“我们还行吧？” “那当然！” - 食人魔魔法师",
+      "en": "“Damn. We're good.” - Ogre Magi"
+    },
+    {
+      "id": "A29",
+      "zh": "“那是松鼠吗？” “得了吧你！” - 食人魔魔法师",
+      "en": "“Is that a squirrel? Come on.” - Ogre Magi"
+    },
+    {
+      "id": "A30",
+      "zh": "穿烂了的T恤最舒服",
+      "en": "Nothing beats a worn-out T-shirt."
+    },
+    {
+      "id": "A31",
+      "zh": "开启一段美好的旅程，逐步发现创造一个世界有多美妙",
+      "en": "Set off on a wonderful journey, and discover the joy of creating a world."
+    },
+    {
+      "id": "A32",
+      "zh": "有没有算过这能买几张钢化膜？",
+      "en": "Ever worked out how many tempered glass screen protectors that could buy?"
+    },
+    {
+      "id": "A33",
+      "zh": "今儿个你俩就得在这儿给我掰扯清楚喽",
+      "en": "You two are going to settle this, right here, right now."
+    },
+    {
+      "id": "A36",
+      "zh": "今夕复何夕，共此灯烛光",
+      "en": "Tonight, oh what a happy night!\nWe sit beneath the same candlelight."
+    },
+    {
+      "id": "A38",
+      "zh": "智械危机的命定幸存者",
+      "en": "Destined to survive the Omnic Crisis."
+    },
+    {
+      "id": "A39",
+      "zh": "这样的机会可不多见",
+      "en": "You don't get a chance like this every year."
+    },
+    {
+      "id": "A43",
+      "zh": "你要横的还是竖的？",
+      "en": "Landscape or portrait?"
+    },
+    {
+      "id": "A44",
+      "zh": "Ciallo ～(∠・ω< )⌒★!",
+      "en": "Ciallo ～(∠・ω< )⌒★!"
+    },
+    {
+      "id": "A46",
+      "zh": "“失去的时光再也无法找回。哦，算了，我找到了。” - 克罗米",
+      "en": "“Lost time is never found again. Oh, never mind, I found it.” - Chromie"
+    },
+    {
+      "id": "A53",
+      "zh": "“看这里。” - 黑衣人3",
+      "en": "“Look right here.” - Men in Black"
+    },
+    {
+      "id": "A54",
+      "zh": "“懒惰是济世的福音！” - 徐志摩",
+      "en": "\"Progress is made by lazy men looking for easier ways to do things.\" - Lazarus Long"
+    },
+    {
+      "id": "A55",
+      "zh": "如果这不是在自研一款浏览器内核，那么是时候停下了",
+      "en": "Unless you're building a browser engine from scratch, it's time to stop."
+    },
+    {
+      "id": "A56",
+      "zh": "端侧大模型，很厉害吗？",
+      "en": "On-device LLMs? Am I supposed to be impressed?"
+    },
+    {
+      "id": "A58",
+      "zh": "“你根本不是土耳其大学生，你到底是谁？” - Google CEO",
+      "en": "“Senator, I'm Singaporean!”"
+    },
+    {
+      "id": "A59",
+      "zh": "专业用户，果然非同凡响",
+      "en": "Now that's what I call a Pro user."
+    },
+    {
+      "id": "A63",
+      "zh": "(请勿传播) Token 记录翻倍秘笈：Ctrl+W",
+      "en": "(Keep this to yourself.) Cheat code for double tokens: Ctrl+W."
+    },
+    {
+      "id": "A65",
+      "zh": "跟上班也没两样了",
+      "en": "Might as well clock in at this point."
+    },
+    {
+      "id": "A69",
+      "zh": "有没有算过这能买几张 GTX 1050？",
+      "en": "Ever worked out how many GTX 1050 that could buy?"
+    },
+    {
+      "id": "A70",
+      "zh": "有没有算过这能买几张 RTX 5070 Ti？",
+      "en": "Ever worked out how many RTX 5070 Ti that could buy?"
+    },
+    {
+      "id": "A71",
+      "zh": "有没有算过这能买几张 RTX PRO 6000？",
+      "en": "Ever worked out how many RTX PRO 6000 that could buy?"
+    },
+    {
+      "id": "A73",
+      "zh": "不是小满贯",
+      "en": "Tall"
+    },
+    {
+      "id": "A74",
+      "zh": "真正的大满贯",
+      "en": "Grande"
+    },
+    {
+      "id": "A75",
+      "zh": "别这样罗老师，别这样",
+      "en": "Venti"
+    },
+    {
+      "id": "A76",
+      "zh": "紫色始祖幼龙的缰绳 (拾取后绑定)",
+      "en": "Reins of the Violet Proto-Drake (Binds when picked up)"
+    }
+  ]
+}

@@ -11,12 +11,56 @@ import {
   ensureUsageQuotaSchema,
   iterateStoredQuotaWindows,
   selectStoredQuotaWindows,
+  readStoredQuotaWindows,
+  readStoredCompletedQuotaWindows,
   USAGE_QUOTA_TABLE_NAMES,
 } from "../src/usage-quota-store.js";
 import { USAGE_QUOTA_PROJECTION_TABLE_NAMES } from "../src/usage-quota-projection.js";
 
 const MINUTE = 60_000;
 const AS_OF = Date.parse("2026-10-20T12:00:00.000Z");
+
+function persistentSnapshot(database) {
+  return database
+    .prepare("SELECT name,sql FROM sqlite_master WHERE type='table' ORDER BY name")
+    .all()
+    .map((table) => ({
+      ...table,
+      rows: database.prepare(`SELECT * FROM "${table.name.replaceAll('"', '""')}"`).all(),
+    }));
+}
+
+test("explicit quota reads use TEMP fallback without installing or updating persistent state", () => {
+  const database = createDatabase();
+  try {
+    insertRows(database, [row("source", 1)]);
+    const before = persistentSnapshot(database);
+    assert.deepEqual(readStoredQuotaWindows(database, AS_OF), selectQuotaWindows(storedRows(database), AS_OF));
+    assert.deepEqual(collect(readStoredCompletedQuotaWindows(database, "codex", AS_OF, 300)), []);
+    assert.deepEqual(persistentSnapshot(database), before);
+    assert.equal(database.prepare("SELECT COUNT(*) AS n FROM temp.sqlite_master").get().n, 0);
+  } finally {
+    database.close();
+  }
+});
+
+test("quota reads fall back after a revision without maintaining a stale projection", () => {
+  const database = createDatabase();
+  try {
+    insertRows(database, [row("source", 1)]);
+    selectStoredQuotaWindows(database, AS_OF);
+    insertRows(database, [row("source", 2, { observedAtMs: AS_OF - MINUTE, usedPercent: 50 })]);
+    const before = persistentSnapshot(database);
+    const result = readStoredQuotaWindows(database, AS_OF);
+    assert.equal(result.windows.quota_5h.usedPercent, 50);
+    assert.deepEqual(result, selectQuotaWindows(storedRows(database), AS_OF));
+    collect(readStoredCompletedQuotaWindows(database, "codex", AS_OF, 300));
+    assert.deepEqual(persistentSnapshot(database), before);
+    assert.deepEqual(selectStoredQuotaWindows(database, AS_OF), result);
+  } finally {
+    database.close();
+  }
+});
 
 function createDatabase(file = ":memory:") {
   const database = new DatabaseSync(file);

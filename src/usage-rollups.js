@@ -11,7 +11,8 @@ const PROGRESS_DAY_TABLE = "usage_rollup_progress_days";
 const COMPLETE_EVENT_TABLE = "usage_rollup_complete_events";
 const COMPLETE_EVENT_SOURCE = `temp.${COMPLETE_EVENT_TABLE}`;
 const FORMAT_VERSION = 9;
-const PROGRESS_FORMAT_VERSION = 1;
+const PROGRESS_FORMAT_VERSION = 2;
+const localCalendarDatabases = new WeakSet();
 const DAY_MS = 86_400_000;
 const INSERT_TRIGGER = "usage_rollup_invalidate_insert";
 const UPDATE_TRIGGER = "usage_rollup_invalidate_update";
@@ -926,10 +927,14 @@ function eventSupportsRollupAppend(db) {
   return required.size === 0;
 }
 
-function usageEventDayKeySql(zone) {
-  return zone === "utc"
-    ? "date(timestamp_ms / 1000.0, 'unixepoch')"
-    : "date(timestamp_ms / 1000.0, 'unixepoch', 'localtime')";
+function usageEventDayKeySql(db, zone) {
+  if (zone === "utc") return "date(timestamp_ms / 1000.0, 'unixepoch')";
+  // Windows SQLite's libc localtime does not understand the executor's IANA TZ.
+  if (!localCalendarDatabases.has(db)) {
+    db.function("usage_rollup_local_day", (time) => localDayKey(new Date(Number(time))));
+    localCalendarDatabases.add(db);
+  }
+  return "usage_rollup_local_day(timestamp_ms)";
 }
 
 function progressState(db, zoneIdentity) {
@@ -994,7 +999,7 @@ function eventBatch(db, lastId) {
 }
 
 function eventDaysInBatch(db, zone, lastId, targetId) {
-  const expression = usageEventDayKeySql(zone);
+  const expression = usageEventDayKeySql(db, zone);
   try {
     return db
       .prepare(`
@@ -1071,7 +1076,7 @@ function dayNeedsAppendProof(db, zone, day, bounds, lastId) {
 }
 
 function applyAppendForZone(db, { zone, lastId, targetId, days }) {
-  const dayExpression = usageEventDayKeySql(zone);
+  const dayExpression = usageEventDayKeySql(db, zone);
   const dailyFields = [
     ["event_count", "COUNT(*)"],
     ["total", DETAIL_SUM.total],
@@ -1246,7 +1251,7 @@ export function tryAppendUsageRollups(db, { zoneIdentity }) {
 }
 
 function factDays(db, zone) {
-  const expression = usageEventDayKeySql(zone);
+  const expression = usageEventDayKeySql(db, zone);
   return db
     .prepare(`
       SELECT DISTINCT ${expression} AS day_key

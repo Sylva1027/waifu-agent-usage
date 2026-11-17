@@ -794,6 +794,30 @@ test("unclassifiable or oversized mutation batches fall back to a whole-page tra
   }
 });
 
+test("runtime status and relative time translate without leaking Chinese", () => {
+  for (const [chinese, english] of [
+    ["上次：尚无", "Last: never"],
+    ["上次：刚刚", "Last: just now"],
+    ["上次：3分钟前", "Last: 3 min ago"],
+    ["上次：23小时前", "Last: 23 h ago"],
+    ["上次：大于1天", "Last: >1 day"],
+    ["正在加载数据…", "Loading data…"],
+    ["正在计算统计…", "Calculating statistics…"],
+    ["正在同步数据…", "Syncing data…"],
+    ["等待处理…", "Waiting for processing…"],
+    ["等待记录更新…", "Waiting for record updates…"],
+    ["正在导入记录…", "Importing records…"],
+    ["正在移除来源…", "Removing source…"],
+    ["正在更新价格…", "Updating prices…"],
+    ["就绪", "Ready"],
+    ["自动刷新已暂停", "Auto refresh paused"],
+    ["更新失败 · 详情 ›", "Update failed · Details ›"],
+  ]) {
+    assert.equal(localizeText(chinese, "en-US"), english);
+    assert.equal(localizeText(chinese, "zh-CN"), chinese);
+  }
+});
+
 test("目录提示文案在两种语言里都包含 WorkBuddy", () => {
   const emptyState = "没有发现 Codex、ZCode、DSH、OpenCode、Claude Code 或 WorkBuddy 目录";
   const english = localizeText(emptyState, "en-US");

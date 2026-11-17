@@ -1,0 +1,3322 @@
+{
+  "t0": "2026-11-16T15:00:00.000Z",
+  "clock": "2033-03-01T00:00:00.000Z",
+  "timeZone": "Asia/Shanghai",
+  "rows": [
+    {
+      "id": "A01",
+      "tiered": true,
+      "thresholds": ["50000000000", "200000000000", "5000000000000"],
+      "requires": null,
+      "boundaryCases": [
+        {
+          "caseId": "A01-bronze-below",
+          "requestedMetric": "49999999999",
+          "effectiveMetric": "49999999999",
+          "target": "50000000000",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": null
+          }
+        },
+        {
+          "caseId": "A01-bronze-at",
+          "requestedMetric": "50000000000",
+          "effectiveMetric": "50000000000",
+          "target": "50000000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A01-bronze-above",
+          "requestedMetric": "50000000001",
+          "effectiveMetric": "50000000001",
+          "target": "50000000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A01-silver-below",
+          "requestedMetric": "199999999999",
+          "effectiveMetric": "199999999999",
+          "target": "200000000000",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A01-silver-at",
+          "requestedMetric": "200000000000",
+          "effectiveMetric": "200000000000",
+          "target": "200000000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A01-silver-above",
+          "requestedMetric": "200000000001",
+          "effectiveMetric": "200000000001",
+          "target": "200000000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A01-gold-below",
+          "requestedMetric": "4999999999999",
+          "effectiveMetric": "4999999999999",
+          "target": "5000000000000",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A01-gold-at",
+          "requestedMetric": "5000000000000",
+          "effectiveMetric": "5000000000000",
+          "target": "5000000000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "gold"
+          }
+        },
+        {
+          "caseId": "A01-gold-above",
+          "requestedMetric": "5000000000001",
+          "effectiveMetric": "5000000000001",
+          "target": "5000000000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "gold"
+          }
+        }
+      ]
+    },
+    {
+      "id": "A06",
+      "tiered": true,
+      "thresholds": ["10000000000", "100000000000", "1000000000000"],
+      "requires": null,
+      "boundaryCases": [
+        {
+          "caseId": "A06-bronze-below",
+          "requestedMetric": "9999999999",
+          "effectiveMetric": "9999999999",
+          "target": "10000000000",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": null
+          }
+        },
+        {
+          "caseId": "A06-bronze-at",
+          "requestedMetric": "10000000000",
+          "effectiveMetric": "10000000000",
+          "target": "10000000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A06-bronze-above",
+          "requestedMetric": "10000000001",
+          "effectiveMetric": "10000000001",
+          "target": "10000000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A06-silver-below",
+          "requestedMetric": "99999999999",
+          "effectiveMetric": "99999999999",
+          "target": "100000000000",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A06-silver-at",
+          "requestedMetric": "100000000000",
+          "effectiveMetric": "100000000000",
+          "target": "100000000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A06-silver-above",
+          "requestedMetric": "100000000001",
+          "effectiveMetric": "100000000001",
+          "target": "100000000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A06-gold-below",
+          "requestedMetric": "999999999999",
+          "effectiveMetric": "999999999999",
+          "target": "1000000000000",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A06-gold-at",
+          "requestedMetric": "1000000000000",
+          "effectiveMetric": "1000000000000",
+          "target": "1000000000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "gold"
+          }
+        },
+        {
+          "caseId": "A06-gold-above",
+          "requestedMetric": "1000000000001",
+          "effectiveMetric": "1000000000001",
+          "target": "1000000000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "gold"
+          }
+        }
+      ]
+    },
+    {
+      "id": "A07",
+      "tiered": true,
+      "thresholds": ["10", "30", "50"],
+      "requires": null,
+      "boundaryCases": [
+        {
+          "caseId": "A07-bronze-below",
+          "requestedMetric": "9",
+          "effectiveMetric": "9",
+          "target": "10",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": null
+          }
+        },
+        {
+          "caseId": "A07-bronze-at",
+          "requestedMetric": "10",
+          "effectiveMetric": "10",
+          "target": "10",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A07-bronze-above",
+          "requestedMetric": "11",
+          "effectiveMetric": "11",
+          "target": "10",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A07-silver-below",
+          "requestedMetric": "29",
+          "effectiveMetric": "29",
+          "target": "30",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A07-silver-at",
+          "requestedMetric": "30",
+          "effectiveMetric": "30",
+          "target": "30",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A07-silver-above",
+          "requestedMetric": "31",
+          "effectiveMetric": "31",
+          "target": "30",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A07-gold-below",
+          "requestedMetric": "49",
+          "effectiveMetric": "49",
+          "target": "50",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A07-gold-at",
+          "requestedMetric": "50",
+          "effectiveMetric": "50",
+          "target": "50",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "gold"
+          }
+        },
+        {
+          "caseId": "A07-gold-above",
+          "requestedMetric": "51",
+          "effectiveMetric": "51",
+          "target": "50",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "gold"
+          }
+        }
+      ]
+    },
+    {
+      "id": "A08",
+      "tiered": true,
+      "thresholds": ["3", "5", "10"],
+      "requires": null,
+      "boundaryCases": [
+        {
+          "caseId": "A08-bronze-below",
+          "requestedMetric": "2",
+          "effectiveMetric": "2",
+          "target": "3",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": null
+          }
+        },
+        {
+          "caseId": "A08-bronze-at",
+          "requestedMetric": "3",
+          "effectiveMetric": "3",
+          "target": "3",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A08-bronze-above",
+          "requestedMetric": "4",
+          "effectiveMetric": "4",
+          "target": "3",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A08-silver-below",
+          "requestedMetric": "4",
+          "effectiveMetric": "4",
+          "target": "5",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A08-silver-at",
+          "requestedMetric": "5",
+          "effectiveMetric": "5",
+          "target": "5",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A08-silver-above",
+          "requestedMetric": "6",
+          "effectiveMetric": "6",
+          "target": "5",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A08-gold-below",
+          "requestedMetric": "9",
+          "effectiveMetric": "9",
+          "target": "10",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A08-gold-at",
+          "requestedMetric": "10",
+          "effectiveMetric": "10",
+          "target": "10",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "gold"
+          }
+        },
+        {
+          "caseId": "A08-gold-above",
+          "requestedMetric": "11",
+          "effectiveMetric": "11",
+          "target": "10",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "gold"
+          }
+        }
+      ]
+    },
+    {
+      "id": "A09",
+      "tiered": true,
+      "thresholds": ["2", "4", "7"],
+      "requires": null,
+      "boundaryCases": [
+        {
+          "caseId": "A09-bronze-below",
+          "requestedMetric": "1",
+          "effectiveMetric": "1",
+          "target": "2",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": null
+          }
+        },
+        {
+          "caseId": "A09-bronze-at",
+          "requestedMetric": "2",
+          "effectiveMetric": "2",
+          "target": "2",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A09-bronze-above",
+          "requestedMetric": "3",
+          "effectiveMetric": "3",
+          "target": "2",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A09-silver-below",
+          "requestedMetric": "3",
+          "effectiveMetric": "3",
+          "target": "4",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A09-silver-at",
+          "requestedMetric": "4",
+          "effectiveMetric": "4",
+          "target": "4",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A09-silver-above",
+          "requestedMetric": "5",
+          "effectiveMetric": "5",
+          "target": "4",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A09-gold-below",
+          "requestedMetric": "6",
+          "effectiveMetric": "6",
+          "target": "7",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A09-gold-at",
+          "requestedMetric": "7",
+          "effectiveMetric": "7",
+          "target": "7",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "gold"
+          }
+        },
+        {
+          "caseId": "A09-gold-above",
+          "requestedMetric": "8",
+          "effectiveMetric": "8",
+          "target": "7",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "gold"
+          }
+        }
+      ]
+    },
+    {
+      "id": "A10",
+      "tiered": true,
+      "thresholds": ["3", "7", "15"],
+      "requires": null,
+      "boundaryCases": [
+        {
+          "caseId": "A10-bronze-below",
+          "requestedMetric": "2",
+          "effectiveMetric": "2",
+          "target": "3",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": null
+          }
+        },
+        {
+          "caseId": "A10-bronze-at",
+          "requestedMetric": "3",
+          "effectiveMetric": "3",
+          "target": "3",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A10-bronze-above",
+          "requestedMetric": "4",
+          "effectiveMetric": "4",
+          "target": "3",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A10-silver-below",
+          "requestedMetric": "6",
+          "effectiveMetric": "6",
+          "target": "7",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A10-silver-at",
+          "requestedMetric": "7",
+          "effectiveMetric": "7",
+          "target": "7",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A10-silver-above",
+          "requestedMetric": "8",
+          "effectiveMetric": "8",
+          "target": "7",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A10-gold-below",
+          "requestedMetric": "14",
+          "effectiveMetric": "14",
+          "target": "15",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A10-gold-at",
+          "requestedMetric": "15",
+          "effectiveMetric": "15",
+          "target": "15",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "gold"
+          }
+        },
+        {
+          "caseId": "A10-gold-above",
+          "requestedMetric": "16",
+          "effectiveMetric": "16",
+          "target": "15",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "gold"
+          }
+        }
+      ]
+    },
+    {
+      "id": "A11",
+      "tiered": true,
+      "thresholds": ["2", "4", "6"],
+      "requires": null,
+      "boundaryCases": [
+        {
+          "caseId": "A11-bronze-below",
+          "requestedMetric": "1",
+          "effectiveMetric": "1",
+          "target": "2",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": null
+          }
+        },
+        {
+          "caseId": "A11-bronze-at",
+          "requestedMetric": "2",
+          "effectiveMetric": "2",
+          "target": "2",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A11-bronze-above",
+          "requestedMetric": "3",
+          "effectiveMetric": "3",
+          "target": "2",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A11-silver-below",
+          "requestedMetric": "3",
+          "effectiveMetric": "3",
+          "target": "4",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A11-silver-at",
+          "requestedMetric": "4",
+          "effectiveMetric": "4",
+          "target": "4",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A11-silver-above",
+          "requestedMetric": "5",
+          "effectiveMetric": "5",
+          "target": "4",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A11-gold-below",
+          "requestedMetric": "5",
+          "effectiveMetric": "5",
+          "target": "6",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A11-gold-at",
+          "requestedMetric": "6",
+          "effectiveMetric": "6",
+          "target": "6",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "gold"
+          }
+        },
+        {
+          "caseId": "A11-gold-above",
+          "requestedMetric": "7",
+          "effectiveMetric": "7",
+          "target": "6",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "gold"
+          }
+        }
+      ]
+    },
+    {
+      "id": "A12",
+      "tiered": true,
+      "thresholds": ["5", "7", "12"],
+      "requires": null,
+      "boundaryCases": [
+        {
+          "caseId": "A12-bronze-below",
+          "requestedMetric": "4",
+          "effectiveMetric": "4",
+          "target": "5",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": null
+          }
+        },
+        {
+          "caseId": "A12-bronze-at",
+          "requestedMetric": "5",
+          "effectiveMetric": "5",
+          "target": "5",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A12-bronze-above",
+          "requestedMetric": "6",
+          "effectiveMetric": "6",
+          "target": "5",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A12-silver-below",
+          "requestedMetric": "6",
+          "effectiveMetric": "6",
+          "target": "7",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A12-silver-at",
+          "requestedMetric": "7",
+          "effectiveMetric": "7",
+          "target": "7",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A12-silver-above",
+          "requestedMetric": "8",
+          "effectiveMetric": "8",
+          "target": "7",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A12-gold-below",
+          "requestedMetric": "11",
+          "effectiveMetric": "11",
+          "target": "12",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A12-gold-at",
+          "requestedMetric": "12",
+          "effectiveMetric": "12",
+          "target": "12",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "gold"
+          }
+        },
+        {
+          "caseId": "A12-gold-above",
+          "requestedMetric": "13",
+          "effectiveMetric": "13",
+          "target": "12",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "gold"
+          }
+        }
+      ]
+    },
+    {
+      "id": "A13",
+      "tiered": true,
+      "thresholds": ["30", "180", "365"],
+      "requires": null,
+      "boundaryCases": [
+        {
+          "caseId": "A13-bronze-below",
+          "requestedMetric": "29",
+          "effectiveMetric": "29",
+          "target": "30",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": null
+          }
+        },
+        {
+          "caseId": "A13-bronze-at",
+          "requestedMetric": "30",
+          "effectiveMetric": "30",
+          "target": "30",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A13-bronze-above",
+          "requestedMetric": "31",
+          "effectiveMetric": "31",
+          "target": "30",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A13-silver-below",
+          "requestedMetric": "179",
+          "effectiveMetric": "179",
+          "target": "180",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A13-silver-at",
+          "requestedMetric": "180",
+          "effectiveMetric": "180",
+          "target": "180",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A13-silver-above",
+          "requestedMetric": "181",
+          "effectiveMetric": "181",
+          "target": "180",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A13-gold-below",
+          "requestedMetric": "364",
+          "effectiveMetric": "364",
+          "target": "365",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A13-gold-at",
+          "requestedMetric": "365",
+          "effectiveMetric": "365",
+          "target": "365",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "gold"
+          }
+        },
+        {
+          "caseId": "A13-gold-above",
+          "requestedMetric": "366",
+          "effectiveMetric": "366",
+          "target": "365",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "gold"
+          }
+        }
+      ]
+    },
+    {
+      "id": "A14",
+      "tiered": true,
+      "thresholds": ["7", "30", "365"],
+      "requires": null,
+      "boundaryCases": [
+        {
+          "caseId": "A14-bronze-below",
+          "requestedMetric": "6",
+          "effectiveMetric": "6",
+          "target": "7",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": null
+          }
+        },
+        {
+          "caseId": "A14-bronze-at",
+          "requestedMetric": "7",
+          "effectiveMetric": "7",
+          "target": "7",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A14-bronze-above",
+          "requestedMetric": "8",
+          "effectiveMetric": "8",
+          "target": "7",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A14-silver-below",
+          "requestedMetric": "29",
+          "effectiveMetric": "29",
+          "target": "30",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A14-silver-at",
+          "requestedMetric": "30",
+          "effectiveMetric": "30",
+          "target": "30",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A14-silver-above",
+          "requestedMetric": "31",
+          "effectiveMetric": "31",
+          "target": "30",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A14-gold-below",
+          "requestedMetric": "364",
+          "effectiveMetric": "364",
+          "target": "365",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A14-gold-at",
+          "requestedMetric": "365",
+          "effectiveMetric": "365",
+          "target": "365",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "gold"
+          }
+        },
+        {
+          "caseId": "A14-gold-above",
+          "requestedMetric": "366",
+          "effectiveMetric": "366",
+          "target": "365",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "gold"
+          }
+        }
+      ]
+    },
+    {
+      "id": "A16",
+      "tiered": true,
+      "thresholds": ["3", "12", "24"],
+      "requires": null,
+      "boundaryCases": [
+        {
+          "caseId": "A16-bronze-below",
+          "requestedMetric": "2",
+          "effectiveMetric": "2",
+          "target": "3",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": null
+          }
+        },
+        {
+          "caseId": "A16-bronze-at",
+          "requestedMetric": "3",
+          "effectiveMetric": "3",
+          "target": "3",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A16-bronze-above",
+          "requestedMetric": "4",
+          "effectiveMetric": "4",
+          "target": "3",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A16-silver-below",
+          "requestedMetric": "11",
+          "effectiveMetric": "11",
+          "target": "12",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A16-silver-at",
+          "requestedMetric": "12",
+          "effectiveMetric": "12",
+          "target": "12",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A16-silver-above",
+          "requestedMetric": "13",
+          "effectiveMetric": "13",
+          "target": "12",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A16-gold-below",
+          "requestedMetric": "23",
+          "effectiveMetric": "23",
+          "target": "24",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A16-gold-at",
+          "requestedMetric": "24",
+          "effectiveMetric": "24",
+          "target": "24",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "gold"
+          }
+        },
+        {
+          "caseId": "A16-gold-above",
+          "requestedMetric": "25",
+          "effectiveMetric": "25",
+          "target": "24",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "gold"
+          }
+        }
+      ]
+    },
+    {
+      "id": "A18",
+      "tiered": true,
+      "thresholds": ["30", "90", "180"],
+      "requires": null,
+      "boundaryCases": [
+        {
+          "caseId": "A18-bronze-below",
+          "requestedMetric": "29",
+          "effectiveMetric": "29",
+          "target": "30",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": null
+          }
+        },
+        {
+          "caseId": "A18-bronze-at",
+          "requestedMetric": "30",
+          "effectiveMetric": "30",
+          "target": "30",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A18-bronze-above",
+          "requestedMetric": "31",
+          "effectiveMetric": "31",
+          "target": "30",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A18-silver-below",
+          "requestedMetric": "89",
+          "effectiveMetric": "89",
+          "target": "90",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A18-silver-at",
+          "requestedMetric": "90",
+          "effectiveMetric": "90",
+          "target": "90",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A18-silver-above",
+          "requestedMetric": "91",
+          "effectiveMetric": "91",
+          "target": "90",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A18-gold-below",
+          "requestedMetric": "179",
+          "effectiveMetric": "179",
+          "target": "180",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A18-gold-at",
+          "requestedMetric": "180",
+          "effectiveMetric": "180",
+          "target": "180",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "gold"
+          }
+        },
+        {
+          "caseId": "A18-gold-above",
+          "requestedMetric": "181",
+          "effectiveMetric": "181",
+          "target": "180",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "gold"
+          }
+        }
+      ]
+    },
+    {
+      "id": "A19",
+      "tiered": true,
+      "thresholds": ["100000000", "1000000000", "10000000000"],
+      "requires": null,
+      "boundaryCases": [
+        {
+          "caseId": "A19-bronze-below",
+          "requestedMetric": "99999999",
+          "effectiveMetric": "99999999",
+          "target": "100000000",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": null
+          }
+        },
+        {
+          "caseId": "A19-bronze-at",
+          "requestedMetric": "100000000",
+          "effectiveMetric": "100000000",
+          "target": "100000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A19-bronze-above",
+          "requestedMetric": "100000001",
+          "effectiveMetric": "100000001",
+          "target": "100000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A19-silver-below",
+          "requestedMetric": "999999999",
+          "effectiveMetric": "999999999",
+          "target": "1000000000",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A19-silver-at",
+          "requestedMetric": "1000000000",
+          "effectiveMetric": "1000000000",
+          "target": "1000000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A19-silver-above",
+          "requestedMetric": "1000000001",
+          "effectiveMetric": "1000000001",
+          "target": "1000000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A19-gold-below",
+          "requestedMetric": "9999999999",
+          "effectiveMetric": "9999999999",
+          "target": "10000000000",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A19-gold-at",
+          "requestedMetric": "10000000000",
+          "effectiveMetric": "10000000000",
+          "target": "10000000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "gold"
+          }
+        },
+        {
+          "caseId": "A19-gold-above",
+          "requestedMetric": "10000000001",
+          "effectiveMetric": "10000000001",
+          "target": "10000000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "gold"
+          }
+        }
+      ]
+    },
+    {
+      "id": "A23",
+      "tiered": true,
+      "thresholds": ["500000000", "1000000000", "5000000000"],
+      "requires": null,
+      "boundaryCases": [
+        {
+          "caseId": "A23-bronze-below",
+          "requestedMetric": "499999999",
+          "effectiveMetric": "499999999",
+          "target": "500000000",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": null
+          }
+        },
+        {
+          "caseId": "A23-bronze-at",
+          "requestedMetric": "500000000",
+          "effectiveMetric": "500000000",
+          "target": "500000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A23-bronze-above",
+          "requestedMetric": "500000001",
+          "effectiveMetric": "500000001",
+          "target": "500000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A23-silver-below",
+          "requestedMetric": "999999999",
+          "effectiveMetric": "999999999",
+          "target": "1000000000",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A23-silver-at",
+          "requestedMetric": "1000000000",
+          "effectiveMetric": "1000000000",
+          "target": "1000000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A23-silver-above",
+          "requestedMetric": "1000000001",
+          "effectiveMetric": "1000000001",
+          "target": "1000000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A23-gold-below",
+          "requestedMetric": "4999999999",
+          "effectiveMetric": "4999999999",
+          "target": "5000000000",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A23-gold-at",
+          "requestedMetric": "5000000000",
+          "effectiveMetric": "5000000000",
+          "target": "5000000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "gold"
+          }
+        },
+        {
+          "caseId": "A23-gold-above",
+          "requestedMetric": "5000000001",
+          "effectiveMetric": "5000000001",
+          "target": "5000000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "gold"
+          }
+        }
+      ]
+    },
+    {
+      "id": "A24",
+      "tiered": true,
+      "thresholds": ["5", "10", "30"],
+      "requires": null,
+      "boundaryCases": [
+        {
+          "caseId": "A24-bronze-below",
+          "requestedMetric": "4",
+          "effectiveMetric": "4",
+          "target": "5",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": null
+          }
+        },
+        {
+          "caseId": "A24-bronze-at",
+          "requestedMetric": "5",
+          "effectiveMetric": "5",
+          "target": "5",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A24-bronze-above",
+          "requestedMetric": "6",
+          "effectiveMetric": "6",
+          "target": "5",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A24-silver-below",
+          "requestedMetric": "9",
+          "effectiveMetric": "9",
+          "target": "10",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A24-silver-at",
+          "requestedMetric": "10",
+          "effectiveMetric": "10",
+          "target": "10",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A24-silver-above",
+          "requestedMetric": "11",
+          "effectiveMetric": "11",
+          "target": "10",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A24-gold-below",
+          "requestedMetric": "29",
+          "effectiveMetric": "29",
+          "target": "30",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A24-gold-at",
+          "requestedMetric": "30",
+          "effectiveMetric": "30",
+          "target": "30",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "gold"
+          }
+        },
+        {
+          "caseId": "A24-gold-above",
+          "requestedMetric": "31",
+          "effectiveMetric": "31",
+          "target": "30",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "gold"
+          }
+        }
+      ]
+    },
+    {
+      "id": "A28",
+      "tiered": true,
+      "thresholds": ["4", "7", "10"],
+      "requires": null,
+      "boundaryCases": [
+        {
+          "caseId": "A28-bronze-below",
+          "requestedMetric": "3",
+          "effectiveMetric": "3",
+          "target": "4",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": null
+          }
+        },
+        {
+          "caseId": "A28-bronze-at",
+          "requestedMetric": "4",
+          "effectiveMetric": "4",
+          "target": "4",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A28-bronze-above",
+          "requestedMetric": "5",
+          "effectiveMetric": "5",
+          "target": "4",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A28-silver-below",
+          "requestedMetric": "6",
+          "effectiveMetric": "6",
+          "target": "7",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A28-silver-at",
+          "requestedMetric": "7",
+          "effectiveMetric": "7",
+          "target": "7",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A28-silver-above",
+          "requestedMetric": "8",
+          "effectiveMetric": "8",
+          "target": "7",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A28-gold-below",
+          "requestedMetric": "9",
+          "effectiveMetric": "9",
+          "target": "10",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A28-gold-at",
+          "requestedMetric": "10",
+          "effectiveMetric": "10",
+          "target": "10",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "gold"
+          }
+        },
+        {
+          "caseId": "A28-gold-above",
+          "requestedMetric": "11",
+          "effectiveMetric": "11",
+          "target": "10",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "gold"
+          }
+        }
+      ]
+    },
+    {
+      "id": "A29",
+      "tiered": true,
+      "thresholds": ["3", "5", "7"],
+      "requires": null,
+      "boundaryCases": [
+        {
+          "caseId": "A29-bronze-below",
+          "requestedMetric": "2",
+          "effectiveMetric": "2",
+          "target": "3",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": null
+          }
+        },
+        {
+          "caseId": "A29-bronze-at",
+          "requestedMetric": "3",
+          "effectiveMetric": "3",
+          "target": "3",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A29-bronze-above",
+          "requestedMetric": "4",
+          "effectiveMetric": "4",
+          "target": "3",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A29-silver-below",
+          "requestedMetric": "4",
+          "effectiveMetric": "4",
+          "target": "5",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A29-silver-at",
+          "requestedMetric": "5",
+          "effectiveMetric": "5",
+          "target": "5",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A29-silver-above",
+          "requestedMetric": "6",
+          "effectiveMetric": "6",
+          "target": "5",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A29-gold-below",
+          "requestedMetric": "6",
+          "effectiveMetric": "6",
+          "target": "7",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A29-gold-at",
+          "requestedMetric": "7",
+          "effectiveMetric": "7",
+          "target": "7",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "gold"
+          }
+        },
+        {
+          "caseId": "A29-gold-above",
+          "requestedMetric": "8",
+          "effectiveMetric": "8",
+          "target": "7",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "gold"
+          }
+        }
+      ]
+    },
+    {
+      "id": "A30",
+      "tiered": true,
+      "thresholds": ["7", "15", "45"],
+      "requires": null,
+      "boundaryCases": [
+        {
+          "caseId": "A30-bronze-below",
+          "requestedMetric": "6",
+          "effectiveMetric": "6",
+          "target": "7",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": null
+          }
+        },
+        {
+          "caseId": "A30-bronze-at",
+          "requestedMetric": "7",
+          "effectiveMetric": "7",
+          "target": "7",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A30-bronze-above",
+          "requestedMetric": "8",
+          "effectiveMetric": "8",
+          "target": "7",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A30-silver-below",
+          "requestedMetric": "14",
+          "effectiveMetric": "14",
+          "target": "15",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A30-silver-at",
+          "requestedMetric": "15",
+          "effectiveMetric": "15",
+          "target": "15",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A30-silver-above",
+          "requestedMetric": "16",
+          "effectiveMetric": "16",
+          "target": "15",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A30-gold-below",
+          "requestedMetric": "44",
+          "effectiveMetric": "44",
+          "target": "45",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A30-gold-at",
+          "requestedMetric": "45",
+          "effectiveMetric": "45",
+          "target": "45",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "gold"
+          }
+        },
+        {
+          "caseId": "A30-gold-above",
+          "requestedMetric": "46",
+          "effectiveMetric": "46",
+          "target": "45",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "gold"
+          }
+        }
+      ]
+    },
+    {
+      "id": "A31",
+      "tiered": false,
+      "thresholds": ["1"],
+      "requires": null,
+      "boundaryCases": [
+        {
+          "caseId": "A31-stone-below",
+          "requestedMetric": "0",
+          "effectiveMetric": "0",
+          "target": "1",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": null
+          }
+        },
+        {
+          "caseId": "A31-stone-at",
+          "requestedMetric": "1",
+          "effectiveMetric": "1",
+          "target": "1",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "stone"
+          }
+        },
+        {
+          "caseId": "A31-stone-above",
+          "requestedMetric": "2",
+          "effectiveMetric": "2",
+          "target": "1",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "stone"
+          }
+        }
+      ]
+    },
+    {
+      "id": "A32",
+      "tiered": false,
+      "thresholds": ["10000000000"],
+      "requires": null,
+      "boundaryCases": [
+        {
+          "caseId": "A32-stone-below",
+          "requestedMetric": "9999999999",
+          "effectiveMetric": "9999999999",
+          "target": "10000000000",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": null
+          }
+        },
+        {
+          "caseId": "A32-stone-at",
+          "requestedMetric": "10000000000",
+          "effectiveMetric": "10000000000",
+          "target": "10000000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "stone"
+          }
+        },
+        {
+          "caseId": "A32-stone-above",
+          "requestedMetric": "10000000001",
+          "effectiveMetric": "10000000001",
+          "target": "10000000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "stone"
+          }
+        }
+      ]
+    },
+    {
+      "id": "A33",
+      "tiered": false,
+      "thresholds": ["2"],
+      "requires": null,
+      "boundaryCases": [
+        {
+          "caseId": "A33-stone-below",
+          "requestedMetric": "1",
+          "effectiveMetric": "1",
+          "target": "2",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": null
+          }
+        },
+        {
+          "caseId": "A33-stone-at",
+          "requestedMetric": "2",
+          "effectiveMetric": "2",
+          "target": "2",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "stone"
+          }
+        },
+        {
+          "caseId": "A33-stone-above",
+          "requestedMetric": "3",
+          "effectiveMetric": "3",
+          "target": "2",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "stone"
+          }
+        }
+      ]
+    },
+    {
+      "id": "A36",
+      "tiered": false,
+      "thresholds": ["30"],
+      "requires": null,
+      "boundaryCases": [
+        {
+          "caseId": "A36-stone-below",
+          "requestedMetric": "29",
+          "effectiveMetric": "29",
+          "target": "30",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": null
+          }
+        },
+        {
+          "caseId": "A36-stone-at",
+          "requestedMetric": "30",
+          "effectiveMetric": "30",
+          "target": "30",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "stone"
+          }
+        },
+        {
+          "caseId": "A36-stone-above",
+          "requestedMetric": "31",
+          "effectiveMetric": "31",
+          "target": "30",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "stone"
+          }
+        }
+      ]
+    },
+    {
+      "id": "A38",
+      "tiered": false,
+      "thresholds": ["1"],
+      "requires": null,
+      "boundaryCases": [
+        {
+          "caseId": "A38-stone-below",
+          "requestedMetric": "0",
+          "effectiveMetric": "0",
+          "target": "1",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": null
+          }
+        },
+        {
+          "caseId": "A38-stone-at",
+          "requestedMetric": "1",
+          "effectiveMetric": "1",
+          "target": "1",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "stone"
+          }
+        },
+        {
+          "caseId": "A38-stone-above",
+          "requestedMetric": "2",
+          "effectiveMetric": "2",
+          "target": "1",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "stone"
+          }
+        }
+      ]
+    },
+    {
+      "id": "A39",
+      "tiered": false,
+      "thresholds": ["1"],
+      "requires": null,
+      "boundaryCases": [
+        {
+          "caseId": "A39-stone-below",
+          "requestedMetric": "0",
+          "effectiveMetric": "0",
+          "target": "1",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": null
+          }
+        },
+        {
+          "caseId": "A39-stone-at",
+          "requestedMetric": "1",
+          "effectiveMetric": "1",
+          "target": "1",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "stone"
+          }
+        },
+        {
+          "caseId": "A39-stone-above",
+          "requestedMetric": "2",
+          "effectiveMetric": "2",
+          "target": "1",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "stone"
+          }
+        }
+      ]
+    },
+    {
+      "id": "A43",
+      "tiered": true,
+      "thresholds": ["1", "10", "50"],
+      "requires": null,
+      "boundaryCases": [
+        {
+          "caseId": "A43-bronze-below",
+          "requestedMetric": "0",
+          "effectiveMetric": "0",
+          "target": "1",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": null
+          }
+        },
+        {
+          "caseId": "A43-bronze-at",
+          "requestedMetric": "1",
+          "effectiveMetric": "1",
+          "target": "1",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A43-bronze-above",
+          "requestedMetric": "2",
+          "effectiveMetric": "2",
+          "target": "1",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A43-silver-below",
+          "requestedMetric": "9",
+          "effectiveMetric": "9",
+          "target": "10",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A43-silver-at",
+          "requestedMetric": "10",
+          "effectiveMetric": "10",
+          "target": "10",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A43-silver-above",
+          "requestedMetric": "11",
+          "effectiveMetric": "11",
+          "target": "10",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A43-gold-below",
+          "requestedMetric": "49",
+          "effectiveMetric": "49",
+          "target": "50",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A43-gold-at",
+          "requestedMetric": "50",
+          "effectiveMetric": "50",
+          "target": "50",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "gold"
+          }
+        },
+        {
+          "caseId": "A43-gold-above",
+          "requestedMetric": "51",
+          "effectiveMetric": "51",
+          "target": "50",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "gold"
+          }
+        }
+      ]
+    },
+    {
+      "id": "A44",
+      "tiered": false,
+      "thresholds": ["10"],
+      "requires": null,
+      "boundaryCases": [
+        {
+          "caseId": "A44-stone-below",
+          "requestedMetric": "9",
+          "effectiveMetric": "9",
+          "target": "10",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": null
+          }
+        },
+        {
+          "caseId": "A44-stone-at",
+          "requestedMetric": "10",
+          "effectiveMetric": "10",
+          "target": "10",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "stone"
+          }
+        },
+        {
+          "caseId": "A44-stone-above",
+          "requestedMetric": "11",
+          "effectiveMetric": "10",
+          "target": "10",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "stone"
+          }
+        }
+      ]
+    },
+    {
+      "id": "A46",
+      "tiered": false,
+      "thresholds": ["1"],
+      "requires": null,
+      "boundaryCases": [
+        {
+          "caseId": "A46-stone-below",
+          "requestedMetric": "0",
+          "effectiveMetric": "0",
+          "target": "1",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": null
+          }
+        },
+        {
+          "caseId": "A46-stone-at",
+          "requestedMetric": "1",
+          "effectiveMetric": "1",
+          "target": "1",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "stone"
+          }
+        },
+        {
+          "caseId": "A46-stone-above",
+          "requestedMetric": "2",
+          "effectiveMetric": "2",
+          "target": "1",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "stone"
+          }
+        }
+      ]
+    },
+    {
+      "id": "A53",
+      "tiered": true,
+      "thresholds": ["1000000000", "5000000000", "15000000000"],
+      "requires": null,
+      "boundaryCases": [
+        {
+          "caseId": "A53-bronze-below",
+          "requestedMetric": "999999999",
+          "effectiveMetric": "999999999",
+          "target": "1000000000",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": null
+          }
+        },
+        {
+          "caseId": "A53-bronze-at",
+          "requestedMetric": "1000000000",
+          "effectiveMetric": "1000000000",
+          "target": "1000000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A53-bronze-above",
+          "requestedMetric": "1000000001",
+          "effectiveMetric": "1000000001",
+          "target": "1000000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A53-silver-below",
+          "requestedMetric": "4999999999",
+          "effectiveMetric": "4999999999",
+          "target": "5000000000",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A53-silver-at",
+          "requestedMetric": "5000000000",
+          "effectiveMetric": "5000000000",
+          "target": "5000000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A53-silver-above",
+          "requestedMetric": "5000000001",
+          "effectiveMetric": "5000000001",
+          "target": "5000000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A53-gold-below",
+          "requestedMetric": "14999999999",
+          "effectiveMetric": "14999999999",
+          "target": "15000000000",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A53-gold-at",
+          "requestedMetric": "15000000000",
+          "effectiveMetric": "15000000000",
+          "target": "15000000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "gold"
+          }
+        },
+        {
+          "caseId": "A53-gold-above",
+          "requestedMetric": "15000000001",
+          "effectiveMetric": "15000000001",
+          "target": "15000000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "gold"
+          }
+        }
+      ]
+    },
+    {
+      "id": "A54",
+      "tiered": true,
+      "thresholds": ["10000000000", "200000000000", "1000000000000"],
+      "requires": null,
+      "boundaryCases": [
+        {
+          "caseId": "A54-bronze-below",
+          "requestedMetric": "9999999999",
+          "effectiveMetric": "9999999999",
+          "target": "10000000000",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": null
+          }
+        },
+        {
+          "caseId": "A54-bronze-at",
+          "requestedMetric": "10000000000",
+          "effectiveMetric": "10000000000",
+          "target": "10000000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A54-bronze-above",
+          "requestedMetric": "10000000001",
+          "effectiveMetric": "10000000001",
+          "target": "10000000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A54-silver-below",
+          "requestedMetric": "199999999999",
+          "effectiveMetric": "199999999999",
+          "target": "200000000000",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A54-silver-at",
+          "requestedMetric": "200000000000",
+          "effectiveMetric": "200000000000",
+          "target": "200000000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A54-silver-above",
+          "requestedMetric": "200000000001",
+          "effectiveMetric": "200000000001",
+          "target": "200000000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A54-gold-below",
+          "requestedMetric": "999999999999",
+          "effectiveMetric": "999999999999",
+          "target": "1000000000000",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A54-gold-at",
+          "requestedMetric": "1000000000000",
+          "effectiveMetric": "1000000000000",
+          "target": "1000000000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "gold"
+          }
+        },
+        {
+          "caseId": "A54-gold-above",
+          "requestedMetric": "1000000000001",
+          "effectiveMetric": "1000000000001",
+          "target": "1000000000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "gold"
+          }
+        }
+      ]
+    },
+    {
+      "id": "A55",
+      "tiered": true,
+      "thresholds": ["1000000000", "50000000000", "1000000000000"],
+      "requires": null,
+      "boundaryCases": [
+        {
+          "caseId": "A55-bronze-below",
+          "requestedMetric": "999999999",
+          "effectiveMetric": "999999999",
+          "target": "1000000000",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": null
+          }
+        },
+        {
+          "caseId": "A55-bronze-at",
+          "requestedMetric": "1000000000",
+          "effectiveMetric": "1000000000",
+          "target": "1000000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A55-bronze-above",
+          "requestedMetric": "1000000001",
+          "effectiveMetric": "1000000001",
+          "target": "1000000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A55-silver-below",
+          "requestedMetric": "49999999999",
+          "effectiveMetric": "49999999999",
+          "target": "50000000000",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A55-silver-at",
+          "requestedMetric": "50000000000",
+          "effectiveMetric": "50000000000",
+          "target": "50000000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A55-silver-above",
+          "requestedMetric": "50000000001",
+          "effectiveMetric": "50000000001",
+          "target": "50000000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A55-gold-below",
+          "requestedMetric": "999999999999",
+          "effectiveMetric": "999999999999",
+          "target": "1000000000000",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A55-gold-at",
+          "requestedMetric": "1000000000000",
+          "effectiveMetric": "1000000000000",
+          "target": "1000000000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "gold"
+          }
+        },
+        {
+          "caseId": "A55-gold-above",
+          "requestedMetric": "1000000000001",
+          "effectiveMetric": "1000000000001",
+          "target": "1000000000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "gold"
+          }
+        }
+      ]
+    },
+    {
+      "id": "A56",
+      "tiered": true,
+      "thresholds": ["5", "10", "30"],
+      "requires": null,
+      "boundaryCases": [
+        {
+          "caseId": "A56-bronze-below",
+          "requestedMetric": "4",
+          "effectiveMetric": "4",
+          "target": "5",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": null
+          }
+        },
+        {
+          "caseId": "A56-bronze-at",
+          "requestedMetric": "5",
+          "effectiveMetric": "5",
+          "target": "5",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A56-bronze-above",
+          "requestedMetric": "6",
+          "effectiveMetric": "6",
+          "target": "5",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A56-silver-below",
+          "requestedMetric": "9",
+          "effectiveMetric": "9",
+          "target": "10",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A56-silver-at",
+          "requestedMetric": "10",
+          "effectiveMetric": "10",
+          "target": "10",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A56-silver-above",
+          "requestedMetric": "11",
+          "effectiveMetric": "11",
+          "target": "10",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A56-gold-below",
+          "requestedMetric": "29",
+          "effectiveMetric": "29",
+          "target": "30",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A56-gold-at",
+          "requestedMetric": "30",
+          "effectiveMetric": "30",
+          "target": "30",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "gold"
+          }
+        },
+        {
+          "caseId": "A56-gold-above",
+          "requestedMetric": "31",
+          "effectiveMetric": "31",
+          "target": "30",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "gold"
+          }
+        }
+      ]
+    },
+    {
+      "id": "A58",
+      "tiered": true,
+      "thresholds": ["3000000000", "10000000000", "100000000000"],
+      "requires": null,
+      "boundaryCases": [
+        {
+          "caseId": "A58-bronze-below",
+          "requestedMetric": "2999999999",
+          "effectiveMetric": "2999999999",
+          "target": "3000000000",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": null
+          }
+        },
+        {
+          "caseId": "A58-bronze-at",
+          "requestedMetric": "3000000000",
+          "effectiveMetric": "3000000000",
+          "target": "3000000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A58-bronze-above",
+          "requestedMetric": "3000000001",
+          "effectiveMetric": "3000000001",
+          "target": "3000000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A58-silver-below",
+          "requestedMetric": "9999999999",
+          "effectiveMetric": "9999999999",
+          "target": "10000000000",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A58-silver-at",
+          "requestedMetric": "10000000000",
+          "effectiveMetric": "10000000000",
+          "target": "10000000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A58-silver-above",
+          "requestedMetric": "10000000001",
+          "effectiveMetric": "10000000001",
+          "target": "10000000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A58-gold-below",
+          "requestedMetric": "99999999999",
+          "effectiveMetric": "99999999999",
+          "target": "100000000000",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A58-gold-at",
+          "requestedMetric": "100000000000",
+          "effectiveMetric": "100000000000",
+          "target": "100000000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "gold"
+          }
+        },
+        {
+          "caseId": "A58-gold-above",
+          "requestedMetric": "100000000001",
+          "effectiveMetric": "100000000001",
+          "target": "100000000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "gold"
+          }
+        }
+      ]
+    },
+    {
+      "id": "A59",
+      "tiered": true,
+      "thresholds": ["1000000000", "3000000000", "10000000000"],
+      "requires": null,
+      "boundaryCases": [
+        {
+          "caseId": "A59-bronze-below",
+          "requestedMetric": "999999999",
+          "effectiveMetric": "999999999",
+          "target": "1000000000",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": null
+          }
+        },
+        {
+          "caseId": "A59-bronze-at",
+          "requestedMetric": "1000000000",
+          "effectiveMetric": "1000000000",
+          "target": "1000000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A59-bronze-above",
+          "requestedMetric": "1000000001",
+          "effectiveMetric": "1000000001",
+          "target": "1000000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A59-silver-below",
+          "requestedMetric": "2999999999",
+          "effectiveMetric": "2999999999",
+          "target": "3000000000",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A59-silver-at",
+          "requestedMetric": "3000000000",
+          "effectiveMetric": "3000000000",
+          "target": "3000000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A59-silver-above",
+          "requestedMetric": "3000000001",
+          "effectiveMetric": "3000000001",
+          "target": "3000000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A59-gold-below",
+          "requestedMetric": "9999999999",
+          "effectiveMetric": "9999999999",
+          "target": "10000000000",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A59-gold-at",
+          "requestedMetric": "10000000000",
+          "effectiveMetric": "10000000000",
+          "target": "10000000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "gold"
+          }
+        },
+        {
+          "caseId": "A59-gold-above",
+          "requestedMetric": "10000000001",
+          "effectiveMetric": "10000000001",
+          "target": "10000000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "gold"
+          }
+        }
+      ]
+    },
+    {
+      "id": "A63",
+      "tiered": true,
+      "thresholds": ["3", "5", "7"],
+      "requires": null,
+      "boundaryCases": [
+        {
+          "caseId": "A63-bronze-below",
+          "requestedMetric": "2",
+          "effectiveMetric": "2",
+          "target": "3",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": null
+          }
+        },
+        {
+          "caseId": "A63-bronze-at",
+          "requestedMetric": "3",
+          "effectiveMetric": "3",
+          "target": "3",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A63-bronze-above",
+          "requestedMetric": "4",
+          "effectiveMetric": "4",
+          "target": "3",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A63-silver-below",
+          "requestedMetric": "4",
+          "effectiveMetric": "4",
+          "target": "5",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A63-silver-at",
+          "requestedMetric": "5",
+          "effectiveMetric": "5",
+          "target": "5",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A63-silver-above",
+          "requestedMetric": "6",
+          "effectiveMetric": "6",
+          "target": "5",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A63-gold-below",
+          "requestedMetric": "6",
+          "effectiveMetric": "6",
+          "target": "7",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A63-gold-at",
+          "requestedMetric": "7",
+          "effectiveMetric": "7",
+          "target": "7",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "gold"
+          }
+        },
+        {
+          "caseId": "A63-gold-above",
+          "requestedMetric": "8",
+          "effectiveMetric": "8",
+          "target": "7",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "gold"
+          }
+        }
+      ]
+    },
+    {
+      "id": "A65",
+      "tiered": true,
+      "thresholds": ["3", "6", "12"],
+      "requires": null,
+      "boundaryCases": [
+        {
+          "caseId": "A65-bronze-below",
+          "requestedMetric": "2",
+          "effectiveMetric": "2",
+          "target": "3",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": null
+          }
+        },
+        {
+          "caseId": "A65-bronze-at",
+          "requestedMetric": "3",
+          "effectiveMetric": "3",
+          "target": "3",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A65-bronze-above",
+          "requestedMetric": "4",
+          "effectiveMetric": "4",
+          "target": "3",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A65-silver-below",
+          "requestedMetric": "5",
+          "effectiveMetric": "5",
+          "target": "6",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": "bronze"
+          }
+        },
+        {
+          "caseId": "A65-silver-at",
+          "requestedMetric": "6",
+          "effectiveMetric": "6",
+          "target": "6",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A65-silver-above",
+          "requestedMetric": "7",
+          "effectiveMetric": "7",
+          "target": "6",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A65-gold-below",
+          "requestedMetric": "11",
+          "effectiveMetric": "11",
+          "target": "12",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": "silver"
+          }
+        },
+        {
+          "caseId": "A65-gold-at",
+          "requestedMetric": "12",
+          "effectiveMetric": "12",
+          "target": "12",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "gold"
+          }
+        },
+        {
+          "caseId": "A65-gold-above",
+          "requestedMetric": "13",
+          "effectiveMetric": "13",
+          "target": "12",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "gold"
+          }
+        }
+      ]
+    },
+    {
+      "id": "A69",
+      "tiered": false,
+      "thresholds": ["100000000000"],
+      "requires": null,
+      "boundaryCases": [
+        {
+          "caseId": "A69-stone-below",
+          "requestedMetric": "99999999999",
+          "effectiveMetric": "99999999999",
+          "target": "100000000000",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": null
+          }
+        },
+        {
+          "caseId": "A69-stone-at",
+          "requestedMetric": "100000000000",
+          "effectiveMetric": "100000000000",
+          "target": "100000000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "stone"
+          }
+        },
+        {
+          "caseId": "A69-stone-above",
+          "requestedMetric": "100000000001",
+          "effectiveMetric": "100000000001",
+          "target": "100000000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "stone"
+          }
+        }
+      ]
+    },
+    {
+      "id": "A70",
+      "tiered": false,
+      "thresholds": ["1000000000000"],
+      "requires": null,
+      "boundaryCases": [
+        {
+          "caseId": "A70-stone-below",
+          "requestedMetric": "999999999999",
+          "effectiveMetric": "999999999999",
+          "target": "1000000000000",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": null
+          }
+        },
+        {
+          "caseId": "A70-stone-at",
+          "requestedMetric": "1000000000000",
+          "effectiveMetric": "1000000000000",
+          "target": "1000000000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "stone"
+          }
+        },
+        {
+          "caseId": "A70-stone-above",
+          "requestedMetric": "1000000000001",
+          "effectiveMetric": "1000000000001",
+          "target": "1000000000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "stone"
+          }
+        }
+      ]
+    },
+    {
+      "id": "A71",
+      "tiered": false,
+      "thresholds": ["10000000000000"],
+      "requires": null,
+      "boundaryCases": [
+        {
+          "caseId": "A71-stone-below",
+          "requestedMetric": "9999999999999",
+          "effectiveMetric": "9999999999999",
+          "target": "10000000000000",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": null
+          }
+        },
+        {
+          "caseId": "A71-stone-at",
+          "requestedMetric": "10000000000000",
+          "effectiveMetric": "10000000000000",
+          "target": "10000000000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "stone"
+          }
+        },
+        {
+          "caseId": "A71-stone-above",
+          "requestedMetric": "10000000000001",
+          "effectiveMetric": "10000000000001",
+          "target": "10000000000000",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "stone"
+          }
+        }
+      ]
+    },
+    {
+      "id": "A73",
+      "tiered": false,
+      "thresholds": ["27"],
+      "requires": {
+        "kind": "tier",
+        "level": "bronze",
+        "ids": [
+          "A01",
+          "A06",
+          "A07",
+          "A08",
+          "A09",
+          "A10",
+          "A11",
+          "A12",
+          "A13",
+          "A14",
+          "A16",
+          "A18",
+          "A19",
+          "A23",
+          "A24",
+          "A28",
+          "A29",
+          "A30",
+          "A43",
+          "A53",
+          "A54",
+          "A55",
+          "A56",
+          "A58",
+          "A59",
+          "A63",
+          "A65"
+        ]
+      },
+      "boundaryCases": [
+        {
+          "caseId": "A73-stone-below",
+          "requestedMetric": "26",
+          "effectiveMetric": "26",
+          "target": "27",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": null
+          }
+        },
+        {
+          "caseId": "A73-stone-at",
+          "requestedMetric": "27",
+          "effectiveMetric": "27",
+          "target": "27",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "stone"
+          }
+        },
+        {
+          "caseId": "A73-stone-above",
+          "requestedMetric": "28",
+          "effectiveMetric": "27",
+          "target": "27",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "stone"
+          }
+        }
+      ]
+    },
+    {
+      "id": "A74",
+      "tiered": false,
+      "thresholds": ["27"],
+      "requires": {
+        "kind": "tier",
+        "level": "silver",
+        "ids": [
+          "A01",
+          "A06",
+          "A07",
+          "A08",
+          "A09",
+          "A10",
+          "A11",
+          "A12",
+          "A13",
+          "A14",
+          "A16",
+          "A18",
+          "A19",
+          "A23",
+          "A24",
+          "A28",
+          "A29",
+          "A30",
+          "A43",
+          "A53",
+          "A54",
+          "A55",
+          "A56",
+          "A58",
+          "A59",
+          "A63",
+          "A65"
+        ]
+      },
+      "boundaryCases": [
+        {
+          "caseId": "A74-stone-below",
+          "requestedMetric": "26",
+          "effectiveMetric": "26",
+          "target": "27",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": null
+          }
+        },
+        {
+          "caseId": "A74-stone-at",
+          "requestedMetric": "27",
+          "effectiveMetric": "27",
+          "target": "27",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "stone"
+          }
+        },
+        {
+          "caseId": "A74-stone-above",
+          "requestedMetric": "28",
+          "effectiveMetric": "27",
+          "target": "27",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "stone"
+          }
+        }
+      ]
+    },
+    {
+      "id": "A75",
+      "tiered": false,
+      "thresholds": ["27"],
+      "requires": {
+        "kind": "tier",
+        "level": "gold",
+        "ids": [
+          "A01",
+          "A06",
+          "A07",
+          "A08",
+          "A09",
+          "A10",
+          "A11",
+          "A12",
+          "A13",
+          "A14",
+          "A16",
+          "A18",
+          "A19",
+          "A23",
+          "A24",
+          "A28",
+          "A29",
+          "A30",
+          "A43",
+          "A53",
+          "A54",
+          "A55",
+          "A56",
+          "A58",
+          "A59",
+          "A63",
+          "A65"
+        ]
+      },
+      "boundaryCases": [
+        {
+          "caseId": "A75-stone-below",
+          "requestedMetric": "26",
+          "effectiveMetric": "26",
+          "target": "27",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": null
+          }
+        },
+        {
+          "caseId": "A75-stone-at",
+          "requestedMetric": "27",
+          "effectiveMetric": "27",
+          "target": "27",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "stone"
+          }
+        },
+        {
+          "caseId": "A75-stone-above",
+          "requestedMetric": "28",
+          "effectiveMetric": "27",
+          "target": "27",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "stone"
+          }
+        }
+      ]
+    },
+    {
+      "id": "A76",
+      "tiered": false,
+      "thresholds": ["11"],
+      "requires": {
+        "kind": "achievements",
+        "ids": ["A31", "A33", "A36", "A38", "A39", "A43", "A44", "A46", "A73", "A74", "A75"]
+      },
+      "boundaryCases": [
+        {
+          "caseId": "A76-stone-below",
+          "requestedMetric": "10",
+          "effectiveMetric": "10",
+          "target": "11",
+          "expected": {
+            "reachesTarget": false,
+            "highestEarned": null
+          }
+        },
+        {
+          "caseId": "A76-stone-at",
+          "requestedMetric": "11",
+          "effectiveMetric": "11",
+          "target": "11",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "stone"
+          }
+        },
+        {
+          "caseId": "A76-stone-above",
+          "requestedMetric": "12",
+          "effectiveMetric": "11",
+          "target": "11",
+          "expected": {
+            "reachesTarget": true,
+            "highestEarned": "stone"
+          }
+        }
+      ]
+    }
+  ]
+}

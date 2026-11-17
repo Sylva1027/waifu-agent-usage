@@ -7,14 +7,14 @@ import { backup, DatabaseSync } from "node:sqlite";
 
 import {
   createHistoryBackup,
+  captureHistoryBackupInputs,
+  copyHistoryAchievementBackup,
   loadHistoryBackupContext,
   restoreHistoryBackup,
   verifyHistoryBackup,
   withVerifiedHistoryBackup,
 } from "./history-backup.js";
 import { compactHistoryDatabase, compareHistoryDatabases, syncHistoryArchiveFiles } from "./history-compact.js";
-import { getPricingCatalog } from "./pricing.js";
-import { serviceTierEvidenceFromSnapshot, serviceTierEvidenceSnapshot } from "./service-tier-evidence.js";
 
 const ARCHIVE_EVENT_THRESHOLD = 400_000;
 const COLD_HISTORY_DAYS = 180;
@@ -200,8 +200,12 @@ function normalizeBundleSegments(segments) {
 }
 
 function validateBundleManifest(manifest) {
-  assertBundleKeys(manifest, ["formatVersion", "main", "segments"], "bundle manifest");
-  if (manifest.formatVersion !== HISTORY_ARCHIVE_BUNDLE_FORMAT_VERSION) {
+  assertBundleKeys(
+    manifest,
+    ["formatVersion", "main", "segments", ...([2, 3].includes(manifest?.formatVersion) ? ["achievements"] : [])],
+    "bundle manifest",
+  );
+  if (![HISTORY_ARCHIVE_BUNDLE_FORMAT_VERSION, 2, 3].includes(manifest.formatVersion)) {
     throw bundleError("BAD_MANIFEST", "unsupported bundle manifest format");
   }
   assertBundleKeys(manifest.main, ["databaseFile", "manifestFile"], "bundle main");
@@ -220,7 +224,7 @@ function validateBundleMarker(marker) {
   );
   if (
     marker.formatVersion !== HISTORY_ARCHIVE_BUNDLE_COMPLETE_FORMAT_VERSION ||
-    marker.bundleFormatVersion !== HISTORY_ARCHIVE_BUNDLE_FORMAT_VERSION
+    ![HISTORY_ARCHIVE_BUNDLE_FORMAT_VERSION, 2, 3].includes(marker.bundleFormatVersion)
   ) {
     throw bundleError("BAD_MARKER", "unsupported bundle completion marker format");
   }
@@ -476,7 +480,7 @@ function candidateMetadata(database) {
 
 /**
  * Build an unregistered archive candidate from a private filtered database copy.
- * @param {{startMs?: number, endMs?: number, serviceTierEvidence?: ReturnType<typeof import("./service-tier-evidence.js").serviceTierEvidenceFromSnapshot> | null}} [options]
+ * @param {Parameters<typeof createHistoryBackup>[2] & {startMs?: number, endMs?: number}} [options]
  */
 export async function createHistoryArchiveCandidate(database, destinationFile, options = {}) {
   if (!database || typeof database.prepare !== "function") {
@@ -485,7 +489,7 @@ export async function createHistoryArchiveCandidate(database, destinationFile, o
   if (!options || typeof options !== "object" || Array.isArray(options)) {
     throw new TypeError("createHistoryArchiveCandidate options must be an object");
   }
-  const { startMs, endMs, serviceTierEvidence = null } = options;
+  const { startMs, endMs } = options;
   assertArchiveRange(startMs, endMs);
   assertArchiveRegistryEmpty(database);
 
@@ -522,7 +526,7 @@ export async function createHistoryArchiveCandidate(database, destinationFile, o
     await compactHistoryDatabase(workFile, compactFile);
     compareHistoryDatabases(workFile, compactFile);
     working = new DatabaseSync(compactFile, { readOnly: true });
-    const manifest = await createHistoryBackup(working, destinationFile, { serviceTierEvidence });
+    const manifest = await createHistoryBackup(working, destinationFile, options);
     await syncHistoryArchiveFiles(destinationFile);
     return manifest;
   } finally {
@@ -870,7 +874,9 @@ export async function stageHistoryArchiveSegments(database, stagingDirectory) {
       const databaseName = `${segment.segmentId}.sqlite`;
       const manifestName = `${segment.segmentId}.manifest.json`;
       const stagedDatabase = path.join(destination, "segments", databaseName);
-      const restored = await restoreHistoryBackup(segment.databaseFile, stagedDatabase, segment.manifestFile);
+      const restored = await restoreHistoryBackup(segment.databaseFile, stagedDatabase, segment.manifestFile, {
+        preserveAchievements: true,
+      });
       const verified = await verifyHistoryArchiveCandidate(stagedDatabase, restored.manifestFile);
       if (
         verified.manifest.database.sha256 !== segment.databaseSha256 ||
@@ -904,7 +910,7 @@ export async function stageHistoryArchiveSegments(database, stagingDirectory) {
 
 /**
  * Stage a complete bundle from one private snapshot of the online source.
- * @param {{serviceTierEvidence?: ReturnType<typeof import("./service-tier-evidence.js").serviceTierEvidenceFromSnapshot> | null}} [options]
+ * @param {Parameters<typeof createHistoryBackup>[2]} [options]
  */
 export async function stageHistoryArchiveBundle(database, stagingDirectory, options = {}) {
   if (!database || typeof database.prepare !== "function") {
@@ -916,9 +922,7 @@ export async function stageHistoryArchiveBundle(database, stagingDirectory, opti
   if (!options || typeof options !== "object" || Array.isArray(options)) {
     throw new TypeError("stageHistoryArchiveBundle options must be an object");
   }
-  const { serviceTierEvidence = null } = options;
-  const pricingCatalog = getPricingCatalog();
-  const serviceTierSnapshot = serviceTierEvidence === null ? null : serviceTierEvidenceSnapshot(serviceTierEvidence);
+  const { pricingCatalog, serviceTierSnapshot } = await captureHistoryBackupInputs(options);
   const destination = path.resolve(stagingDirectory);
   const workDirectory = await mkdtemp(path.join(tmpdir(), "codex-usage-archive-"));
   let working;
@@ -976,10 +980,23 @@ export async function stageHistoryArchiveBundle(database, stagingDirectory, opti
     working.exec("DELETE FROM archive_segments");
     await createHistoryBackup(working, path.join(destination, "main.sqlite"), {
       pricingCatalog,
-      serviceTierEvidence: serviceTierSnapshot === null ? null : serviceTierEvidenceFromSnapshot(serviceTierSnapshot),
+      serviceTierSnapshot,
     });
+    let achievementRecord;
+    if (options.achievementDatabaseFile !== undefined) {
+      const { createAchievementBackup } = await import("./achievement-backup.js");
+      achievementRecord = await createAchievementBackup(
+        options.achievementDatabaseFile,
+        path.join(destination, "achievements.sqlite"),
+      );
+    }
     const manifest = {
-      formatVersion: HISTORY_ARCHIVE_BUNDLE_FORMAT_VERSION,
+      formatVersion: pricingCatalog === null ? 3 : achievementRecord ? 2 : HISTORY_ARCHIVE_BUNDLE_FORMAT_VERSION,
+      ...(pricingCatalog === null
+        ? { achievements: achievementRecord ?? null }
+        : achievementRecord
+          ? { achievements: achievementRecord }
+          : {}),
       main: {
         databaseFile: "main.sqlite",
         manifestFile: "main.manifest.json",
@@ -1021,6 +1038,19 @@ export async function verifyHistoryArchiveBundle(directory) {
     throw bundleError("BAD_MANIFEST", `cannot read bundle manifest: ${error?.message ?? String(error)}`);
   }
   validateBundleManifest(manifest);
+  if (manifest.formatVersion === 2 || (manifest.achievements !== undefined && manifest.achievements !== null)) {
+    const { verifyAchievementBackup } = await import("./achievement-backup-format.js");
+    const reserved = [
+      HISTORY_ARCHIVE_BUNDLE_MANIFEST_FILE,
+      HISTORY_ARCHIVE_BUNDLE_COMPLETE_FILE,
+      manifest.main.databaseFile,
+      manifest.main.manifestFile,
+      ...manifest.segments.flatMap((segment) => [segment.databaseFile, segment.manifestFile]),
+    ];
+    if (reserved.includes(manifest.achievements?.filename))
+      throw bundleError("BAD_MANIFEST", "achievement sidecar must be a separate file");
+    await verifyAchievementBackup(realDirectory, manifest.achievements);
+  }
 
   assertBundleRelativePath(manifest.main.databaseFile, "bundle main databaseFile");
   assertBundleRelativePath(manifest.main.manifestFile, "bundle main manifestFile");
@@ -1054,7 +1084,9 @@ export async function verifyHistoryArchiveBundle(directory) {
     });
   }
 
-  await verifyHistoryBackup(mainDatabaseFile, mainManifestFile);
+  const verifiedMain = await verifyHistoryBackup(mainDatabaseFile, mainManifestFile);
+  if (manifest.formatVersion < 3 && verifiedMain.manifest.pricing === null)
+    throw bundleError("BAD_MANIFEST", "legacy bundle main must contain a pricing snapshot");
   const mainDatabase = new DatabaseSync(mainDatabaseFile, { readOnly: true });
   try {
     const registry = mainDatabase
@@ -1168,6 +1200,8 @@ export async function verifyPublishedHistoryArchiveBundle(directory) {
   }
 
   const verified = await verifyHistoryArchiveBundle(realDirectory);
+  if (marker.bundleFormatVersion !== verified.manifest.formatVersion)
+    throw bundleError("MARKER_MISMATCH", "bundle completion marker format does not match manifest");
   if (verified.manifestFile !== manifestFile) {
     throw bundleError("MARKER_MISMATCH", "bundle manifest changed during verification");
   }
@@ -1206,6 +1240,9 @@ export async function stagePublishedHistoryArchiveBundle(sourceDirectory, destin
     created = true;
 
     const files = [
+      ...(verifiedSource.manifest.achievements
+        ? [{ relativePath: verifiedSource.manifest.achievements.filename, label: "achievement sidecar" }]
+        : []),
       {
         relativePath: verifiedSource.manifest.main.databaseFile,
         label: "bundle main databaseFile",
@@ -1229,7 +1266,21 @@ export async function stagePublishedHistoryArchiveBundle(sourceDirectory, destin
         label: "bundle manifest",
       },
     ];
-    for (const file of files) {
+    for (const entry of [verifiedSource.manifest.main, ...verifiedSource.manifest.segments]) {
+      const packageManifest = JSON.parse(
+        await readFile(await resolveBundleFile(sourceRoot, sourceRoot, entry.manifestFile, "package manifest"), "utf8"),
+      );
+      if (packageManifest.achievements) {
+        files.push({
+          relativePath: path.posix.join(
+            path.posix.dirname(entry.databaseFile.replaceAll("\\", "/")),
+            packageManifest.achievements.filename,
+          ),
+          label: "package achievement sidecar",
+        });
+      }
+    }
+    for (const file of new Map(files.map((file) => [file.relativePath, file])).values()) {
       const sourceFile = await resolveBundleFile(sourceRoot, sourceRoot, file.relativePath, file.label);
       const destinationFile = resolveBundlePath(destination, file.relativePath, file.label);
       await mkdir(path.dirname(destinationFile), { recursive: true });
@@ -1419,7 +1470,7 @@ export async function materializePublishedHistoryArchiveRuntime(sourceDirectory,
     }
     verifyMaterializedHistoryArchiveRuntime(runtimeFile, finalBundle.directory, segments, authorityValue);
 
-    const loadBundleContext = async () => {
+    const loadBundleContext = async (options = {}) => {
       const verifiedBundle = await verifyPublishedHistoryArchiveBundle(bundleDirectory);
       if (verifiedBundle.marker.bundleManifestSha256 !== initialBundle.marker.bundleManifestSha256) {
         throw bundleError("MISMATCH", "frozen bundle changed after materialization");
@@ -1437,6 +1488,7 @@ export async function materializePublishedHistoryArchiveRuntime(sourceDirectory,
           verifiedBundle.manifest.main.manifestFile,
           "bundle main manifestFile",
         ),
+        options,
       );
     };
 
@@ -1460,13 +1512,32 @@ export async function materializePublishedHistoryArchiveRuntime(sourceDirectory,
  * Finalize a new import after re-verifying its frozen bundle and closed runtime.
  * The marker is written last and is not a durability or runtime-digest claim.
  */
-export async function publishHistoryArchiveImport(sourceDirectory, importDirectory) {
+export async function publishHistoryArchiveImport(sourceDirectory, importDirectory, options = {}) {
   if (typeof importDirectory !== "string" || importDirectory.trim() === "") {
     throw new TypeError("importDirectory must be a non-empty path");
   }
   const destination = path.resolve(importDirectory);
   let materialized;
+  let restoredAchievement;
   try {
+    if (options.achievementDatabaseFile !== undefined) {
+      const source = await verifyPublishedHistoryArchiveBundle(sourceDirectory);
+      if (!source.manifest.achievements)
+        throw bundleError("NO_ACHIEVEMENTS", "full profile restore requires a v2 bundle");
+      const achievementFile = path.resolve(options.achievementDatabaseFile);
+      if (
+        path.dirname(achievementFile) !== destination ||
+        [
+          "runtime.sqlite",
+          "runtime.sqlite-wal",
+          "runtime.sqlite-shm",
+          "runtime.sqlite-journal",
+          HISTORY_ARCHIVE_IMPORT_COMPLETE_FILE,
+          "bundle",
+        ].includes(path.basename(achievementFile).toLowerCase())
+      )
+        throw bundleError("BAD_DESTINATION", "achievement destination must be a separate adjacent runtime file");
+    }
     materialized = await materializePublishedHistoryArchiveRuntime(sourceDirectory, destination);
     const verifiedBundle = await verifyPublishedHistoryArchiveBundle(materialized.bundleDirectory);
     const bundleMainFile = await resolveBundleFile(
@@ -1503,11 +1574,18 @@ export async function publishHistoryArchiveImport(sourceDirectory, importDirecto
       runtimeFile,
       completedAt: new Date().toISOString(),
     };
+    if (options.achievementDatabaseFile !== undefined) {
+      restoredAchievement = await copyHistoryAchievementBackup(
+        verifiedBundle.directory,
+        verifiedBundle.manifest.achievements,
+        options.achievementDatabaseFile,
+      );
+    }
     await writeFile(markerFile, `${JSON.stringify(marker, null, 2)}\n`, {
       encoding: "utf8",
       flag: "wx",
     });
-    return { ...materialized, markerFile, marker };
+    return { ...materialized, markerFile, marker, ...(restoredAchievement ?? {}) };
   } catch (error) {
     if (materialized) {
       await rm(destination, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
@@ -1516,11 +1594,18 @@ export async function publishHistoryArchiveImport(sourceDirectory, importDirecto
   }
 }
 
+/** Explicit full restore opt-in; ordinary bundle imports never activate the frozen sidecar. */
+export async function restoreHistoryArchiveBundle(sourceDirectory, destinationDirectory, options = {}) {
+  return publishHistoryArchiveImport(sourceDirectory, destinationDirectory, options);
+}
+
 /**
  * Open a completed import read-only after verifying its marker, frozen bundle,
  * runtime registry, and immutable bundle context.
+ * @param {string} directory
+ * @param {Parameters<typeof loadHistoryBackupContext>[2]} [options]
  */
-export async function loadHistoryArchiveImport(directory) {
+export async function loadHistoryArchiveImport(directory, options = {}) {
   const { requestedDirectory, realDirectory } = await resolveBundleDirectory(directory);
   const markerFile = await resolveBundleFile(
     requestedDirectory,
@@ -1589,7 +1674,7 @@ export async function loadHistoryArchiveImport(directory) {
     bundleDirectory: verifiedBundle.directory,
     runtimeFile,
     manifest: verifiedBundle.manifest,
-    context: await loadHistoryBackupContext(bundleMainFile, bundleMainManifestFile),
+    context: await loadHistoryBackupContext(bundleMainFile, bundleMainManifestFile, options),
   };
 }
 

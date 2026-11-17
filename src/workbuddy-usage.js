@@ -15,7 +15,7 @@ import { readdir, stat } from "node:fs/promises";
 import path from "node:path";
 
 import { readRolloutLines } from "./codex-rollout.js";
-import { LONG_CONTEXT_INPUT_THRESHOLD, pricingVersionForTimestamp } from "./pricing.js";
+import { requestInputFacts } from "./usage-event-inputs.js";
 import { createRepositoryResolver } from "./repository-identity.js";
 import { UsageSourceRows } from "./usage-source-rows.js";
 import { USAGE_DETAIL_MASK, knownToken, emptyUsage } from "../public/usage-fields.js";
@@ -233,10 +233,9 @@ export async function streamWorkbuddySessionEvents(filePath, source, onEvent, op
         detailMask,
         cacheWriteTokens: cacheWrite.tokens,
         cacheWriteKnown: cacheWrite.known,
-        requestInputTokens: inputKnown ? usage.input : 0,
-        contextLevel: inputKnown ? (usage.input > LONG_CONTEXT_INPUT_THRESHOLD ? "long" : "short") : "unknown",
+        ...requestInputFacts(inputKnown, usage.input),
         serviceTier: "unknown",
-        priceVersion: pricingVersionForTimestamp(timestamp),
+        priceVersion: "",
       });
     }
 

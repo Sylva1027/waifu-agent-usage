@@ -28,7 +28,7 @@
  * @property {number} [cacheWriteTokens]
  * @property {boolean} [cacheWriteKnown]
  * @property {number} [requestInputTokens]
- * @property {string} [contextLevel]
+ * @property {string} [contextLevel] `known` retains request-input validity; legacy short/long remain readable.
  * @property {string} [serviceTier]
  * @property {string} [priceVersion]
  */
@@ -125,9 +125,12 @@
  * @property {string} generatedAt
  * @property {SummaryRange} range
  * @property {UsageTotals} totals
+ * @property {object} [rangeMetrics]
+ * @property {object} details
+ * @property {number | null} cacheHitRate
  * @property {object | null} comparison
  * @property {{ asOf: string, limitId: string | null, windows: object, previousWindows: object }} quota
- * @property {{ totalUsd: number | null, pricedTokens: number, unpricedTokens: number }} costEstimate
+ * @property {{ totalUsd: number | null, pricedTokens: number, unpricedTokens: number }} [costEstimate]
  * @property {number} eventCount
  * @property {number} sessionCount
  * @property {number} homeCount

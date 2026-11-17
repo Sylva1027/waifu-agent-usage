@@ -155,6 +155,7 @@ test("ninth cold freeze closes and removes the evicted snapshot including staged
       `${firstDatabase}-wal`,
       `${firstDatabase}-shm`,
       `${firstDatabase}.segments`,
+      `${firstDatabase}.history-cache`,
     ]) {
       assert.equal(existsSync(artifact), false, artifact);
     }
@@ -195,7 +196,7 @@ if (process.env.CODEX_USAGE_EXECUTOR_CHILD === "1") {
     const { snapshotDirectory, firstDatabase } = JSON.parse(readFileSync(flagFile, "utf8"));
     const databaseFile = path.toNamespacedPath(path.resolve(this.databaseFile));
     if (path.dirname(databaseFile) === path.toNamespacedPath(path.resolve(snapshotDirectory)) && databaseFile !== path.toNamespacedPath(path.resolve(firstDatabase)) && existsSync(databaseFile + ".segments")) {
-      writeFileSync(${JSON.stringify(resultFile)}, JSON.stringify({ databaseFile, databaseExists: existsSync(databaseFile), segmentsExist: true }));
+      writeFileSync(${JSON.stringify(resultFile)}, JSON.stringify({ databaseFile, databaseExists: existsSync(databaseFile), segmentsExist: true, historyCacheExists: existsSync(databaseFile + ".history-cache") }));
       unlinkSync(flagFile);
       throw new Error("INJECTED_SNAPSHOT_POST_CREATE_FAILURE");
     }
@@ -219,6 +220,7 @@ if (process.env.CODEX_USAGE_EXECUTOR_CHILD === "1") {
     assert.ok(injected);
     assert.equal(injected.databaseExists, true);
     assert.equal(injected.segmentsExist, true);
+    assert.equal(injected.historyCacheExists, true, "the failed cold reader created a private derived cache");
     assert.equal(path.dirname(injected.databaseFile), path.toNamespacedPath(path.resolve(snapshotDirectory)));
     assert.notEqual(injected.databaseFile, path.toNamespacedPath(path.resolve(firstDatabase)));
     for (const artifact of [
@@ -226,6 +228,7 @@ if (process.env.CODEX_USAGE_EXECUTOR_CHILD === "1") {
       `${injected.databaseFile}-wal`,
       `${injected.databaseFile}-shm`,
       `${injected.databaseFile}.segments`,
+      `${injected.databaseFile}.history-cache`,
     ]) {
       assert.equal(existsSync(artifact), false, artifact);
     }

@@ -372,10 +372,10 @@ function officialSignature(officialObservations) {
   return hash.digest("hex");
 }
 
-function projectedSource(database, officialObservations, asOfMs, revision = null, signature = null) {
+function projectedSource(database, officialObservations, asOfMs, revision = null, signature = null, prepare = true) {
   if (!Array.isArray(officialObservations)) return null;
   if (revision === null) {
-    if (!database.isTransaction && !ensureUsageQuotaSchema(database)) return null;
+    if (prepare && !database.isTransaction && !ensureUsageQuotaSchema(database)) return null;
     try {
       revision = quotaRevision(database);
     } catch {
@@ -394,7 +394,7 @@ function projectedSource(database, officialObservations, asOfMs, revision = null
     },
   };
   let projection = readQuotaProjection(database, options);
-  if (!projection && Number.isFinite(asOfMs) && !database.isTransaction) {
+  if (prepare && !projection && Number.isFinite(asOfMs) && !database.isTransaction) {
     try {
       projection = prepareQuotaProjection(database, options);
     } catch (error) {
@@ -830,11 +830,18 @@ function* completedWindowIterable(database, source, cycles, asOfMs) {
  * @param {Iterable<any>} [officialObservations]
  * @returns {Iterable<object> | null}
  */
-export function iterateStoredQuotaWindows(database, limitId, asOfMs, minutes, officialObservations = []) {
+export function iterateStoredQuotaWindows(
+  database,
+  limitId,
+  asOfMs,
+  minutes,
+  officialObservations = [],
+  { prepare = true } = {},
+) {
   let source = null;
   try {
     source =
-      projectedSource(database, officialObservations, asOfMs) ??
+      projectedSource(database, officialObservations, asOfMs, null, null, prepare) ??
       createObservationSource(database, officialObservations);
     if (typeof limitId !== "string" || typeof minutes !== "number" || !Number.isFinite(minutes) || minutes <= 0) {
       dropObservationSource(database, source);
@@ -918,7 +925,12 @@ function lastCompletedWindow(database, source, limitId, asOfMs, minutes) {
  * @param {Date | number | string} [asOfValue]
  * @param {Iterable<any>} [officialObservations]
  */
-export function selectStoredQuotaWindows(database, asOfValue = new Date(), officialObservations = []) {
+export function selectStoredQuotaWindows(
+  database,
+  asOfValue = new Date(),
+  officialObservations = [],
+  { prepare = true } = {},
+) {
   const work = resetQuotaProjectionWork(database);
   const asOfMs =
     asOfValue instanceof Date ? asOfValue.getTime() : typeof asOfValue === "number" ? asOfValue : Date.parse(asOfValue);
@@ -927,7 +939,7 @@ export function selectStoredQuotaWindows(database, asOfValue = new Date(), offic
   let revision = null;
   let signature = null;
   const schemaAvailable =
-    schemaReady.get(database) === true || (!database.isTransaction && ensureUsageQuotaSchema(database));
+    !prepare || schemaReady.get(database) === true || (!database.isTransaction && ensureUsageQuotaSchema(database));
   if (Array.isArray(officialObservations) && schemaAvailable) {
     try {
       revision = quotaRevision(database);
@@ -946,7 +958,7 @@ export function selectStoredQuotaWindows(database, asOfValue = new Date(), offic
     }
   }
   const source =
-    projectedSource(database, officialObservations, asOfMs, revision, signature) ??
+    projectedSource(database, officialObservations, asOfMs, revision, signature, prepare) ??
     createObservationSource(database, officialObservations);
   if (!source.projection) work.fallback = true;
   try {
@@ -990,11 +1002,19 @@ export function selectStoredQuotaWindows(database, asOfValue = new Date(), offic
       windows,
       previousWindows,
     };
-    if (revision !== null && signature !== null && !database.isTransaction) {
+    if (prepare && revision !== null && signature !== null && !database.isTransaction) {
       writeCachedSelection(database, source.view, revision, signature, asOfMs, result, source.projection);
     }
     return result;
   } finally {
     dropObservationSource(database, source);
   }
+}
+
+export function readStoredQuotaWindows(database, asOf = new Date(), officialObservations = []) {
+  return selectStoredQuotaWindows(database, asOf, officialObservations, { prepare: false });
+}
+
+export function readStoredCompletedQuotaWindows(database, limitId, asOfMs, minutes, officialObservations = []) {
+  return iterateStoredQuotaWindows(database, limitId, asOfMs, minutes, officialObservations, { prepare: false });
 }

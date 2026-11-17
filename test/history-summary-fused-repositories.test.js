@@ -6,6 +6,7 @@ import path from "node:path";
 import test from "node:test";
 import { createHistoryArchiveCandidate, prepareHistoryArchiveCommit } from "../src/history-archive.js";
 import { UsageStore } from "../src/usage-store.js";
+import { WaifuUsageQueries } from "../src/waifu/usage-reader.js";
 
 const FILTERS = { preset: "all", calendarZone: "utc", now: new Date("2026-07-12T12:00:00Z") };
 const digest = (file) => createHash("sha256").update(fs.readFileSync(file)).digest("hex");
@@ -116,9 +117,10 @@ test("cold repository facts share the timeline scan and preserve SQL totals, Uni
       total=CASE WHEN session_id='u2' THEN -4503599627370496 ELSE 4503599627370496 END
       WHERE session_id IN ('shared','last','u2') AND timestamp_ms >= ${Date.parse("2026-07-01T00:00:00Z")}`);
     store.commitStoreRevision("large-integer-fixture");
-    const repositoriesRange = UsageStore.prototype.repositoriesRange;
+    const repositoriesRange = WaifuUsageQueries.prototype.repositoriesRange;
     let integerFallbacks = 0;
-    UsageStore.prototype.repositoriesRange = function (...args) {
+    WaifuUsageQueries.prototype.repositoriesRange = function (...args) {
+      assert.equal(this instanceof UsageStore, false, "cold aggregation belongs to the narrow reader");
       if (this.verifiedHistorySqlRead) integerFallbacks += 1;
       return repositoriesRange.apply(this, args);
     };
@@ -127,7 +129,7 @@ test("cold repository facts share the timeline scan and preserve SQL totals, Uni
       assert.equal(integerFallbacks, 1, "unsafe intermediate integer sums must use the exact SQL aggregate");
       assert.equal(large.summary.repositories[0].total.total, 4503599627370496 + 145);
     } finally {
-      UsageStore.prototype.repositoriesRange = repositoriesRange;
+      delete WaifuUsageQueries.prototype.repositoriesRange;
     }
   } finally {
     store.close();

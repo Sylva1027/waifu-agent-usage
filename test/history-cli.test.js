@@ -18,7 +18,7 @@ const CURRENT_SCHEMA_LINE = new RegExp(`^Schema: ${STORE_SCHEMA_VERSION}$`, "m")
 function runCli(root, args, { nodeArgs = [], env = {} } = {}) {
   return spawnSync(process.execPath, [...nodeArgs, CLI_FILE, ...args], {
     cwd: REPO_ROOT,
-    env: { ...process.env, HOME: root, ...env },
+    env: { ...process.env, HOME: root, USERPROFILE: root, ...env },
     encoding: "utf8",
     timeout: 10_000,
   });
@@ -551,7 +551,7 @@ test("history archive dry-run reports the plan without changing the source", asy
       const rejected = runCli(root, args);
       assert.equal(rejected.status, 1);
       assert.equal(rejected.stdout, "");
-      assert.match(rejected.stderr, /^Usage: codex-usage history archive <sourceDB> --dry-run$/m);
+      assert.match(rejected.stderr, /^Usage: waifu-agent-usage history archive <sourceDB> --dry-run$/m);
     }
     assert.deepEqual(readFileSync(source.databaseFile), sourceBytes);
     assert.deepEqual(readFileSync(`${source.databaseFile}-wal`), sourceWalBytes);

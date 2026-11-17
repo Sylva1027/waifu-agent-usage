@@ -11,6 +11,7 @@ import { createHistoryArchiveCandidate, prepareHistoryArchiveCommit } from "../s
 import { getPricingCatalog, setPricingCatalog } from "../src/pricing.js";
 import { checkpointUsageStore } from "../src/usage-executor.js";
 import { UsageStore } from "../src/usage-store.js";
+import { WaifuUsageQueries } from "../src/waifu/usage-reader.js";
 import { createUsageIntegrationFixture } from "../test-support/usage-fixture.mjs";
 
 const filters = { preset: "all", calendarZone: "utc", bucket: "day", now: new Date("2026-02-03T12:00:00Z") };
@@ -25,6 +26,24 @@ const sqlSupported = (() => {
 const digest = (file) => createHash("sha256").update(fs.readFileSync(file)).digest("hex");
 const meta = (db, key, value) =>
   db.prepare("INSERT OR REPLACE INTO store_meta VALUES(?, ?)").run(key, JSON.stringify(value));
+
+function queryMethod(name) {
+  const prototype = WaifuUsageQueries.prototype;
+  const descriptor = Object.getOwnPropertyDescriptor(prototype, name);
+  return {
+    original: prototype[name],
+    restore() {
+      if (descriptor) Object.defineProperty(prototype, name, descriptor);
+      else delete prototype[name];
+    },
+  };
+}
+
+function assertNarrowHistoryReader(reader) {
+  assert.equal(reader instanceof UsageStore, false);
+  assert.equal(reader.sourceManager, undefined);
+  assert.equal(reader.sync, undefined);
+}
 
 async function components(store, scope = filters, options = {}) {
   return {
@@ -125,6 +144,24 @@ test("SQL history preserves complete scopes, isolates hot caches, and falls back
   const { store, segment, original } = f;
   try {
     const before = store.database.prepare("SELECT * FROM events ORDER BY id").all();
+    const tempCatalog = () =>
+      store.database.prepare("SELECT type,name,tbl_name FROM temp.sqlite_master ORDER BY type,name,tbl_name").all();
+    const tempBefore = tempCatalog();
+    const ownerTemps = new Map([
+      ["usage_all_summary_state_coverage", ["table", "usage_all_summary_state_coverage"]],
+      ...["delete", "insert", "insert_before", "update"].map((operation) => [
+        `usage_all_waifu_${operation}`,
+        ["trigger", "events"],
+      ]),
+      ["usage_all_waifu_revision", ["trigger", "usage_business_revision"]],
+      ...["delete", "insert", "update"].map((operation) => [
+        `usage_all_waifu_source_${operation}`,
+        ["trigger", "source_files"],
+      ]),
+      ...["delete", "insert", "update"].map((operation) => [`usage_record_dirty_${operation}`, ["trigger", "events"]]),
+    ]);
+    for (const row of tempBefore)
+      assert.deepEqual(ownerTemps.get(row.name), [row.type, row.tbl_name], `unowned TEMP object: ${row.name}`);
     const sha = digest(segment);
     for (const scope of [filters, { ...filters, calendarZone: "local" }, { ...filters, excludeHomes: ["a"] }]) {
       const expected = await components(store, scope);
@@ -143,7 +180,7 @@ test("SQL history preserves complete scopes, isolates hot caches, and falls back
     const brief = { includeDetails: false };
     equivalent(await store.dashboardHistory(filters, brief), await components(store, filters, brief));
     assert.deepEqual(store.database.prepare("SELECT * FROM events ORDER BY id").all(), before);
-    assert.equal(store.database.prepare("SELECT count(*) AS n FROM temp.sqlite_master").get().n, 0);
+    assert.deepEqual(tempCatalog(), tempBefore, "history reads must not add or alter the hot owner's TEMP objects");
     assert.equal(digest(segment), sha);
 
     const { id: _id, ...payload } = original;
@@ -176,7 +213,8 @@ test("verified SQL source lookup preserves rowid ties through the hot metadata v
   skip: !sqlSupported,
 }, async () => {
   const f = await fixture();
-  const summarize = UsageStore.prototype.summarizeInReadTransaction;
+  const summarizeProbe = queryMethod("summarizeInReadTransaction");
+  const summarize = summarizeProbe.original;
   const time = Date.parse("2026-01-02T12:00:00Z");
   const insert = f.store.database.prepare(`INSERT INTO quota_usage_sources
     (source_path,home_id,session_id,timestamp_ms,quota_source,until_ms)
@@ -186,8 +224,9 @@ test("verified SQL source lookup preserves rowid ties through the hot metadata v
   try {
     insert.run("/fixture/plan", time - 1, "plan", 0);
     insert.run("/fixture/credits", time - 1, "credits", time + 1000);
-    UsageStore.prototype.summarizeInReadTransaction = function (...args) {
+    WaifuUsageQueries.prototype.summarizeInReadTransaction = function (...args) {
       if (this.verifiedHistorySqlRead && !this.historyDiskRead) {
+        assertNarrowHistoryReader(this);
         assert.equal(this.quotaSourceFor("a", "session-a", time), expectedSource);
         verifiedReads += 1;
       }
@@ -203,7 +242,7 @@ test("verified SQL source lookup preserves rowid ties through the hot metadata v
     assert.equal(verifiedReads, 2, "both classifications must use the verified SQL reader");
     assert.equal(digest(f.segment), sha, "classification reads cannot modify the sealed segment");
   } finally {
-    UsageStore.prototype.summarizeInReadTransaction = summarize;
+    summarizeProbe.restore();
     f.cleanup();
   }
 });
@@ -212,7 +251,8 @@ test("verified metadata shares unexcluded timeline facts while keeping future ob
   skip: !sqlSupported,
 }, async () => {
   const f = await fixture();
-  const originalMetadata = UsageStore.prototype.metadata;
+  const metadataProbe = queryMethod("readMetadata");
+  const originalMetadata = metadataProbe.original;
   try {
     for (const scope of [
       filters,
@@ -222,7 +262,8 @@ test("verified metadata shares unexcluded timeline facts while keeping future ob
       f.store.historySqlDashboardCache?.store.close();
       f.store.historySqlDashboardCache = null;
       const queries = [];
-      UsageStore.prototype.metadata = function (...args) {
+      WaifuUsageQueries.prototype.readMetadata = function (...args) {
+        assertNarrowHistoryReader(this);
         const database = this.database;
         const prepare = database.prepare;
         database.prepare = function (sql) {
@@ -240,7 +281,7 @@ test("verified metadata shares unexcluded timeline facts while keeping future ob
         }
       };
       const actual = await f.store.dashboardHistory(scope);
-      UsageStore.prototype.metadata = originalMetadata;
+      metadataProbe.restore();
       assert.deepEqual(actual.metadata, await f.store.metadataHistory(scope.now));
       assert.equal(queries.filter((sql) => sql.includes("DISTINCT")).length, scope.excludeHomes ? 1 : 0);
       assert.equal(
@@ -257,7 +298,7 @@ test("verified metadata shares unexcluded timeline facts while keeping future ob
       }
     }
   } finally {
-    UsageStore.prototype.metadata = originalMetadata;
+    metadataProbe.restore();
     f.cleanup();
   }
 });
@@ -267,16 +308,19 @@ test("verified repository periods share the fact scan and fall back across a cal
 }, async () => {
   const f = await fixture();
   const catalog = getPricingCatalog();
-  const originalPeriod = UsageStore.prototype.periodComparison;
-  const aggregate = UsageStore.prototype.periodAggregate;
+  const periodProbe = queryMethod("readPeriodComparison");
+  const aggregateProbe = queryMethod("periodAggregate");
+  const originalPeriod = periodProbe.original;
+  const aggregate = aggregateProbe.original;
   let repositoryAggregates = 0;
-  UsageStore.prototype.periodAggregate = function (...args) {
+  WaifuUsageQueries.prototype.periodAggregate = function (...args) {
     if (this.verifiedHistorySqlRead && args[0] === "repository_key") repositoryAggregates += 1;
     return aggregate.apply(this, args);
   };
-  UsageStore.prototype.periodComparison = function (options = {}) {
+  WaifuUsageQueries.prototype.readPeriodComparison = function (options = {}) {
     const result = originalPeriod.call(this, options);
     if (this.verifiedHistorySqlRead) {
+      assertNarrowHistoryReader(this);
       const ranges = Object.fromEntries(
         result.periods.map(({ key, start, end }) => [
           key,
@@ -321,9 +365,48 @@ test("verified repository periods share the fact scan and fall back across a cal
     assert.deepEqual(await f.store.dashboardHistory(later), after);
     assert.equal(repositoryAggregates, 0, "the new complete period cache remains reusable");
   } finally {
-    UsageStore.prototype.periodComparison = originalPeriod;
-    UsageStore.prototype.periodAggregate = aggregate;
+    periodProbe.restore();
+    aggregateProbe.restore();
     setPricingCatalog(catalog);
+    f.cleanup();
+  }
+});
+
+test("calendar advancement reuses verified all facts while repository periods match a fresh rebuild", {
+  skip: !sqlSupported,
+}, async () => {
+  const f = await fixture();
+  try {
+    const before = await f.store.dashboardHistory(filters);
+    const reader = f.store.historySqlDashboardCache.store;
+    let factScans = 0;
+    let repositoryAggregates = 0;
+    const timeline = reader.timelineRange;
+    reader.timelineRange = function (...args) {
+      if (!args[2]?.factRows) factScans += 1;
+      return timeline.apply(this, args);
+    };
+    const aggregate = reader.periodAggregate;
+    reader.periodAggregate = function (...args) {
+      if (args[0] === "repository_key") repositoryAggregates += 1;
+      return aggregate.apply(this, args);
+    };
+    const later = { ...filters, now: new Date("2026-03-02T12:00:00Z") };
+    const after = await f.store.dashboardHistory(later);
+    const monthTotal = (payload) =>
+      payload.periodComparison.repositories.reduce((sum, row) => sum + row.periods.month.total, 0);
+    assert.equal(factScans, 0, "calendar-only changes must retain the complete all-range facts");
+    assert.equal(repositoryAggregates, 1, "new periods still require their own repository aggregation");
+    assert.equal(monthTotal(before), 30);
+    assert.equal(monthTotal(after), 0, "March must not retain February's repository bucket");
+    assert.equal(after.summary.range.asOf, later.now.toISOString());
+    assert.equal(after.periodComparison.asOf, later.now.toISOString());
+    assert.deepEqual(after.summary.timeline, before.summary.timeline);
+
+    reader.summaryProjectionCache = null;
+    reader.periodComparisonCache.clear();
+    assert.deepEqual(after, await f.store.dashboardHistory(later), "cached output equals a complete SQL rebuild");
+  } finally {
     f.cleanup();
   }
 });

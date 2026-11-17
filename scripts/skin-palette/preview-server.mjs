@@ -69,6 +69,7 @@ const MAX_PROXY_BODY_BYTES = 10 * 1024 * 1024;
 export const MAX_CONCURRENT_PREVIEWS = 2;
 
 let activePreviews = 0;
+const fixtureStarts = new WeakMap();
 
 function sendText(response, statusCode, text) {
   response.writeHead(statusCode, {
@@ -99,6 +100,35 @@ function closeServer(server) {
       resolve();
     }
   });
+}
+
+async function startFixtureBackend(fixture) {
+  const previous = fixtureStarts.get(fixture);
+  let release;
+  const starting = new Promise((resolve) => {
+    release = resolve;
+  });
+  fixtureStarts.set(fixture, starting);
+  let backend;
+  try {
+    // Shared fixtures need one schema/initial publication at a time; ready servers remain concurrent.
+    await previous;
+    backend = createUsageServer(createPaletteServerOptions(fixture));
+    await listen(backend, 0, "127.0.0.1");
+    const response = await fetch(`http://127.0.0.1:${backend.address().port}/api/usage?view=dashboard&preset=all`, {
+      signal: AbortSignal.timeout(30000),
+    });
+    const usage = await response.json();
+    if (!response.ok || !usage.summary)
+      throw new Error(`preview backend initialization failed (${response.status}): ${JSON.stringify(usage)}`);
+    return backend;
+  } catch (error) {
+    if (backend) await closeServer(backend);
+    throw error;
+  } finally {
+    release();
+    if (fixtureStarts.get(fixture) === starting) fixtureStarts.delete(fixture);
+  }
 }
 
 /**
@@ -238,6 +268,14 @@ function readRequestBody(request, response) {
 
 /** /api/* 与 /internal/shutdown 原样转发到本实例自己的后端（绝不指向用户端口）。 */
 async function forwardToBackend(request, response, backendPort) {
+  const origin = request.headers.origin;
+  const previewOrigin = `http://127.0.0.1:${request.socket.localPort}`;
+  if ((origin && origin !== previewOrigin) || request.headers["sec-fetch-site"] === "cross-site") {
+    response.writeHead(403, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
+    response.end(JSON.stringify({ code: "ACHIEVEMENT_ORIGIN_REJECTED", error: "Same-origin request required" }));
+    request.resume();
+    return;
+  }
   let drained;
   try {
     drained = await readRequestBody(request, response);
@@ -251,6 +289,8 @@ async function forwardToBackend(request, response, backendPort) {
   if (drained.tooLarge) return; // 413 已在超限点发出，body 已 drain 完毕
   const body = drained.body;
   const headers = { ...request.headers };
+  // Only a validated frontend origin can become the private backend origin.
+  if (origin) headers.origin = `http://127.0.0.1:${backendPort}`;
   delete headers.host;
   delete headers.connection;
   delete headers["content-length"];
@@ -349,13 +389,7 @@ export async function startCandidatePreview({
     const paletteModuleSource = productionMode ? null : buildSkinPalettesModuleSource(snapshot);
     const bootstrapModuleSource = productionMode ? null : buildSkinBootstrapModuleSource(snapshot);
 
-    const backend = createUsageServer(createPaletteServerOptions(fixture));
-    try {
-      await listen(backend, 0, "127.0.0.1");
-    } catch (error) {
-      await closeServer(backend);
-      throw error;
-    }
+    const backend = await startFixtureBackend(fixture);
     const backendPort = backend.address().port;
 
     const frontend = createHttpServer((request, response) => {
