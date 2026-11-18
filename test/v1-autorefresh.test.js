@@ -84,6 +84,9 @@ if (process.env.CODEX_USAGE_EXECUTOR_CHILD === "1") {
     constructor(...args) { super(...(args.length ? args : [now()])); }
     static now() { return now(); }
   };
+  // Keep unrelated activity on the Windows volume from advancing this fixture's journal cursor.
+  const { UsageSourceAcquisition } = await import(${JSON.stringify(new URL("../src/usage-source-acquisition.js", import.meta.url).href)});
+  UsageSourceAcquisition.prototype.provider = async () => null;
 }
 `,
   );

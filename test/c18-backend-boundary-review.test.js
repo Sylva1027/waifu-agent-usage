@@ -115,7 +115,10 @@ test("Lite ignores existing active achievement files through HTTP and worker ope
     console.log('no active achievement access');
   `;
   const run = promisify(execFile);
-  const { stdout } = await run(process.execPath, ["--input-type=module", "-e", scenario], { env, windowsHide: true });
+  // A file entry lets the executor inherit Node options without re-running the caller's program.
+  const scenarioFile = path.join(fixture.root, "active-achievement-scenario.mjs");
+  await writeFile(scenarioFile, scenario);
+  const { stdout } = await run(process.execPath, [scenarioFile], { env, windowsHide: true });
   assert.equal(stdout.trim(), "no active achievement access");
   const cliEnv = {
     ...env,
