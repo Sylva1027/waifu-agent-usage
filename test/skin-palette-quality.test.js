@@ -8516,6 +8516,14 @@ const m32Envelope = (records) => ({
   diagnostics: {},
 });
 
+async function openPricingWithFocusedSearch(page) {
+  await page.locator("#updatePricingButton").click();
+  // Opening the dialog fetches the catalog and sets initial focus on its title.
+  await page.locator("#pricingDialog").waitFor({ state: "visible" });
+  await page.locator("#pricingSearch").focus();
+  await page.waitForFunction(() => document.activeElement?.id === "pricingSearch");
+}
+
 test("M3.2：真实浏览器集成——纯色/渐变/placeholder/聚光/Canvas 五样例、raw token 达标但真实叠加必须失败、状态不变", async (t) => {
   const browserRuntime = await resolveBrowserRuntime();
   if (!browserRuntime) {
@@ -8772,9 +8780,7 @@ test("M3.2：真实浏览器集成——纯色/渐变/placeholder/聚光/Canvas 
       });
 
       await t.test("alpha placeholder：前景按浏览器解析出的实际 alpha 与真实背景合成", async () => {
-        await page.locator("#updatePricingButton").click();
-        await page.locator("#pricingSearch").focus();
-        await page.waitForFunction(() => document.activeElement?.id === "pricingSearch");
+        await openPricingWithFocusedSearch(page);
         const result = await measure("input-focus", ["input.placeholder"]);
         const placeholder = result.records[0];
         assert.ok(["pass", "fail"].includes(placeholder.result), "placeholder 必须给出判定而不是缺测");
@@ -9502,9 +9508,7 @@ test("M5.2.C-D2b3：真实 Edge 两种装饰隔离、低对比仍失败，异常
           document.documentElement.dataset.theme === expected && !document.documentElement.dataset.themeTransition,
         mode,
       );
-      await page.locator("#updatePricingButton").click();
-      await page.locator("#pricingSearch").focus();
-      await page.waitForFunction(() => document.activeElement?.id === "pricingSearch");
+      await openPricingWithFocusedSearch(page);
       await page.locator("#usdToCnyRate").fill("");
       const searchInput = page.locator("#pricingSearch");
       const backdropFilter = () =>
@@ -9707,9 +9711,7 @@ test("M5.2.C-D2b3：真实 Edge 两种装饰隔离、低对比仍失败，异常
       await page.locator("#cancelPricingButton").click();
       await page.waitForFunction(() => document.querySelector("#pricingDialog")?.hidden === true);
 
-      await page.locator("#updatePricingButton").click();
-      await page.locator("#pricingSearch").focus();
-      await page.waitForFunction(() => document.activeElement?.id === "pricingSearch");
+      await openPricingWithFocusedSearch(page);
       await page.locator("#usdToCnyRate").fill("");
       await page.locator("#pricingSearch").fill("x");
       const originalStyle = await page.locator("#pricingSearch").getAttribute("style");
@@ -9740,9 +9742,7 @@ test("M5.2.C-D2b3：真实 Edge 两种装饰隔离、低对比仍失败，异常
     }
 
     // DOM 身份失效触发一次整轮重试：旧 search 节点和新节点都不能留下 marker/rule。
-    await page.locator("#updatePricingButton").click();
-    await page.locator("#pricingSearch").focus();
-    await page.waitForFunction(() => document.activeElement?.id === "pricingSearch");
+    await openPricingWithFocusedSearch(page);
     await page.locator("#usdToCnyRate").fill("");
     await page.locator("#pricingSearch").fill("x");
     const retryBaselineStyle = await page.locator("#pricingSearch").getAttribute("style");
@@ -10351,13 +10351,6 @@ test("M5.2.C-E1c：真实Edge验证五状态浅深输入目标、适用性与恢
         mode,
       );
     };
-    const openPricing = async () => {
-      await page.locator("#updatePricingButton").click();
-      await page.waitForFunction(() => document.querySelector("#pricingDialog")?.hidden === false);
-      await page.locator("#pricingSearch").focus();
-      await page.waitForFunction(() => document.activeElement?.id === "pricingSearch");
-    };
-
     for (const mode of ["light", "dark"]) {
       await setTheme(mode);
       await page.evaluate(() => window.scrollTo(0, 0));
@@ -10393,7 +10386,7 @@ test("M5.2.C-E1c：真实Edge验证五状态浅深输入目标、适用性与恢
       await page.locator("#cancelImportButton").click();
       await page.waitForFunction(() => document.querySelector("#importDialog")?.hidden === true);
 
-      await openPricing();
+      await openPricingWithFocusedSearch(page);
       const pricingPlaceholder = await runRole({
         mode,
         stateId: "dialog-pricing-open",
