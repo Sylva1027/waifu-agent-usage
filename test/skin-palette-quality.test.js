@@ -43,6 +43,7 @@ import {
   adaptRoleCatalogForMeasurement,
   buildPreferenceSeedSource,
   measurementErrorTrace,
+  USAGE_RENDER_READY_WAIT_SOURCE,
 } from "../scripts/skin-palette/capture.mjs";
 import { ROLE_CATALOG, BASE_COLORS } from "../scripts/skin-palette/roles.mjs";
 import { runEvaluator } from "../scripts/skin-palette/solver.mjs";
@@ -84,7 +85,11 @@ import {
 } from "../src/pricing-auto.js";
 import { OPENROUTER_PRICES_URL } from "../src/pricing-catalog.js";
 import { createUsageServer } from "../src/server.js";
-import { createPaletteFixture, createPaletteServerOptions } from "../test-support/skin-palette-fixture.mjs";
+import {
+  createPaletteFixture,
+  createPaletteServerOptions,
+  FIXTURE_TOTAL_TOKENS,
+} from "../test-support/skin-palette-fixture.mjs";
 
 const M31_POLICY = JSON.parse(readFileSync(new URL("../scripts/skin-palette/policy.json", import.meta.url), "utf8"));
 
@@ -8524,6 +8529,35 @@ async function openPricingWithFocusedSearch(page) {
   await page.waitForFunction(() => document.activeElement?.id === "pricingSearch");
 }
 
+async function waitForPaletteUsage(page, preset) {
+  const response = await page.waitForResponse(
+    (candidate) => {
+      const url = new URL(candidate.url());
+      return url.pathname === "/api/usage" && url.searchParams.get("preset") === preset;
+    },
+    { timeout: 20000 },
+  );
+  const usage = await response.json();
+  assert.equal(response.status(), 200, `${preset} usage: ${usage.code ?? ""} ${usage.error ?? ""}`);
+  return usage;
+}
+
+async function openPaletteDashboard(page, origin) {
+  const [initial] = await Promise.all([waitForPaletteUsage(page, "today"), page.goto(`${origin}/`)]);
+  assert.ok(initial.snapshotId, "The initial usage response must create a snapshot");
+  // Reuse the initial frozen snapshot when switching ranges.
+  await page.waitForFunction(USAGE_RENDER_READY_WAIT_SOURCE, undefined, { timeout: 20000 });
+  const [usage] = await Promise.all([
+    waitForPaletteUsage(page, "all"),
+    page.locator('#presetButtons button[data-preset="all"]').click(),
+  ]);
+  assert.equal(usage.snapshotId, initial.snapshotId, "The All range must reuse the initial snapshot");
+  assert.equal(usage.summary.totals.total, FIXTURE_TOTAL_TOKENS);
+  assert.equal(usage.summary.timelineError, null);
+  await page.waitForFunction(USAGE_RENDER_READY_WAIT_SOURCE, undefined, { timeout: 20000 });
+  await page.waitForSelector("#detailList .bar-row", { timeout: 20000 });
+}
+
 test("M3.2：真实浏览器集成——纯色/渐变/placeholder/聚光/Canvas 五样例、raw token 达标但真实叠加必须失败、状态不变", async (t) => {
   const browserRuntime = await resolveBrowserRuntime();
   if (!browserRuntime) {
@@ -9050,10 +9084,7 @@ test("M5.2.C-D2b3：真实 Edge 两种装饰隔离、低对比仍失败，异常
     await context.addInitScript(buildPreferenceSeedSource({ theme: "light", skinId: "classic" }));
     const page = await context.newPage();
     installBrowserColorObserver(page);
-    await page.goto(`${origin}/`, { waitUntil: "load" });
-    await page.waitForFunction(async () => Boolean((await import("/app-state.js")).state.usageEventsSource));
-    await page.locator('#presetButtons button[data-preset="all"]').click();
-    await page.waitForSelector("#detailList .bar-row", { timeout: 20000 });
+    await openPaletteDashboard(page, origin);
     await page.waitForSelector("#shareToggle:enabled", { timeout: 20000 });
     await page.waitForSelector("#updatePricingButton", { timeout: 20000 });
     evidence.browser = { version: browser.version(), executablePath };
@@ -10021,10 +10052,7 @@ test("M5.2.C-E1c：真实Edge验证五状态浅深输入目标、适用性与恢
       (response) => new URL(response.url()).pathname === "/api/pricing/refresh",
       { timeout: 20000 },
     );
-    await page.goto(`${origin}/`, { waitUntil: "load" });
-    await page.waitForFunction(async () => Boolean((await import("/app-state.js")).state.usageEventsSource));
-    await page.locator('#presetButtons button[data-preset="all"]').click();
-    await page.waitForSelector("#detailList .bar-row", { timeout: 20000 });
+    await openPaletteDashboard(page, origin);
     await page.waitForSelector("#timelineChart", { timeout: 20000 });
     await page.waitForSelector("#modelComparisonSearch", { timeout: 20000 });
     const inputStateBeforeRefresh = await readPricingInputState();
@@ -10611,10 +10639,7 @@ test("M5.2.C-E1d：真实Edge深色dashboard在聚光淡入稳定后取整页基
     await context.addInitScript(buildPreferenceSeedSource({ theme: "light", skinId: "classic" }));
     const page = await context.newPage();
     installBrowserColorObserver(page);
-    await page.goto(`${origin}/`, { waitUntil: "load" });
-    await page.waitForFunction(async () => Boolean((await import("/app-state.js")).state.usageEventsSource));
-    await page.locator('#presetButtons button[data-preset="all"]').click();
-    await page.waitForSelector("#detailList .bar-row", { timeout: 20000 });
+    await openPaletteDashboard(page, origin);
     await page.waitForSelector("#timelineChart", { timeout: 20000 });
     await page.waitForSelector("#modelComparisonSearch", { timeout: 20000 });
     if ((await page.locator("#themeToggle").getAttribute("aria-pressed")) !== "true") {
