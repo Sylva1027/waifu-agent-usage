@@ -4,6 +4,8 @@
 
 Waifu v1.0 has an achievement button between the theme and share buttons. The window contains 42 achievements: 27 with bronze, silver and gold levels, and 15 one-time achievements. Names, conditions and flavor text support English and Chinese, with 96 badge images.
 
+See the [bilingual achievement catalog](achievement-catalog.md) for every achievement's Chinese and English name, tier thresholds, unlock condition and flavor text.
+
 ## Counting and viewing
 
 Counting starts when a supported production Waifu version first starts; opening the achievement window is not required. Earlier usage remains available on the dashboard but does not earn achievements retroactively. The achievement profile keeps its own calendar time zone, so later system time-zone changes do not rewrite its start time or earned dates.
