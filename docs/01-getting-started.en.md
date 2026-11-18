@@ -19,7 +19,7 @@ Version 1.0 offers two Windows x64 packages, both with package version `1.0.0`:
 node src/cli.js run
 ```
 
-Open [http://127.0.0.1:3765/](http://127.0.0.1:3765/) or the address printed in the terminal. Both packages use the same command and require no `npm install` or compilation. Keep the terminal open and press `Ctrl+C` to stop; run the same command from the same folder to start again.
+Open the URL printed in the terminal. Both packages use the same command and require no `npm install` or compilation. Keep the terminal open while the service is running. Press `Ctrl+C` to stop, and run the same command from the same folder to start again.
 
 If the port is in use, specify another one:
 
@@ -28,6 +28,39 @@ node src/cli.js run --port 3766
 ```
 
 Windows command examples use PowerShell 7 (`pwsh`).
+
+## Start in the background with port fallback
+
+Run the following command from the installation folder when using the current source or a runtime package with automatic port fallback. For the v1.0 downloads above, use the preceding instructions.
+
+```sh
+node src/cli.js dashboard
+```
+
+The `dashboard` command starts the service in the background and opens its actual URL in your browser. It tries port 3765 first and tries 3766–3770 if that port is in use. On later launches, it tries the last successful fallback port first. To choose a specific port, use `--port` or set `PORT`.
+
+Run `node src/cli.js stop` to stop the background service. If you used `--state-file` to start it, pass the same path when stopping it.
+
+## Windows desktop shortcut
+
+Open PowerShell 7 (`pwsh`) in the permanent installation folder. Both runtime packages use `src/cli.js` for `$entryFile`. For Lite from source, use `src/cli-lite.js`. For Lite, set `$shortcutName` to `Agent Usage Lite.lnk`.
+
+```powershell
+$entryFile = 'src/cli.js'
+$shortcutName = 'Waifu Agent Usage.lnk'
+$appDir = (Resolve-Path -LiteralPath .).ProviderPath
+$cliEntry = (Resolve-Path -LiteralPath (Join-Path $appDir $entryFile) -ErrorAction Stop).ProviderPath
+$nodePath = (Get-Command node.exe -CommandType Application -ErrorAction Stop | Select-Object -First 1).Path
+$desktop = [Environment]::GetFolderPath([Environment+SpecialFolder]::DesktopDirectory)
+$shell = New-Object -ComObject WScript.Shell
+$shortcut = $shell.CreateShortcut((Join-Path $desktop $shortcutName))
+$shortcut.TargetPath = $nodePath
+$shortcut.Arguments = '"{0}" dashboard' -f $cliEntry
+$shortcut.WorkingDirectory = $appDir
+$shortcut.Save()
+```
+
+Double-click the desktop shortcut to open the dashboard. If you move the installation folder, recreate the shortcut from its new location.
 
 ## Import sources
 
@@ -50,8 +83,8 @@ For long-term storage or a new computer, see [backup and transfer](history-reten
 The default source entry runs Waifu; Lite has a separate entry:
 
 ```sh
-node src/cli.js run
-node src/cli-lite.js run --port 3766 --home-dir ./output/lite-home --state-file ./output/lite-services.json
+node src/cli.js dashboard
+node src/cli-lite.js dashboard --port 3766 --home-dir ./output/lite-home --state-file ./output/lite-services.json
 ```
 
-The second command uses a separate data directory and service registration file, suitable for development alongside the default instance. See the [development guide](03-development.en.md) for dependencies, tests, and packaging.
+The second command uses a separate data directory and service registration file for development alongside the default instance. Stop that instance with `node src/cli-lite.js stop --state-file ./output/lite-services.json`. [Development guide](03-development.en.md)

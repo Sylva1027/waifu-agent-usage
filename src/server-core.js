@@ -1315,6 +1315,12 @@ export function createUsageServer(options = {}, definition) {
         return;
       }
 
+      if (url.pathname === "/internal/identity" && request.method === "HEAD" && options.instanceId) {
+        response.writeHead(204, { "cache-control": "no-store", "x-codex-usage-instance": options.instanceId });
+        response.end();
+        return;
+      }
+
       if (url.pathname === "/internal/shutdown") {
         if (request.method !== "POST") {
           sendJson(response, 405, { error: "Method not allowed" });

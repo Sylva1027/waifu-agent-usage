@@ -14,11 +14,11 @@ Waifu Agent Usage 是由 Sylva1027 独立维护的本地 AI 编程用量看板�
 请在我的电脑上安装并启动 Waifu Agent Usage：
 https://github.com/Sylva1027/waifu-agent-usage
 
-1. 询问我想要完整体验的 Waifu，还是专注用量统计的 Lite，从 Releases 下载最新正式版对应的 ZIP 运行包。
-2. 检查 Node.js 是否满足包内 package.json 的 engines.node 要求；需要安装时从 https://nodejs.org/ 获取。
-3. 解压到固定目录。如果已有安装，先按仓库升级文档保留用量数据、来源配置和成就档案，再更新程序文件。
-4. 在包根目录运行 node src/cli.js run，无需 npm install 或编译。
-5. 启动后告诉我访问地址、安装目录，以及之后如何启动和停止。
+1. 询问我想要完整体验的 Waifu，还是专注用量统计的 Lite。优先使用支持 dashboard 自动换端口的正式 ZIP 运行包。如暂无支持的运行包，使用当前源码。
+2. 检查 Node.js 是否满足 package.json 中的 engines.node 要求。需要安装时，从 https://nodejs.org/ 获取。
+3. 将程序放到固定目录。如果已有安装，先按仓库升级文档保留用量数据、来源配置和成就档案，再更新程序文件。
+4. 在安装目录运行 node src/cli.js dashboard。使用 Lite 源码时，运行 node src/cli-lite.js dashboard。
+5. 在 Windows 上，按 docs/01-getting-started.md 的说明，用 PowerShell 7 在本机创建所选版本的桌面快捷方式。双击确认打开的是该版本的看板，再告诉我安装目录、快捷方式名称、实际访问地址和停止方法。
 ```
 
 ## 手动安装
@@ -29,7 +29,7 @@ https://github.com/Sylva1027/waifu-agent-usage
 node src/cli.js run
 ```
 
-打开 [http://127.0.0.1:3765/](http://127.0.0.1:3765/)，在来源管理中扫描并导入日志，即可开始查看。运行包无需 `npm install` 或编译；按 `Ctrl+C` 停止服务。
+打开终端打印的地址，在来源管理中扫描并导入日志。运行包无需 `npm install` 或编译。按 `Ctrl+C` 停止服务。支持自动换端口的版本可用 `dashboard` 启动，也可在 Windows 创建桌面快捷方式。 [开始使用](docs/01-getting-started.md)
 
 ## 功能一览
 
