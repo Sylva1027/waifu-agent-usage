@@ -1,0 +1,94 @@
+name: Release candidate
+run-name: Release candidate • ${{ github.ref_name }} @ ${{ github.sha }}
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  TZ: Asia/Shanghai
+
+defaults:
+  run:
+    shell: pwsh
+
+jobs:
+  compatibility:
+    uses: ./.github/workflows/ci.yml
+    with:
+      release-candidate: true
+
+  package:
+    name: Verify Waifu and Lite ZIPs
+    needs: compatibility
+    runs-on: windows-latest
+    env:
+      RELEASE_DIR: output/release-candidate
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Use canonical Windows temp paths
+        run: |
+          "TEMP=$env:RUNNER_TEMP" >> $env:GITHUB_ENV
+          "TMP=$env:RUNNER_TEMP" >> $env:GITHUB_ENV
+      - name: Test source archive fixtures
+        timeout-minutes: 5
+        run: |
+          $source = Join-Path $env:RUNNER_TEMP "waifu-agent-usage-source"
+          $archive = "$source.tar"
+          git archive --format=tar --output="$archive" HEAD
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          New-Item -ItemType Directory -Path $source | Out-Null
+          tar -xf $archive -C $source
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $fixtureTests = @(
+            "test/achievement-content.test.js"
+            "test/achievement-evaluate-calendar.test.js"
+            "test/achievement-evaluate-cumulative.test.js"
+            "test/achievement-evaluate-operations.test.js"
+            "test/achievement-assets.test.js"
+            "test/achievement-list.test.js"
+            "test/skins.test.js"
+          )
+          Push-Location -LiteralPath $source
+          try {
+            node scripts/test.mjs --test-reporter=spec @fixtureTests
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          } finally {
+            Pop-Location
+          }
+      - run: npm.cmd ci
+      - name: Set up browser checks
+        env:
+          AGENT_USAGE_PLAYWRIGHT_MODULE: ${{ runner.temp }}/waifu-agent-usage-browser/node_modules/playwright/index.mjs
+        run: |
+          npm.cmd install --prefix "$env:RUNNER_TEMP/waifu-agent-usage-browser" --no-package-lock --no-save playwright@1.62.1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "AGENT_USAGE_PLAYWRIGHT_MODULE=$env:AGENT_USAGE_PLAYWRIGHT_MODULE" >> $env:GITHUB_ENV
+      - name: Build matching Windows helper
+        run: |
+          npm.cmd run native:build
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm.cmd run native:check
+      - name: Package and accept actual Waifu and Lite ZIPs
+        timeout-minutes: 10
+        run: |
+          npm.cmd run package:release -- "$env:RELEASE_DIR"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm.cmd run package:check -- "$env:RELEASE_DIR" --browser
+      - uses: actions/upload-artifact@v4
+        with:
+          name: waifu-agent-usage-waifu-lite-windows-${{ github.sha }}
+          path: |
+            ${{ env.RELEASE_DIR }}/*.zip
+            ${{ env.RELEASE_DIR }}/release-manifest.json
+            ${{ env.RELEASE_DIR }}/acceptance-browser.json
+          if-no-files-found: error
