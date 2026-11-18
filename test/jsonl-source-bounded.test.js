@@ -231,7 +231,13 @@ test("WorkBuddy forced spill retains first eligible compact record, original gro
   });
 });
 
-test("forced spill exactly matches independent frozen JSONL outputs including -0 and overflowing totals", async () => {
+test("forced spill exactly matches independent frozen JSONL outputs including -0 and overflowing totals", async (t) => {
+  const localeCompare = String.prototype.localeCompare;
+  // The frozen outputs use Chinese collation, independent of the runner's default locale.
+  t.mock.method(String.prototype, "localeCompare", function (other, locales, options) {
+    return localeCompare.call(this, other, locales ?? "zh-CN", options);
+  });
+
   for (const [kind, stream, rows] of [
     ["claude", streamClaudeSessionEvents, claudeRows],
     ["workbuddy", streamWorkbuddySessionEvents, workbuddyRows],

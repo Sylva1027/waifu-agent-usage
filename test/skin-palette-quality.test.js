@@ -9383,6 +9383,18 @@ test("M5.2.C-D2b3：真实 Edge 两种装饰隔离、低对比仍失败，异常
       const node = JSON.parse(result.records[0].evidence).nodes[0];
       assert.equal(node.decorationIsolation, null, "只读近期值没有内置下拉箭头");
       assert.deepEqual(await snapshot("#recentValue"), before);
+
+      const cover = await page.addStyleTag({
+        content: "#recentMenuButton { inset: 0 0 0 10px; width: auto; z-index: 2; pointer-events: auto; }",
+      });
+      try {
+        const occluded = await measure(page, "light", m32Role("select.zone-label"));
+        assert.equal(occluded.records[0].result, "unmeasured");
+        assert.match(occluded.records[0].reason, /button#recentMenuButton/);
+      } finally {
+        await cover.evaluate((element) => element.remove());
+      }
+      assert.deepEqual(await snapshot("#recentValue"), before);
     });
 
     await t.test("分享方向真实箭头：浅深主题隐藏、恢复与像素一致", async () => {

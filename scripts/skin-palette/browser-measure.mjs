@@ -1626,10 +1626,14 @@ ${IDENTITY_SOURCE}
         if (useOwnTextRanges) {
           textRects = [];
         } else {
+          // A readonly combobox can reserve its padding for a separate drop-down button.
+          const useContentWidth = tag === "input" && element.readOnly && element.getAttribute("role") === "combobox";
+          const leftPadding = useContentWidth ? Number.parseFloat(style.paddingLeft) || 0 : 0;
+          const rightPadding = useContentWidth ? Number.parseFloat(style.paddingRight) || 0 : 0;
           textRects = [{
-            x: rect.x + element.clientLeft,
+            x: rect.x + element.clientLeft + leftPadding,
             y: rect.y + element.clientTop,
-            width: element.clientWidth,
+            width: Math.max(0, element.clientWidth - leftPadding - rightPadding),
             height: element.clientHeight,
           }];
         }

@@ -787,6 +787,9 @@ test("UI geometry uses the production app and isolated source fixtures", async (
           await scroll.evaluate((node) => {
             const body = node.querySelector("tbody");
             while (body.children.length < 30) body.append(body.firstElementChild.cloneNode(true));
+            // Keep the scrollbar boundary between two device pixels even on machines with integer layout.
+            const x = node.getBoundingClientRect().x;
+            node.parentElement.style.translate = `${Math.floor(x) + 0.375 - x}px 0`;
             node.scrollIntoView({ block: "center" });
           });
           await hoverSurface(page, `#${id} .comparison-table-footer`, ".period-comparison-panel", failures);
@@ -826,11 +829,15 @@ test("UI geometry uses the production app and isolated source fixtures", async (
               node.scrollTop = (node.scrollHeight - node.clientHeight) * fraction;
             }, fraction);
             const box = await scroll.boundingBox();
+            // Rounded screenshot clips can include a pixel shared by the well and the rail.
+            // Compare only device pixels wholly inside the scrollbar, including its rounded ends.
+            const railLeft = Math.ceil(box.x + box.width - geometry.gutter);
+            const railTop = Math.ceil(box.y);
             const rail = {
-              x: box.x + box.width - geometry.gutter,
-              y: box.y,
-              width: geometry.gutter,
-              height: box.height,
+              x: railLeft,
+              y: railTop,
+              width: Math.floor(box.x + box.width) - railLeft,
+              height: Math.floor(box.y + box.height) - railTop,
             };
             const corner = { x: box.x, y: box.y + box.height - 16, width: 16, height: 16 };
             const railWithShadow = await page.screenshot({ clip: rail });
