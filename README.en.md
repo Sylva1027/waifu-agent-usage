@@ -14,11 +14,11 @@ Supported harnesses: Codex, Claude Code, OpenCode, ZCode, DSH, WorkBuddy, and He
 Please install and start Waifu Agent Usage on my computer:
 https://github.com/Sylva1027/waifu-agent-usage
 
-1. Ask whether I want the full Waifu experience or Lite for focused usage tracking, then download the matching runtime ZIP from the latest stable Release.
-2. Check that Node.js meets engines.node in the package's package.json. If installation is needed, get it from https://nodejs.org/.
-3. Extract the package to a permanent folder. If an installation already exists, follow the repository's upgrade guide to preserve usage data, source settings, and achievement profiles before updating program files.
-4. Run node src/cli.js run from the package root. No npm install or compilation is needed.
-5. Tell me the dashboard URL, installation folder, and how to start and stop it later.
+1. Ask whether I want the full Waifu experience or Lite for focused usage tracking. Use a stable runtime ZIP for that edition if it supports automatic port fallback in the dashboard command. Otherwise, use the current source.
+2. Check that Node.js meets engines.node in package.json. If installation is needed, get it from https://nodejs.org/.
+3. Put the program in a permanent folder. If an installation already exists, follow the repository's upgrade guide to preserve usage data, source settings, and achievement profiles before updating program files.
+4. Run node src/cli.js dashboard from the installation folder. For Lite from source, run node src/cli-lite.js dashboard.
+5. On Windows, follow docs/01-getting-started.en.md to create a local desktop shortcut for the selected edition using PowerShell 7. Double-click it to verify that the correct dashboard opens. Tell me the installation folder, shortcut name, actual dashboard URL, and how to stop the service.
 ```
 
 ## Manual installation
@@ -29,7 +29,7 @@ Install [Node.js](https://nodejs.org/en/download) 23.8 or newer, download a [Win
 node src/cli.js run
 ```
 
-Open [http://127.0.0.1:3765/](http://127.0.0.1:3765/) and use source management to scan and import your logs. No `npm install` or compilation is needed; press `Ctrl+C` to stop the server.
+Open the URL printed in the terminal and use source management to scan and import your logs. No `npm install` or compilation is needed. Press `Ctrl+C` to stop the server. Versions with automatic port fallback can launch with `dashboard` and use a Windows desktop shortcut. [Getting started](docs/01-getting-started.en.md)
 
 ## Features
 

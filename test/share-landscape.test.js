@@ -93,11 +93,14 @@ test("formal share window keeps layout preferences, snapshot and latest PNG acro
   });
   await listenOnFetchPort(server);
   browser = await runtime.chromium.launch({ executablePath: runtime.executablePath, headless: true });
-  const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+  const page = await browser.newPage({ locale: "zh-CN", viewport: { width: 1440, height: 900 } });
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.addInitScript((skinKey) => {
     window.EventSource = undefined;
+    window.addEventListener("resize", () => {
+      window.shareViewportSize = `${innerWidth}x${innerHeight}`;
+    });
     localStorage.setItem("codexUsageAutoRefresh", "off");
     localStorage.setItem(
       skinKey,
@@ -333,12 +336,15 @@ test("formal share window keeps layout preferences, snapshot and latest PNG acro
   await page.locator("#openShareImage").click();
   await page.locator("#shareOriginalDialog").waitFor({ state: "visible" });
   await page.keyboard.press("Escape");
+  await page.waitForFunction(() => !document.querySelector("#shareOriginalDialog img").hasAttribute("src"));
   assert.equal(await page.locator("#shareDialog").isVisible(), true);
   for (const viewport of [
     { width: 900, height: 700 },
     { width: 720, height: 600 },
   ]) {
     await page.setViewportSize(viewport);
+    // The app closes open pickers when the browser dispatches resize.
+    await page.waitForFunction((size) => window.shareViewportSize === size, `${viewport.width}x${viewport.height}`);
     assert.equal(await page.locator("#shareDialog").evaluate((node) => node.scrollWidth <= node.clientWidth + 1), true);
     assert.equal((await controlPlacement()).right, true);
     assert.ok(await roundedPreview(), `Preview remains rounded at ${viewport.width}px`);
@@ -359,7 +365,7 @@ test("formal share window keeps layout preferences, snapshot and latest PNG acro
       });
       assert.ok(contained, `${id} fits ${viewport.width}px and reveals its last keyboard option`);
       await page.keyboard.press("Escape");
-      assert.equal(await page.locator("#shareDialog").isVisible(), true);
+      assert.equal(await page.locator("#shareDialog").isVisible(), true, `Escape from ${id} at ${viewport.width}px`);
     }
   }
   await mkdir("output/share-landscape", { recursive: true });

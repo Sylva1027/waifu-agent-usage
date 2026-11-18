@@ -19,7 +19,7 @@ v1.0 提供两个 Windows x64 运行包，包内 `version` 均为 `1.0.0`：
 node src/cli.js run
 ```
 
-打开 [http://127.0.0.1:3765/](http://127.0.0.1:3765/)，或终端输出的地址。两版运行包使用相同命令，无需 `npm install` 或编译。保持终端打开，按 `Ctrl+C` 停止；下次在同一目录执行同一命令即可。
+打开终端打印的地址。两版运行包使用相同命令，无需 `npm install` 或编译。使用期间保持终端打开，按 `Ctrl+C` 停止。下次在同一目录执行同一命令即可。
 
 端口已占用时可以指定其他端口：
 
@@ -28,6 +28,39 @@ node src/cli.js run --port 3766
 ```
 
 Windows 命令示例使用 PowerShell 7（`pwsh`）。
+
+## 自动换端口的后台启动
+
+使用当前源码或支持自动换端口的运行包时，可在安装目录运行以下命令。上方的 v1.0 下载仍按前面的步骤启动。
+
+```sh
+node src/cli.js dashboard
+```
+
+`dashboard` 在后台启动服务并用浏览器打开实际访问地址。首次默认尝试 3765，端口占用时尝试 3766–3770。下次启动优先尝试上次成功使用的备用端口。通过 `--port` 或 `PORT` 指定端口时，服务使用指定值。
+
+用 `node src/cli.js stop` 停止后台服务。启动时若指定了 `--state-file`，停止时也传入同一路径。
+
+## Windows 桌面快捷方式
+
+在固定安装目录打开 PowerShell 7（`pwsh`）。两版运行包的 `$entryFile` 都是 `src/cli.js`，使用 Lite 源码时改为 `src/cli-lite.js`。为 Lite 创建快捷方式时，将 `$shortcutName` 改为 `Agent Usage Lite.lnk`。
+
+```powershell
+$entryFile = 'src/cli.js'
+$shortcutName = 'Waifu Agent Usage.lnk'
+$appDir = (Resolve-Path -LiteralPath .).ProviderPath
+$cliEntry = (Resolve-Path -LiteralPath (Join-Path $appDir $entryFile) -ErrorAction Stop).ProviderPath
+$nodePath = (Get-Command node.exe -CommandType Application -ErrorAction Stop | Select-Object -First 1).Path
+$desktop = [Environment]::GetFolderPath([Environment+SpecialFolder]::DesktopDirectory)
+$shell = New-Object -ComObject WScript.Shell
+$shortcut = $shell.CreateShortcut((Join-Path $desktop $shortcutName))
+$shortcut.TargetPath = $nodePath
+$shortcut.Arguments = '"{0}" dashboard' -f $cliEntry
+$shortcut.WorkingDirectory = $appDir
+$shortcut.Save()
+```
+
+双击桌面快捷方式打开看板。移动安装目录后，从新目录重新创建快捷方式。
 
 ## 首次导入
 
@@ -50,8 +83,8 @@ Waifu 与 Lite 沿用相同用量数据和来源配置。Lite 保留已有 Waifu
 源码默认入口为 Waifu，Lite 使用独立入口：
 
 ```sh
-node src/cli.js run
-node src/cli-lite.js run --port 3766 --home-dir ./output/lite-home --state-file ./output/lite-services.json
+node src/cli.js dashboard
+node src/cli-lite.js dashboard --port 3766 --home-dir ./output/lite-home --state-file ./output/lite-services.json
 ```
 
-第二条命令使用独立的数据目录与服务注册文件，适合与默认实例并行开发。依赖安装、测试和打包见[开发指南](03-development.md)。
+第二条命令使用独立的数据目录与服务注册文件，适合与默认实例并行开发。用 `node src/cli-lite.js stop --state-file ./output/lite-services.json` 停止这个实例。 [开发指南](03-development.md)

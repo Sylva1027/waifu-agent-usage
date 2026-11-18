@@ -195,8 +195,9 @@ test("dashboard/gateway bind edition and real entry; stop/restart preserve forei
   timeout: 60_000,
 }, async (t) => {
   const f = await fixture(t);
+  const { home: waifuHome } = await fixture(t);
   const { automaticPricingFile } = await import("../src/pricing-store.js");
-  const cache = automaticPricingFile({ homeDir: f.home });
+  const cache = automaticPricingFile({ homeDir: waifuHome });
   await mkdir(path.dirname(cache), { recursive: true });
   const stamp = new Date().toISOString();
   await writeFile(
@@ -208,10 +209,12 @@ test("dashboard/gateway bind edition and real entry; stop/restart preserve forei
       exchangeRateUpdatedAt: stamp,
     }),
   );
-  const common = ["--host", "127.0.0.1", "--port", "0", "--home-dir", f.home, "--state-file", f.state];
-  const foreign = spawn(process.execPath, [WAIFU, "run", ...common], {
+  // Share the registry and keep each live edition's SQLite index in its own home.
+  const binding = ["--host", "127.0.0.1", "--port", "0", "--state-file", f.state];
+  const liteArgs = [...binding, "--home-dir", f.home];
+  const foreign = spawn(process.execPath, [WAIFU, "run", ...binding, "--home-dir", waifuHome], {
     cwd: ROOT,
-    env: environment(f.home),
+    env: environment(waifuHome),
     windowsHide: true,
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -241,7 +244,7 @@ test("dashboard/gateway bind edition and real entry; stop/restart preserve forei
       ]);
     }
     const probe = createLiteBoundaryProbe(f.root, { forbiddenModules: FORBIDDEN });
-    const output = await successful(LITE, ["dashboard", "--no-open", ...common], f.home, probe.env);
+    const output = await successful(LITE, ["dashboard", "--no-open", ...liteArgs], f.home, probe.env);
     const liteUrl = output.match(/http:\/\/127\.0\.0\.1:\d+/)[0];
     assert.notEqual(liteUrl, foreignUrl);
     const registry = await readServices(f.state);
@@ -250,9 +253,11 @@ test("dashboard/gateway bind edition and real entry; stop/restart preserve forei
     assert.equal(actual.entryFile, realpathSync(LITE));
     assert.equal(actual.argv[0], realpathSync(LITE));
     assert.ok(actual.nodeExecArgv.includes("--max-old-space-size=512"));
-    const usage = await fetch(`${liteUrl}/api/summary?preset=all`).then((response) => response.json());
+    const summaryResponse = await fetch(`${liteUrl}/api/summary?preset=all`);
+    const usage = await summaryResponse.json();
+    assert.equal(summaryResponse.status, 200, JSON.stringify(usage));
     assert.equal(usage.summary.totals.total, 77);
-    assert.ok((await successful(LITE, ["-d", "--no-open", ...common], f.home, probe.env)).includes(liteUrl));
+    assert.ok((await successful(LITE, ["-d", "--no-open", ...liteArgs], f.home, probe.env)).includes(liteUrl));
     await successful(LITE, ["stop", "--state-file", f.state], f.home, probe.env);
     assert.deepEqual(
       (await readServices(f.state)).map((entry) => entry.pid),
@@ -264,7 +269,7 @@ test("dashboard/gateway bind edition and real entry; stop/restart preserve forei
       [foreign.pid],
       "no matching services must not clear another edition",
     );
-    const restarted = await successful(LITE, ["restart", ...common], f.home, probe.env);
+    const restarted = await successful(LITE, ["restart", ...liteArgs], f.home, probe.env);
     assert.match(restarted, /Agent Usage Lite gateway restarted/);
     assert.ok((await readServices(f.state)).some((entry) => entry.pid === foreign.pid));
     assert.equal((await fetch(`${foreignUrl}/api/summary?preset=all`)).status, 200);
@@ -272,7 +277,7 @@ test("dashboard/gateway bind edition and real entry; stop/restart preserve forei
     assert.ok(probe.read().some((entry) => entry.kind === "load" && entry.url.endsWith("/src/usage-executor-lite.js")));
   } finally {
     await run(LITE, ["stop", "--state-file", f.state], f.home);
-    await run(WAIFU, ["stop", "--state-file", f.state], f.home);
+    await run(WAIFU, ["stop", "--state-file", f.state], waifuHome);
     for (const child of [foreign, ...fakes]) if (child.exitCode === null) child.kill();
   }
 });

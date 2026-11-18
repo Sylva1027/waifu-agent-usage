@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
+import { once } from "node:events";
 import { chmod, mkdir, mkdtemp, readFile, rm, stat, utimes, writeFile } from "node:fs/promises";
+import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { spawn } from "node:child_process";
@@ -115,7 +117,7 @@ function isolatedEnv(homeDir) {
 
 function runCli(args, env = process.env, options = {}) {
   return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, ["src/cli.js", ...args], {
+    const child = spawn(process.execPath, [options.entryFile ?? "src/cli.js", ...args], {
       cwd: path.resolve(import.meta.dirname, ".."),
       env,
       stdio: ["ignore", "pipe", "pipe"],
@@ -494,6 +496,56 @@ test("cli dashboard starts a background service and prints the dashboard URL", a
     assert.equal(usage.summary.totals.total, 77);
   } finally {
     await runCli(["stop", "--state-file", stateFile], isolatedEnv(homeDir));
+  }
+});
+
+test("cli dashboard reuses the fallback address when its default port is occupied", async () => {
+  const host = process.platform === "darwin" ? "::1" : "127.0.0.3";
+  const hostname = host === "::1" ? "[::1]" : host;
+  const occupiedUrl = `http://${hostname}:3765`;
+  const occupied = createServer((_request, response) => response.end("unrelated local service"));
+  const homeDir = await makeFixtureHome();
+  const stateFile = path.join(homeDir, "services.json");
+  const env = { ...isolatedEnv(homeDir), PORT: "" };
+  const dashboard = ["dashboard", "--no-open", "--host", host, "--home-dir", homeDir, "--state-file", stateFile];
+  const runLite = (args, environment = env) => runCli(args, environment, { entryFile: "src/cli-lite.js" });
+  const stop = () => runLite(["stop", "--state-file", stateFile]);
+  const closeOccupied = () => new Promise((resolve) => occupied.close(resolve));
+
+  try {
+    const listening = once(occupied, "listening");
+    occupied.listen(3765, host);
+    await listening;
+
+    await assert.rejects(runLite([...dashboard, "--port", "3765"]), /cli exited with 1:[\s\S]*3765/);
+    await assert.rejects(runLite(dashboard, { ...env, PORT: "3765" }), /cli exited with 1:[\s\S]*3765/);
+    assert.deepEqual(await readServices(stateFile), []);
+
+    const outputs = (await Promise.allSettled([runLite(dashboard), runLite(dashboard)])).map((result) => {
+      if (result.status === "rejected") throw result.reason;
+      return result.value;
+    });
+    const services = await readServices(stateFile);
+    assert.equal(services.length, 1, "simultaneous launches must register one service");
+    const [service] = services;
+    assert.ok(service.port >= 3766 && service.port <= 3770, service.url);
+    assert.equal(service.url, `http://${hostname}:${service.port}`);
+    for (const output of outputs) assert.ok(output.includes(service.url), output);
+
+    const html = await fetch(service.url);
+    assert.equal(html.status, 200);
+    assert.match(await html.text(), /<html [^>]*data-edition="lite"/);
+    const usageResponse = await fetch(`${service.url}/api/usage?preset=all`);
+    const usage = await usageResponse.json();
+    assert.equal(usageResponse.status, 200, JSON.stringify(usage));
+    assert.equal(usage.summary.totals.total, 77);
+    assert.equal(await fetch(occupiedUrl).then((response) => response.text()), "unrelated local service");
+
+    await stop();
+    await closeOccupied();
+    assert.ok((await runLite(dashboard)).includes(service.url), "a fresh launch should retain the fallback port");
+  } finally {
+    await Promise.all([stop(), occupied.listening && closeOccupied()]);
   }
 });
 

@@ -46,7 +46,12 @@ async function geometry(page) {
           return [
             selector,
             {
-              box: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
+              box: {
+                x: rect.x + window.scrollX,
+                y: rect.y + window.scrollY,
+                width: rect.width,
+                height: rect.height,
+              },
               style: Object.fromEntries(material.map((prop) => [prop, css[prop]])),
             },
           ];
@@ -358,6 +363,12 @@ test("runtime status preserves real dashboard frames, live feedback and keyboard
                 await current.context.setOffline(true);
                 await page.locator('#presetButtons button[data-preset="all"]').click();
                 await page.locator("#autoRefreshError.is-error").waitFor({ state: "visible" });
+                // Focus navigation can scroll the viewport while the dashboard geometry stays fixed.
+                const errorScrollY = await page.evaluate(() => {
+                  window.scrollTo({ top: 40, behavior: "instant" });
+                  return window.scrollY;
+                });
+                assert.equal(errorScrollY, 40);
                 await checked("real-network-error");
                 await capture(page, `${key}-error`);
                 await page.locator("#autoRefreshError").focus();

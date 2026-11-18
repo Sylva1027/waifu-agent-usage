@@ -81,6 +81,7 @@ async function fixture(t) {
 }
 
 test("pure migration imports no record implementation, with a forbidden-import positive control", () => {
+  const projectUrl = new URL("../", import.meta.url).href;
   const migration = new URL("../src/usage-record-migration.js", import.meta.url).href;
   const records = new URL("../src/usage-record-store.js", import.meta.url).href;
   execFileSync(
@@ -92,9 +93,14 @@ test("pure migration imports no record implementation, with a forbidden-import p
     import assert from 'node:assert/strict';
     import { registerHooks } from 'node:module';
     import { DatabaseSync } from 'node:sqlite';
+    const projectUrl = ${JSON.stringify(projectUrl)};
     registerHooks({resolve(specifier, context, next) {
-      if (/usage-record-store|pricing|waifu|achievement/.test(specifier)) throw new Error('forbidden record implementation');
-      return next(specifier, context);
+      const resolved = next(specifier, context);
+      if (resolved.url.startsWith(projectUrl) &&
+          /usage-record-store|pricing|waifu|achievement/.test(resolved.url.slice(projectUrl.length))) {
+        throw new Error('forbidden record implementation');
+      }
+      return resolved;
     }});
     const { removeLegacyUsageRecordTriggers } = await import(${JSON.stringify(migration)});
     const database = new DatabaseSync(':memory:');

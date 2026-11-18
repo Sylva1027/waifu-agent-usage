@@ -3,9 +3,11 @@ import { spawn } from "node:child_process";
 import { realpathSync } from "node:fs";
 import { mkdir, readFile, rename, rm, stat, unlink, writeFile } from "node:fs/promises";
 import { request as httpRequest } from "node:http";
+import { isIP } from "node:net";
 import { homedir, platform } from "node:os";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { domainToASCII } from "node:url";
 
 import { toPublicUsageReport } from "./usage-sources.js";
 import {
@@ -20,6 +22,7 @@ import { createHistoryBackup, restoreHistoryBackup, verifyHistoryBackup } from "
 
 const DEFAULT_HOST = "127.0.0.1";
 const DEFAULT_PORT = 3765;
+const DASHBOARD_PORTS = [DEFAULT_PORT, 3766, 3767, 3768, 3769, 3770];
 const DEFAULT_GATEWAY_MEMORY_MB = 512;
 const DEFAULT_STATE_FILE = path.join(homedir(), ".codex-usage", "services.json");
 const SERVICE_LOCK_WAIT_MS = 5000;
@@ -62,6 +65,17 @@ function reportOptions(args) {
   return homeDir ? { homeDir } : {};
 }
 
+function profilePath(directory, cwd = process.cwd()) {
+  const absolute = path.resolve(cwd, directory || homedir());
+  let profile = absolute;
+  try {
+    profile = realpathSync(absolute);
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+  }
+  return platform() === "win32" ? profile.toLowerCase() : profile;
+}
+
 function stateFilePath(args) {
   return readOption(args, "--state-file", process.env.CODEX_USAGE_STATE_FILE || DEFAULT_STATE_FILE);
 }
@@ -83,8 +97,9 @@ function parsePositiveInteger(value, optionName) {
 }
 
 function formatUrl(host, port) {
-  const urlHost = host.includes(":") && !host.startsWith("[") ? `[${host}]` : host;
-  return `http://${urlHost}:${port}`;
+  const hostname = isIP(host) === 6 ? URL.parse(`http://[${host}]`)?.hostname || "" : domainToASCII(host);
+  const address = hostname === "0.0.0.0" ? "127.0.0.1" : hostname === "[::]" ? "[::1]" : hostname;
+  return `http://${address}:${port}`;
 }
 
 function withoutOption(args, name) {
@@ -130,27 +145,31 @@ async function waitForProcessExit(pid, timeoutMs = 35_000) {
   return !isProcessRunning(pid);
 }
 
-async function readServices(filePath) {
+async function readJsonFile(filePath) {
   try {
-    const body = await readFile(filePath, "utf8");
-    const parsed = JSON.parse(body);
-    if (Array.isArray(parsed.services)) {
-      return parsed.services;
-    }
-    return [];
+    return JSON.parse(await readFile(filePath, "utf8"));
   } catch (error) {
     if (error.code === "ENOENT") {
-      return [];
+      return null;
     }
     throw error;
   }
 }
 
+async function readServices(filePath) {
+  const current = await readJsonFile(filePath);
+  return Array.isArray(current?.services) ? current.services : [];
+}
+
 async function writeServices(filePath, services) {
+  await writeJsonFile(filePath, { services });
+}
+
+async function writeJsonFile(filePath, content) {
   const temporary = `${filePath}.${process.pid}.${randomBytes(8).toString("hex")}.tmp`;
   await mkdir(path.dirname(filePath), { recursive: true });
   try {
-    await writeFile(temporary, JSON.stringify({ services }, null, 2));
+    await writeFile(temporary, JSON.stringify(content, null, 2));
     const deadline = Date.now() + SERVICE_REPLACE_RETRY_MS;
     while (true) {
       try {
@@ -169,9 +188,9 @@ async function writeServices(filePath, services) {
   }
 }
 
-async function withServicesLock(filePath, callback) {
+async function withServicesLock(filePath, callback, waitMs = SERVICE_LOCK_WAIT_MS) {
   const lockPath = `${filePath}.lock`;
-  let deadline = Date.now() + SERVICE_LOCK_WAIT_MS;
+  let deadline = Date.now() + waitMs;
 
   await mkdir(path.dirname(filePath), { recursive: true });
 
@@ -200,7 +219,7 @@ async function withServicesLock(filePath, callback) {
 
       if (isStale || Date.now() > deadline) {
         await rm(lockPath, { recursive: true, force: true });
-        deadline = Date.now() + SERVICE_LOCK_WAIT_MS;
+        deadline = Date.now() + waitMs;
         continue;
       }
       await sleep(25);
@@ -322,6 +341,32 @@ export async function runCli({
     throw new Error("Timed out waiting for gateway service to start.");
   }
 
+  async function verifyDashboardService(service) {
+    if (
+      typeof service.host !== "string" ||
+      !Number.isInteger(service.port) ||
+      service.url !== formatUrl(service.host, service.port)
+    )
+      return false;
+    if (!service.instanceId) return true;
+    try {
+      return await new Promise((resolve, reject) => {
+        const request = httpRequest(
+          new URL("/internal/identity", service.url),
+          { method: "HEAD", signal: AbortSignal.timeout(1000) },
+          (response) => {
+            response.resume();
+            resolve(response.statusCode === 204 && response.headers["x-codex-usage-instance"] === service.instanceId);
+          },
+        );
+        request.once("error", reject);
+        request.end();
+      });
+    } catch {
+      return false;
+    }
+  }
+
   async function printSummary(command, args) {
     await features?.loadPricing(reportOptions(args));
     if (command === "json") {
@@ -349,18 +394,26 @@ export async function runCli({
   function runServer(args) {
     const host = readOption(args, "--host", process.env.HOST || DEFAULT_HOST);
     const port = parsePort(readOption(args, "--port", process.env.PORT || String(DEFAULT_PORT)));
+    const preferredPort = readOption(args, "--preferred-dashboard-port");
+    const candidatePorts =
+      preferredPort === undefined ? [port] : [...new Set([parsePort(preferredPort), ...DASHBOARD_PORTS])];
+    let attempt = 0;
     const stateFile = stateFilePath(args);
     const shutdownToken = randomBytes(32).toString("hex");
+    const instanceId = randomBytes(16).toString("hex");
+    const options = reportOptions(args);
     let shuttingDown = false;
+    let registered = false;
     const server = createUsageServer({
-      ...reportOptions(args),
+      ...options,
       shutdownToken,
+      instanceId,
       onShutdown: () => void shutdown(),
     });
 
-    server.listen(port, host, async () => {
+    server.once("listening", async () => {
       const address = server.address();
-      const actualPort = typeof address === "object" && address ? address.port : port;
+      const actualPort = typeof address === "object" && address ? address.port : candidatePorts[attempt];
       const url = formatUrl(host, actualPort);
       try {
         await registerService(stateFile, {
@@ -368,6 +421,8 @@ export async function runCli({
           edition,
           entryFile,
           shutdownToken,
+          instanceId,
+          homeDir: profilePath(options.homeDir),
           host,
           port: actualPort,
           url,
@@ -376,9 +431,10 @@ export async function runCli({
           nodeExecArgv: process.execArgv,
           startedAt: new Date().toISOString(),
         });
+        registered = true;
         console.log(`${displayName} dashboard: ${url}`);
       } catch (error) {
-        console.error(error.stack || error.message);
+        reportStartupError(error.message);
         server.close(() => {
           process.exit(1);
         });
@@ -386,10 +442,26 @@ export async function runCli({
     });
 
     server.on("error", async (error) => {
-      await removeService(stateFile, process.pid);
-      console.error(error.message);
+      if (!registered && error.code === "EADDRINUSE" && attempt + 1 < candidatePorts.length) {
+        attempt += 1;
+        server.listen(candidatePorts[attempt], host);
+        return;
+      }
+      const message =
+        error.code !== "EADDRINUSE"
+          ? error.message
+          : preferredPort === undefined
+            ? `${error.message}. Choose a free port with --port <port>.`
+            : `EADDRINUSE: dashboard ports ${DEFAULT_PORT}–${DASHBOARD_PORTS.at(-1)} on ${host} are in use. Choose a free port with --port <port>.`;
+      reportStartupError(message);
+      if (registered) await removeService(stateFile, process.pid);
       process.exitCode = 1;
     });
+
+    function reportStartupError(message) {
+      console.error(message);
+      if (process.connected) process.send?.({ error: message });
+    }
 
     const shutdown = async () => {
       if (shuttingDown) {
@@ -408,9 +480,10 @@ export async function runCli({
     process.once("SIGTERM", () => {
       void shutdown();
     });
+    server.listen(candidatePorts[attempt], host);
   }
 
-  async function startGateway(args, { announce = true } = {}) {
+  async function startGateway(args, { announce = true, preferredPort = undefined } = {}) {
     const stateFile = stateFilePath(args);
     const cliPath = entryFile;
     const memoryMb = parsePositiveInteger(
@@ -418,21 +491,37 @@ export async function runCli({
       "--memory-mb",
     );
     const runArgs = withoutOption(args, "--memory-mb");
+    if (preferredPort !== undefined) runArgs.push("--preferred-dashboard-port", String(preferredPort));
     const child = spawn(process.execPath, [`--max-old-space-size=${memoryMb}`, cliPath, "run", ...runArgs], {
       cwd: process.cwd(),
       detached: true,
       windowsHide: true,
       env: process.env,
-      stdio: "ignore",
+      stdio: ["ignore", "ignore", "ignore", "ipc"],
     });
 
-    child.unref();
-
-    const service = await waitForRegisteredService(stateFile, child.pid);
-    if (announce) {
-      console.log(`${displayName} gateway started: ${service.url} (pid ${service.pid})`);
+    let startupError;
+    child.on("message", (message) => {
+      if (message && typeof message === "object" && "error" in message && typeof message.error === "string") {
+        startupError = message.error;
+      }
+    });
+    child.on("error", (error) => {
+      startupError = error.message;
+    });
+    try {
+      const service = await waitForRegisteredService(stateFile, child.pid);
+      if (announce) {
+        console.log(`${displayName} gateway started: ${service.url} (pid ${service.pid})`);
+      }
+      return service;
+    } catch (error) {
+      if (child.exitCode === null && child.pid) child.kill();
+      throw startupError ? new Error(startupError) : error;
+    } finally {
+      if (child.connected) child.disconnect();
+      child.unref();
     }
-    return service;
   }
 
   function openUrl(url) {
@@ -455,8 +544,44 @@ export async function runCli({
 
   async function openDashboard(args) {
     const stateFile = stateFilePath(args);
-    const services = (await runningServices(stateFile)).filter(sameEntry);
-    const service = services[0] || (await startGateway(args, { announce: false }));
+    const host = readOption(args, "--host", process.env.HOST || DEFAULT_HOST);
+    const portOption = readOption(args, "--port", process.env.PORT || undefined);
+    const port = portOption === undefined ? undefined : parsePort(portOption);
+    const profile = profilePath(reportOptions(args).homeDir);
+    const preferredFile = `${stateFile}.dashboard.json`;
+    const service = await withServicesLock(
+      preferredFile,
+      async () => {
+        for (const active of await runningServices(stateFile)) {
+          const sameInstallation = sameEntry(active);
+          if (!sameInstallation && port !== undefined) continue;
+          const activeProfile =
+            active.homeDir ||
+            profilePath(reportOptions(Array.isArray(active.argv) ? active.argv : []).homeDir, active.cwd);
+          if (activeProfile !== profile || !(await verifyDashboardService(active))) continue;
+          if (sameInstallation && active.host === host && (!port || active.port === port)) return active;
+          throw new Error(
+            `This data folder is already served at ${active.url}. Stop that service before starting another.`,
+          );
+        }
+        if (port !== undefined) return startGateway(args, { announce: false });
+
+        const key = JSON.stringify([edition, entryFile, profile, host]);
+        const saved = (await readJsonFile(preferredFile)) ?? {};
+        const rememberedPort = saved[key];
+        const preferredPort = DASHBOARD_PORTS.includes(rememberedPort) ? rememberedPort : DEFAULT_PORT;
+        const started = await startGateway(args, { announce: false, preferredPort });
+        if (started.port !== preferredPort) {
+          try {
+            await writeJsonFile(preferredFile, { ...saved, [key]: started.port });
+          } catch (error) {
+            console.error(`Unable to remember the dashboard port: ${error.message}`);
+          }
+        }
+        return started;
+      },
+      SERVICE_LOCK_STALE_MS,
+    );
     if (!hasFlag(args, "--no-open") && process.env.CODEX_USAGE_OPEN !== "0") {
       openUrl(service.url);
     }
