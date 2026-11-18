@@ -171,6 +171,15 @@ function clientFingerprint(sourceFingerprint, contextVersion = "", asOf = null, 
     .digest("hex");
 }
 
+function sameRoutedSource(left, right) {
+  return (
+    left?.routingFingerprint &&
+    left.routingFingerprint === right?.routingFingerprint &&
+    left.fingerprint === right.fingerprint &&
+    left.auxiliary === right.auxiliary
+  );
+}
+
 function usageViewVersion(
   fingerprint,
   source,
@@ -1483,6 +1492,7 @@ export function createUsageServer(options = {}, definition) {
           let result;
           let source;
           let resultSource;
+          let matchingRoutingFingerprint;
           let cached;
           let captured = false;
           let readAttempts = 0;
@@ -1490,6 +1500,7 @@ export function createUsageServer(options = {}, definition) {
           do {
             if (readAttempts) await loadUsageStore({ check: false });
             const acquiredStatus = usageStore.status;
+            let afterRead = null;
             source = !importContext ? publishedSource : null;
             if (source && !syncPromise) {
               const previousSource = source;
@@ -1510,7 +1521,7 @@ export function createUsageServer(options = {}, definition) {
                   ...currentOptions,
                   importStoreFile: sourceImports.file,
                 };
-                const afterRead = source.acquisition
+                afterRead = source.acquisition
                   ? await summaryCache.readCertifiedSourceState(readOptions, {
                       ...source,
                       acquisition: source.acquisition,
@@ -1562,10 +1573,26 @@ export function createUsageServer(options = {}, definition) {
                 }
               }
             }
+            // Derived writes change cache signatures without changing the response's routing identity.
+            matchingRoutingFingerprint =
+              !captured &&
+              source?.signature !== publishedSource?.signature &&
+              !syncPromise &&
+              !pendingAfterPublication &&
+              !sourceUpdatePending &&
+              afterRead?.publication &&
+              !afterRead.publication.pending &&
+              afterRead.fingerprint === result.status?.fingerprint &&
+              sameRoutedSource(afterRead, source) &&
+              sameRoutedSource(afterRead, publishedSource) &&
+              (!features || features.sameQueryContext(result.pricingCatalog || pricingCatalog, pricingCatalog))
+                ? afterRead.routingFingerprint
+                : null;
             // A captured cache hit is coherent; a miss must not chase an endless stream of commits.
           } while (
             !cached &&
             !captured &&
+            !matchingRoutingFingerprint &&
             ++readAttempts < 2 &&
             (syncPromise || source?.signature !== publishedSource?.signature)
           );
@@ -1576,7 +1603,7 @@ export function createUsageServer(options = {}, definition) {
               source?.signature !== publishedSource?.signature ||
               source?.fingerprint !== result.status?.fingerprint)
           ) {
-            // The worker's fact fingerprint keeps this response coherent and the next check pending.
+            // An uncertain publication cannot supply a version or authorize a cache write.
             source = null;
           }
           const responseCatalog = result.pricingCatalog || pricingCatalog;
@@ -1588,7 +1615,7 @@ export function createUsageServer(options = {}, definition) {
           sendJson(response, 200, {
             sourceVersion: usage.sourceVersion,
             fingerprint: clientFingerprint(
-              source?.routingFingerprint || published.fingerprint,
+              source?.routingFingerprint || matchingRoutingFingerprint || published.fingerprint,
               responseCatalog?.version,
               asOf,
               result.summary.range.timeZone,

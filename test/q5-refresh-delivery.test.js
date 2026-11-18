@@ -6,6 +6,7 @@ import { appendFile, mkdir, writeFile } from "node:fs/promises";
 import { syncBuiltinESMExports } from "node:module";
 import { ServerResponse } from "node:http";
 import path from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import { zstdCompressSync } from "node:zlib";
 
@@ -27,6 +28,15 @@ function usageLine(total) {
     timestamp: "2026-10-04T13:00:00.000Z",
     payload: { type: "token_count", info: { last_token_usage: { total_tokens: total, input_tokens: total } } },
   })}\n`;
+}
+
+function evictQuotaWindowCache(databaseFile) {
+  const database = new DatabaseSync(databaseFile);
+  try {
+    assert.equal(database.prepare("DELETE FROM usage_quota_window_cache").run().changes, 1);
+  } finally {
+    database.close();
+  }
 }
 
 async function json(base, query) {
@@ -81,7 +91,7 @@ test("Q5 cache miss cannot label a newer dashboard with the previous source fing
   }
 });
 
-for (const check of ["status", "unchanged-sync", "unchanged-sync-miss", "append"]) {
+for (const check of ["status", "unchanged-sync", "unchanged-sync-miss", "derived-quota-cache-miss", "append"]) {
   test(`Q5 a read finishes without chasing repeated ${check} checks`, async () => {
     const fixture = createCodexIntegrationFixture();
     // These checks vary publications, not executor lifetime.
@@ -104,6 +114,8 @@ for (const check of ["status", "unchanged-sync", "unchanged-sync-miss", "append"
           reads++;
           signatures.add(source.signature);
           if (reads === 1) assert.ok(result, "the target read must already own a complete cached publication");
+          if (check === "derived-quota-cache-miss" && reads === 1)
+            evictQuotaWindowCache(fixture.serverOptions.databaseFile);
           if (reads <= 6) {
             checking = true;
             try {
@@ -118,7 +130,7 @@ for (const check of ["status", "unchanged-sync", "unchanged-sync-miss", "append"
             }
           }
         }
-        return check === "unchanged-sync-miss" ? null : result;
+        return check.endsWith("-miss") ? null : result;
       };
       const read = await json(base, `/api/usage?${QUERY}&skipCheck=1`);
       if (check !== "append") assert.equal(signatures.size, 1, "no-data checks keep the same publication");
@@ -138,8 +150,13 @@ for (const check of ["status", "unchanged-sync", "unchanged-sync-miss", "append"
   });
 }
 
-for (const stage of ["cache", "dashboard"]) {
-  test(`Q5 a cache miss has a bounded retry while commits overlap every ${stage} await`, async (t) => {
+for (const stage of ["cache", "dashboard", "derived-follow-up"]) {
+  const cacheStage = stage !== "dashboard";
+  const testName =
+    stage === "derived-follow-up"
+      ? "Q5 a follow-up keeps its routing fingerprint across derived quota cache commits"
+      : `Q5 a cache miss has a bounded retry while commits overlap every ${stage} await`;
+  test(testName, async (t) => {
     const fixture = createCodexIntegrationFixture();
     const dshHome = path.join(path.dirname(fixture.serverOptions.databaseFile), "dsh-continuous");
     const dshFile = path.join(dshHome, "sessions", "fixture", "continuous", "session.v4.jsonl.zstd");
@@ -225,7 +242,7 @@ for (const stage of ["cache", "dashboard"]) {
         if (checking || (targetKey && key !== targetKey)) return originalGet.call(this, key, ...args);
         targetKey = key;
         reads++;
-        if (stage === "cache") await appendBoth();
+        if (cacheStage) await appendBoth();
         return null;
       };
       UsageSummaryCache.prototype.publish = async function (key, ...args) {
@@ -236,18 +253,38 @@ for (const stage of ["cache", "dashboard"]) {
       assert.ifError(deliveryError);
       assert.equal(
         reads,
-        stage === "cache" ? 2 : 1,
+        cacheStage ? 2 : 1,
         "an uncaptured miss retries at most once; a completed read does not chase the next commit",
       );
-      assert.equal(read.summary.totals.total, stage === "cache" ? 30 : 0);
+      assert.equal(read.summary.totals.total, cacheStage ? 30 : 0);
       if (stage === "dashboard") assert.ok(read.usageVersion, "the captured batch retains its completed identity");
       assert.equal(publications, 0, "a raced dashboard must not be cached with an older source");
       assert.equal((await json(base, `/api/status?since=${read.fingerprint}`)).changed, true);
       UsageSummaryCache.prototype.get = originalGet;
       t.mock.restoreAll();
+      let followUpReads = 0;
+      if (stage === "derived-follow-up") {
+        UsageSummaryCache.prototype.get = async function (key, ...args) {
+          if (checking || key !== targetKey || followUpReads >= 2) return originalGet.call(this, key, ...args);
+          followUpReads++;
+          checking = true;
+          try {
+            evictQuotaWindowCache(fixture.serverOptions.databaseFile);
+            const checked = await json(base, "/api/usage?preset=all&bucket=day");
+            assert.equal(checked.summary.totals.total, 30);
+          } finally {
+            checking = false;
+          }
+          return null;
+        };
+      }
       const followUp = await json(base, `/api/usage?${QUERY}&skipCheck=1`);
-      assert.equal(followUp.summary.totals.total, stage === "cache" ? 30 : 15);
+      assert.equal(followUp.summary.totals.total, cacheStage ? 30 : 15);
       assert.equal((await json(base, `/api/status?since=${followUp.fingerprint}`)).changed, false);
+      if (stage === "derived-follow-up") {
+        assert.ok(followUpReads > 0, "the follow-up must observe a derived cache commit");
+        assert.equal(publications, 0, "a derived commit must still invalidate the old cache signature");
+      }
     } finally {
       UsageSummaryCache.prototype.get = originalGet;
       UsageSummaryCache.prototype.publish = originalPublish;
