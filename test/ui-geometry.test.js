@@ -623,6 +623,32 @@ async function hoverSurface(page, selector, expectedHost, failures, options) {
   return light;
 }
 
+async function sampleShadowMarker(page, clip, railOffset) {
+  const screenshot = await page.screenshot({ clip, scale: "css" });
+  return page.evaluate(
+    async ({ image, railOffset }) => {
+      const bitmap = await createImageBitmap(await (await fetch(image)).blob());
+      const { width, height } = bitmap;
+      const canvas = new OffscreenCanvas(width, height);
+      const context = canvas.getContext("2d");
+      context.drawImage(bitmap, 0, 0);
+      bitmap.close();
+      const pixels = context.getImageData(0, 0, width, height).data;
+      const counts = { rail: 0, corner: 0 };
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const i = (y * width + x) * 4;
+          if (pixels[i] < 160 || pixels[i + 1] > 80 || pixels[i + 2] < 160) continue;
+          if (x >= railOffset) counts.rail++;
+          if (x < 16 && y >= height - 16) counts.corner++;
+        }
+      }
+      return counts;
+    },
+    { image: `data:image/png;base64,${screenshot.toString("base64")}`, railOffset },
+  );
+}
+
 test("UI geometry uses the production app and isolated source fixtures", async (t) => {
   const runtime = await resolveBrowserRuntime();
   if (!runtime) {
@@ -829,28 +855,11 @@ test("UI geometry uses the production app and isolated source fixtures", async (
               node.scrollTop = (node.scrollHeight - node.clientHeight) * fraction;
             }, fraction);
             const box = await scroll.boundingBox();
-            // Rounded screenshot clips can include a pixel shared by the well and the rail.
-            // Compare only device pixels wholly inside the scrollbar, including its rounded ends.
-            const railLeft = Math.ceil(box.x + box.width - geometry.gutter);
-            const railTop = Math.ceil(box.y);
-            const rail = {
-              x: railLeft,
-              y: railTop,
-              width: Math.floor(box.x + box.width) - railLeft,
-              height: Math.floor(box.y + box.height) - railTop,
-            };
+            const shadow = `#${id} .comparison-table-frame::after`;
             const corner = { x: box.x, y: box.y + box.height - 16, width: 16, height: 16 };
-            const railWithShadow = await page.screenshot({ clip: rail });
             const cornerWithShadow = await page.screenshot({ clip: corner });
-            const hidden = await page.addStyleTag({
-              content: `#${id} .comparison-table-frame::after { box-shadow: none; }`,
-            });
+            const hidden = await page.addStyleTag({ content: `${shadow} { box-shadow: none; }` });
             try {
-              assert.deepEqual(
-                await page.screenshot({ clip: rail }),
-                railWithShadow,
-                `${id} ${fraction}: shadow never paints over scrollbar`,
-              );
               assert.notDeepEqual(
                 await page.screenshot({ clip: corner }),
                 cornerWithShadow,
@@ -858,6 +867,26 @@ test("UI geometry uses the production app and isolated source fixtures", async (
               );
             } finally {
               await hidden.evaluate((node) => node.remove());
+            }
+
+            // Sample the marked shadow and scrollbar in one frame while keeping the production clip.
+            const x = Math.ceil(box.x);
+            const y = Math.ceil(box.y);
+            const right = box.x + box.width;
+            const clip = { x, y, width: Math.floor(right) - x, height: Math.floor(box.y + box.height) - y };
+            const railOffset = Math.ceil(right - geometry.gutter) - x;
+            const marker = await page.addStyleTag({ content: `${shadow} { box-shadow: inset 0 0 0 16px #f0f; }` });
+            try {
+              const pixels = await sampleShadowMarker(page, clip, railOffset);
+              assert.ok(pixels.corner > 0, `${id} ${fraction}: shadow probe visibly paints the well corner`);
+              assert.equal(pixels.rail, 0, `${id} ${fraction}: shadow never paints over scrollbar`);
+              if (id === "modelComparisonTable" && fraction === 0) {
+                await marker.evaluate((node) => node.sheet.cssRules[0].style.setProperty("clip-path", "none"));
+                const unclipped = await sampleShadowMarker(page, clip, railOffset);
+                assert.ok(unclipped.rail > 0, "removing the production clip visibly paints the scrollbar");
+              }
+            } finally {
+              await marker.evaluate((node) => node.remove());
             }
           }
         }
