@@ -4,9 +4,21 @@ on:
   push:
     branches: [main]
   pull_request:
+  schedule:
+    - cron: '17 2 * * 1'
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      release-candidate:
+        type: boolean
+        default: false
 
 permissions:
   contents: read
+
+concurrency:
+  group: ci-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   TZ: Asia/Shanghai
@@ -19,37 +31,75 @@ jobs:
   test:
     runs-on: windows-latest
     strategy:
-      fail-fast: false
       matrix:
-        node-version: [24, 26]
+        node-version: ["${{ (inputs.release-candidate || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && '26' || '24' }}"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
           cache: npm
-      - run: npm ci
-      - name: Use canonical Windows temp paths
-        shell: pwsh
+      - name: Check documentation and select CI scope
+        id: changes
+        if: ${{ !inputs.release-candidate && (github.event_name == 'pull_request' || github.event_name == 'push') }}
+        env:
+          CI_BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: node scripts/ci-changes.mjs
+      - name: Install dev dependencies
+        if: steps.changes.outputs.docs-only != 'true'
+        run: npm.cmd ci --prefer-offline
+      - name: Check types, lint and formatting
+        if: steps.changes.outputs.docs-only != 'true'
         run: |
+          npm.cmd run typecheck
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm.cmd run lint
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm.cmd run format:check
+      - name: Set up Windows test paths and Edge driver
+        if: steps.changes.outputs.docs-only != 'true'
+        run: |
+          $browser = Join-Path $env:RUNNER_TEMP "waifu-agent-usage-browser"
+          npm.cmd install --prefix "$browser" --no-package-lock --no-save playwright@1.62.1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           "TEMP=$env:RUNNER_TEMP" >> $env:GITHUB_ENV
           "TMP=$env:RUNNER_TEMP" >> $env:GITHUB_ENV
-      - name: Set up browser checks
-        env:
-          AGENT_USAGE_PLAYWRIGHT_MODULE: ${{ runner.temp }}/waifu-agent-usage-browser/node_modules/playwright/index.mjs
-        run: |
-          npm.cmd install --prefix "$env:RUNNER_TEMP/waifu-agent-usage-browser" --no-package-lock --no-save playwright@1.62.1
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          "AGENT_USAGE_PLAYWRIGHT_MODULE=$env:AGENT_USAGE_PLAYWRIGHT_MODULE" >> $env:GITHUB_ENV
+          "AGENT_USAGE_PLAYWRIGHT_MODULE=$browser/node_modules/playwright/index.mjs" >> $env:GITHUB_ENV
       - name: Build matching Windows helper
+        if: steps.changes.outputs.docs-only != 'true'
         run: |
           npm.cmd run native:build
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           npm.cmd run native:check
+      - name: Run core Windows suite
+        if: github.event_name == 'pull_request' && steps.changes.outputs.docs-only != 'true'
+        timeout-minutes: 10
+        run: |
+          $core = @(
+            "test/ci-changes.test.js"
+            "test/cli.test.js"
+            "test/cli-editions.test.js"
+            "test/source-wake.test.js"
+            "test/lite-server.test.js"
+            "test/lite-cross-edition-store.test.js"
+            "test/three-path-parity.test.js"
+            "test/jsonl-source-bounded.test.js"
+            "test/usage-record-connection.test.js"
+            "test/history-archive-api.test.js"
+            "test/achievement-dialog-browser.test.js"
+            "test/package-release.test.js"
+          )
+          npm.cmd test -- --test-reporter=spec --test-concurrency=4 @core
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm.cmd test -- --test-reporter=spec --test-concurrency=1 test/q5-refresh-delivery.test.js
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm.cmd test -- --test-reporter=spec '--test-name-pattern=^ZCode 1000-event history' test/usage-source-prefix-publication.test.js
       - name: Run full Windows suite
+        if: github.event_name != 'pull_request' && steps.changes.outputs.docs-only != 'true'
         timeout-minutes: 30
-        run: npm test -- --test-reporter=spec --test-concurrency=4 --test-timeout=720000
+        run: npm.cmd test -- --test-reporter=spec --test-concurrency=4 --test-timeout=720000
       - name: Run explicit Windows native acceptance
+        if: steps.changes.outputs.docs-only != 'true' && (github.event_name != 'pull_request' || steps.changes.outputs.native == 'true')
         timeout-minutes: 10
         env:
           Q6_TEST_HELPER: ${{ github.workspace }}/native/windows-source-proof/bin/windows-source-proof.exe
@@ -62,22 +112,3 @@ jobs:
           $env:TMP = $env:TEMP
           New-Item -ItemType Directory -Path "$env:TEMP" -Force | Out-Null
           npm.cmd test -- --test-reporter=spec --test-concurrency=1 test/usage-source-acquisition.test.js test/usage-source-additions.test.js test/usage-source-coalescing.test.js test/usage-source-directory.test.js test/final-status-version.test.js test/usage-source-acquisition-server.test.js test/history-archive-native-lock.test.js test/windows-source-build.test.js
-      - run: npm run typecheck
-      - run: npm run lint
-      - run: npm run format:check
-      - name: Package and accept actual Waifu and Lite ZIPs
-        if: matrix.node-version == 24
-        timeout-minutes: 10
-        run: |
-          npm.cmd run package:release -- output/releases/${{ github.run_id }}-${{ github.run_attempt }}
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          npm.cmd run package:check -- output/releases/${{ github.run_id }}-${{ github.run_attempt }} --browser
-      - uses: actions/upload-artifact@v4
-        if: always() && matrix.node-version == 24
-        with:
-          name: waifu-agent-usage-waifu-lite-windows
-          path: |
-            output/releases/${{ github.run_id }}-${{ github.run_attempt }}/*.zip
-            output/releases/${{ github.run_id }}-${{ github.run_attempt }}/release-manifest.json
-            output/releases/${{ github.run_id }}-${{ github.run_attempt }}/acceptance-*.json
-          if-no-files-found: ignore
