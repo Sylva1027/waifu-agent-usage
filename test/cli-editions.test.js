@@ -413,7 +413,10 @@ test("Lite CLI archive compaction requires native leases under the module ban", 
     assert.match(result.stderr, /HISTORY_BACKUP_LEASE_REQUIRED/);
     const store = await f.reopen();
     const registered = store.database.prepare("SELECT database_path FROM archive_segments ORDER BY start_ms").all();
-    assert.deepEqual(registered.map((row) => row.database_path), f.packages);
+    assert.deepEqual(
+      registered.map((row) => row.database_path),
+      f.packages,
+    );
     assert.deepEqual(clean(await f.read()), expected);
     return;
   }
