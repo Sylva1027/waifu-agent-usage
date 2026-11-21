@@ -14,7 +14,7 @@ Supported harnesses: Codex, Claude Code, OpenCode, ZCode, DSH, WorkBuddy, and He
 Please install and start Waifu Agent Usage on my computer:
 https://github.com/Sylva1027/waifu-agent-usage
 
-1. Ask whether I want the full Waifu experience or Lite for focused usage tracking. Use a stable runtime ZIP for that edition if it supports automatic port fallback in the dashboard command. Otherwise, use the current source.
+1. Ask whether I want the full Waifu experience or Lite for focused usage tracking. Download the latest stable ZIP for that edition from Releases.
 2. Check that Node.js meets engines.node in package.json. If installation is needed, get it from https://nodejs.org/.
 3. Put the program in a permanent folder. If an installation already exists, follow the repository's upgrade guide to preserve usage data, source settings, and achievement profiles before updating program files.
 4. Run node src/cli.js dashboard from the installation folder. For Lite from source, run node src/cli-lite.js dashboard.
@@ -23,13 +23,13 @@ https://github.com/Sylva1027/waifu-agent-usage
 
 ## Manual installation
 
-Install [Node.js](https://nodejs.org/en/download) 23.8 or newer, download a [Windows x64 package below](#download), and extract it. Open a terminal in that folder and run:
+Install [Node.js](https://nodejs.org/en/download) 23.8 or newer, then download and extract your chosen edition. Both ZIPs were verified on Windows x64, Ubuntu 24.04 x64, and macOS 15 on Apple Silicon. Open a terminal in the extracted folder and run the command below.
 
 ```bash
-node src/cli.js run
+node src/cli.js dashboard
 ```
 
-Open the URL printed in the terminal and use source management to scan and import your logs. No `npm install` or compilation is needed. Press `Ctrl+C` to stop the server. Versions with automatic port fallback can launch with `dashboard` and use a Windows desktop shortcut. [Getting started](docs/01-getting-started.en.md)
+The command starts the service in the background and opens your browser. Use source management to scan and import your logs. The ZIP is ready to run without installing npm packages or compiling. Stop the service with `node src/cli.js stop`. [Getting started](docs/01-getting-started.en.md)
 
 ## Features
 
@@ -62,8 +62,8 @@ Open the URL printed in the terminal and use source management to scan and impor
 
 | Edition | What to expect | Download |
 | --- | --- | --- |
-| **Waifu** | The full experience, including cost estimates, character skins, sharing, and achievements. | [Download Waifu](https://github.com/Sylva1027/waifu-agent-usage/releases/download/v1.0/1.0-waifu.zip) |
-| **Lite** | Focused usage tracking and trends in a simple dark interface, with history management. | [Download Lite](https://github.com/Sylva1027/waifu-agent-usage/releases/download/v1.0/1.0-lite.zip) |
+| **Waifu** | The full experience, including cost estimates, character skins, sharing, and achievements. | [Download Waifu](https://github.com/Sylva1027/waifu-agent-usage/releases/download/v1.0a/1.0a-waifu.zip) |
+| **Lite** | Focused usage tracking and trends in a simple dark interface, with history management. | [Download Lite](https://github.com/Sylva1027/waifu-agent-usage/releases/download/v1.0a/1.0a-lite.zip) |
 
 [All releases](https://github.com/Sylva1027/waifu-agent-usage/releases) · [Getting started](docs/01-getting-started.en.md) · [Data sources](docs/10-data-sources.en.md) · [Backup and transfer](docs/history-retention.en.md) · [Upgrading](docs/15-delivery-upgrade.en.md) · [Development](docs/03-development.en.md) · [Documentation index](docs/00-index.en.md)
 

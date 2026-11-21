@@ -2,36 +2,18 @@
 
 简体中文 · [English](01-getting-started.en.md)
 
-v1.0 提供两个 Windows x64 运行包，包内 `version` 均为 `1.0.0`：
+v1.0a 的两份 ZIP 均在 Windows x64、Ubuntu 24.04 x64 和 macOS 15（Apple Silicon）验收通过。包内 `version` 为 `1.0.1`。
 
-- **[Waifu 完整版](https://github.com/Sylva1027/waifu-agent-usage/releases/download/v1.0/1.0-waifu.zip)**：用量、趋势、费用估算、深浅主题、角色皮肤、分享和成就。
-- **[Lite 轻量版](https://github.com/Sylva1027/waifu-agent-usage/releases/download/v1.0/1.0-lite.zip)**：用量与趋势、来源管理、额度窗口和历史管理，采用简洁的深色界面。
+- **[Waifu 完整版](https://github.com/Sylva1027/waifu-agent-usage/releases/download/v1.0a/1.0a-waifu.zip)**：用量、趋势、费用估算、深浅主题、角色皮肤、分享和成就。
+- **[Lite 轻量版](https://github.com/Sylva1027/waifu-agent-usage/releases/download/v1.0a/1.0a-lite.zip)**：用量与趋势、来源管理、额度窗口和历史管理，采用简洁的深色界面。
 
-[查看 v1.0 Release](https://github.com/Sylva1027/waifu-agent-usage/releases/tag/v1.0)。
+[查看 v1.0a Release](https://github.com/Sylva1027/waifu-agent-usage/releases/tag/v1.0a)。
 
 ## 安装与启动
 
 1. 安装 [Node.js](https://nodejs.org/en/download) 23.8 或更高版本。
 2. 将所选运行包解压到固定目录；已有安装先按[升级说明](15-delivery-upgrade.md)备份。
-3. 在解压后的包根目录打开终端，运行：
-
-```sh
-node src/cli.js run
-```
-
-打开终端打印的地址。两版运行包使用相同命令，无需 `npm install` 或编译。使用期间保持终端打开，按 `Ctrl+C` 停止。下次在同一目录执行同一命令即可。
-
-端口已占用时可以指定其他端口：
-
-```sh
-node src/cli.js run --port 3766
-```
-
-Windows 命令示例使用 PowerShell 7（`pwsh`）。
-
-## 自动换端口的后台启动
-
-使用当前源码或支持自动换端口的运行包时，可在安装目录运行以下命令。上方的 v1.0 下载仍按前面的步骤启动。
+3. 在解压后的包根目录打开终端。两版运行包均直接运行下列命令，无需 `npm install` 或编译。
 
 ```sh
 node src/cli.js dashboard
@@ -40,6 +22,8 @@ node src/cli.js dashboard
 `dashboard` 在后台启动服务并用浏览器打开实际访问地址。首次默认尝试 3765，端口占用时尝试 3766–3770。下次启动优先尝试上次成功使用的备用端口。通过 `--port` 或 `PORT` 指定端口时，服务使用指定值。
 
 用 `node src/cli.js stop` 停止后台服务。启动时若指定了 `--state-file`，停止时也传入同一路径。
+
+亦可用 `node src/cli.js run` 在前台运行，打开终端打印的地址，按 `Ctrl+C` 停止。
 
 ## Windows 桌面快捷方式
 

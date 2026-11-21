@@ -2,13 +2,13 @@
 
 简体中文 · [English](15-delivery-upgrade.en.md)
 
-v1.0 提供 **Waifu** 与 **Lite**，包内 `version` 为 `1.0.0`。两版沿用既有用量数据目录和来源配置。
+v1.0a 提供 **Waifu** 与 **Lite**，包内 `version` 为 `1.0.1`。两版沿用既有用量数据目录和来源配置。
 
-- [下载 1.0-waifu.zip](https://github.com/Sylva1027/waifu-agent-usage/releases/download/v1.0/1.0-waifu.zip)
-- [下载 1.0-lite.zip](https://github.com/Sylva1027/waifu-agent-usage/releases/download/v1.0/1.0-lite.zip)
-- [v1.0 Release](https://github.com/Sylva1027/waifu-agent-usage/releases/tag/v1.0)
+- [下载 1.0a-waifu.zip](https://github.com/Sylva1027/waifu-agent-usage/releases/download/v1.0a/1.0a-waifu.zip)
+- [下载 1.0a-lite.zip](https://github.com/Sylva1027/waifu-agent-usage/releases/download/v1.0a/1.0a-lite.zip)
+- [v1.0a Release](https://github.com/Sylva1027/waifu-agent-usage/releases/tag/v1.0a)
 
-运行要求为 Node.js `>=23.8`，Windows x64 运行包无需安装 npm 依赖或编译。首次安装见[开始使用](01-getting-started.md)。
+运行要求为 Node.js `>=23.8`。两份 ZIP 均可直接运行，无需安装 npm 依赖或编译。首次安装和验收平台见[开始使用](01-getting-started.md)。
 
 ## 保留数据升级
 

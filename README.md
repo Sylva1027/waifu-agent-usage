@@ -14,7 +14,7 @@ Waifu Agent Usage 是由 Sylva1027 独立维护的本地 AI 编程用量看板�
 请在我的电脑上安装并启动 Waifu Agent Usage：
 https://github.com/Sylva1027/waifu-agent-usage
 
-1. 询问我想要完整体验的 Waifu，还是专注用量统计的 Lite。优先使用支持 dashboard 自动换端口的正式 ZIP 运行包。如暂无支持的运行包，使用当前源码。
+1. 询问我想要完整体验的 Waifu，还是专注用量统计的 Lite。从 Releases 下载所选版本的最新正式 ZIP 运行包。
 2. 检查 Node.js 是否满足 package.json 中的 engines.node 要求。需要安装时，从 https://nodejs.org/ 获取。
 3. 将程序放到固定目录。如果已有安装，先按仓库升级文档保留用量数据、来源配置和成就档案，再更新程序文件。
 4. 在安装目录运行 node src/cli.js dashboard。使用 Lite 源码时，运行 node src/cli-lite.js dashboard。
@@ -23,13 +23,13 @@ https://github.com/Sylva1027/waifu-agent-usage
 
 ## 手动安装
 
-准备好 [Node.js](https://nodejs.org/en/download) 23.8 或更高版本，下载[下方的 Windows x64 运行包](#下载)，解压后在目录中打开终端：
+准备好 [Node.js](https://nodejs.org/en/download) 23.8 或更高版本，下载下方的所选版本，解压后在目录中打开终端。两版均已在 Windows x64、Ubuntu 24.04 x64 和 macOS 15（Apple Silicon）上验收。
 
 ```bash
-node src/cli.js run
+node src/cli.js dashboard
 ```
 
-打开终端打印的地址，在来源管理中扫描并导入日志。运行包无需 `npm install` 或编译。按 `Ctrl+C` 停止服务。支持自动换端口的版本可用 `dashboard` 启动，也可在 Windows 创建桌面快捷方式。 [开始使用](docs/01-getting-started.md)
+命令在后台启动服务并打开浏览器。在来源管理中扫描并导入日志。运行包无需 `npm install` 或编译，用 `node src/cli.js stop` 停止服务。 [开始使用](docs/01-getting-started.md)
 
 ## 功能一览
 
@@ -62,8 +62,8 @@ node src/cli.js run
 
 | 版本 | 简介 | 下载 |
 | --- | --- | --- |
-| **Waifu 完整版** | 完整体验，包含费用估算、角色皮肤、分享与成就。 | [下载 Waifu](https://github.com/Sylva1027/waifu-agent-usage/releases/download/v1.0/1.0-waifu.zip) |
-| **Lite 轻量版** | 专注用量统计与趋势，简洁的深色界面，保留历史管理。 | [下载 Lite](https://github.com/Sylva1027/waifu-agent-usage/releases/download/v1.0/1.0-lite.zip) |
+| **Waifu 完整版** | 完整体验，包含费用估算、角色皮肤、分享与成就。 | [下载 Waifu](https://github.com/Sylva1027/waifu-agent-usage/releases/download/v1.0a/1.0a-waifu.zip) |
+| **Lite 轻量版** | 专注用量统计与趋势，简洁的深色界面，保留历史管理。 | [下载 Lite](https://github.com/Sylva1027/waifu-agent-usage/releases/download/v1.0a/1.0a-lite.zip) |
 
 [查看所有版本](https://github.com/Sylva1027/waifu-agent-usage/releases) · [使用指南](docs/01-getting-started.md) · [数据来源](docs/10-data-sources.md) · [备份与转移](docs/history-retention.md) · [升级说明](docs/15-delivery-upgrade.md) · [开发文档](docs/03-development.md) · [文档索引](docs/00-index.md)
 

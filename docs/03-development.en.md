@@ -2,7 +2,7 @@
 
 [简体中文](03-development.md) · English
 
-The project uses Node.js ESM, SQLite, and native browser JavaScript. For v1.0, package version is `1.0.0`, `releaseVersion` is `1.0`, and the download tag is `v1.0`.
+The project uses Node.js ESM, SQLite, and native browser JavaScript. For v1.0a, package version is `1.0.1`, `releaseVersion` is `1.0a`, and the download tag is `v1.0a`.
 
 ## Environment and startup
 
@@ -84,17 +84,17 @@ The outputs are `native/windows-source-proof/bin/windows-source-proof.exe` and t
 
 The helper uses an existing NTFS change journal to accelerate source verification and provides archive read leases. Without source proof, verification falls back to content checks; explicit archive compaction requires available file leases. The helper does not enable the system journal. See the [helper guide](../native/windows-source-proof/README.md) for build options.
 
-## Package v1.0
+## Package v1.0a
 
 After checks pass and the matching Windows helper is ready:
 
 ```powershell
 npm.cmd run native:check
-npm.cmd run package:release -- output/releases-v1.0
-npm.cmd run package:check -- output/releases-v1.0 --browser
+npm.cmd run package:release -- output/releases-v1.0a
+npm.cmd run package:check -- output/releases-v1.0a --browser
 ```
 
-The output must be a new directory under `output/`. Names come from `releaseVersion: "1.0"`: `1.0-waifu.zip` and `1.0-lite.zip`; the package `version` is `1.0.0`.
+The output must be a new directory under `output/`. The `releaseVersion: "1.0a"` setting produces `1.0a-waifu.zip` and `1.0a-lite.zip`. The package `version` is `1.0.1`.
 
 The packager collects actual dependencies, edition assets, the license, and the Windows helper; it excludes user data, development dependencies, and authoring PNGs. `release-manifest.json` records ZIP and per-file SHA-256 hashes. `package:check` verifies the extracted packages and runs isolated HTTP checks; `--browser` adds browser checks.
 

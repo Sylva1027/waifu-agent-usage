@@ -2,13 +2,13 @@
 
 [简体中文](15-delivery-upgrade.md) · English
 
-Version 1.0 offers **Waifu** and **Lite**, both with package version `1.0.0`. Both continue to use the existing usage data directory and source configuration.
+Version 1.0a offers **Waifu** and **Lite**, both with package version `1.0.1`. Both continue to use the existing usage data directory and source configuration.
 
-- [Download 1.0-waifu.zip](https://github.com/Sylva1027/waifu-agent-usage/releases/download/v1.0/1.0-waifu.zip)
-- [Download 1.0-lite.zip](https://github.com/Sylva1027/waifu-agent-usage/releases/download/v1.0/1.0-lite.zip)
-- [v1.0 release](https://github.com/Sylva1027/waifu-agent-usage/releases/tag/v1.0)
+- [Download 1.0a-waifu.zip](https://github.com/Sylva1027/waifu-agent-usage/releases/download/v1.0a/1.0a-waifu.zip)
+- [Download 1.0a-lite.zip](https://github.com/Sylva1027/waifu-agent-usage/releases/download/v1.0a/1.0a-lite.zip)
+- [v1.0a release](https://github.com/Sylva1027/waifu-agent-usage/releases/tag/v1.0a)
 
-The Windows x64 packages require Node.js `>=23.8` and need no npm dependency installation or compilation. For a first installation, see [getting started](01-getting-started.en.md).
+Both ZIPs are ready to run with Node.js `>=23.8`. See [getting started](01-getting-started.en.md) for first-time setup and verified platforms.
 
 ## Upgrade while preserving data
 

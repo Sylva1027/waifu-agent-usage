@@ -1,7 +1,7 @@
 {
   "name": "waifu-agent-usage",
-  "version": "1.0.0",
-  "releaseVersion": "1.0",
+  "version": "1.0.1",
+  "releaseVersion": "1.0a",
   "private": true,
   "description": "A local AI coding usage dashboard with Lite and Waifu editions, independently maintained by Sylva1027.",
   "author": "Sylva1027",
