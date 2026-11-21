@@ -1,0 +1,41 @@
+name: Ubuntu and macOS core
+
+on:
+  push:
+    branches: [codex/posix-core-ci]
+
+permissions:
+  contents: read
+
+env:
+  TZ: Asia/Shanghai
+
+jobs:
+  core:
+    name: ${{ matrix.os }} / Node 24
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Run core tests
+        run: |
+          npm test -- --test-reporter=spec --test-concurrency=2 --test-timeout=120000 \
+            test/cli.test.js \
+            test/cli-editions.test.js \
+            test/source-imports.test.js \
+            test/source-wake.test.js \
+            test/lite-server.test.js \
+            test/three-path-parity.test.js \
+            test/history-archive-api.test.js
+      - name: Run refresh delivery tests
+        if: ${{ !cancelled() }}
+        run: npm test -- --test-reporter=spec --test-concurrency=1 --test-timeout=120000 test/q5-refresh-delivery.test.js

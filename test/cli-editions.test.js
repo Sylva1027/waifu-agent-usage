@@ -398,20 +398,30 @@ test("Lite history valid branches stay pure, write v3 and preserve legacy v1/v2 
   assert.equal(existsSync(path.join(f.home, ".codex-usage/achievements.sqlite")), false);
 });
 
-test("Lite CLI compacts and rolls back legacy priced/tier snapshot archives under the module ban", {
+test("Lite CLI archive compaction requires native leases under the module ban", {
   timeout: 60_000,
 }, async (t) => {
-  const { makeCompactionFixture } = await import("../test-support/history-compaction-fixture.mjs");
+  const { clean, makeCompactionFixture } = await import("../test-support/history-compaction-fixture.mjs");
   const f = await makeCompactionFixture(t);
+  const expected = process.platform === "win32" ? null : clean(await f.read());
   f.store.close();
   const probe = createLiteBoundaryProbe(f.root, { forbiddenModules: FORBIDDEN });
-  const compacted = JSON.parse(await successful(LITE, ["history", "compact", f.file, f.directory], f.root, probe.env));
+  const args = ["history", "compact", f.file, f.directory];
+  if (process.platform !== "win32") {
+    const result = await run(LITE, args, f.root, probe.env);
+    assert.equal(result.code, 1, result.stderr || result.stdout);
+    assert.match(result.stderr, /HISTORY_BACKUP_LEASE_REQUIRED/);
+    const store = await f.reopen();
+    const registered = store.database.prepare("SELECT database_path FROM archive_segments ORDER BY start_ms").all();
+    assert.deepEqual(registered.map((row) => row.database_path), f.packages);
+    assert.deepEqual(clean(await f.read()), expected);
+    return;
+  }
+  const compacted = JSON.parse(await successful(LITE, args, f.root, probe.env));
   assert.equal(compacted.switched, 2);
-  const replay = JSON.parse(await successful(LITE, ["history", "compact", f.file, f.directory], f.root, probe.env));
+  const replay = JSON.parse(await successful(LITE, args, f.root, probe.env));
   assert.equal(replay.replay, true);
-  const rollback = JSON.parse(
-    await successful(LITE, ["history", "compact", f.file, f.directory, "--rollback"], f.root, probe.env),
-  );
+  const rollback = JSON.parse(await successful(LITE, [...args, "--rollback"], f.root, probe.env));
   assert.equal(rollback.rollback, true);
   assert.equal(rollback.switched, 2);
 });
