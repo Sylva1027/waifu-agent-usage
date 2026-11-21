@@ -59,7 +59,9 @@ npm.cmd test -- --test-reporter=spec --test-concurrency=4 --test-timeout=720000
 
 浏览器测试通过 `AGENT_USAGE_PLAYWRIGHT_MODULE` 指定已安装 Playwright 的 `index.mjs`，可用 `AGENT_USAGE_EDGE_PATH` 指定 Edge。浏览器依赖只用于开发。原生行为测试可用 `Q6_TEST_HELPER` 指定助手，构建测试由 `AGENT_USAGE_TEST_NATIVE_BUILD=1` 启用。完整命令与环境见 [CI](../.github/workflows/ci.yml)。
 
-PR 的新推送会取消同一 PR 的旧 CI。纯文档更改检查新增的本地链接、插图路径，以及删除文件后留下的引用。其他 PR 在 Windows / Node 24 运行静态检查和核心测试，涉及来源、存储或 Windows 助手时加跑原生验收。代码进入 main 后跑 Node 24 全量，Node 26 全量可在 Actions 手动运行，也有每周定期检查。
+PR 的新推送会取消同一 PR 的旧 CI。纯文档更改检查新增的本地链接、插图路径，以及删除文件后留下的引用。
+
+代码 PR 在 Windows / Node 24 运行静态检查和核心测试，涉及来源、存储或 Windows 助手时加跑原生验收。代码进入 `main` 后跑 Windows / Node 24 全量。Ubuntu x64 和 Apple Silicon macOS 在代码 PR 和 `main` 上运行 Node 24 核心测试与 Playwright Chromium 验收。每周定时、手动和发布候选的兼容性检查使用 Node 26。
 
 合并到 `main` 的 PR 必须通过 GitHub Actions 的 `test (24)`。纯文档 PR 通过轻量检查即可满足这项要求。
 
