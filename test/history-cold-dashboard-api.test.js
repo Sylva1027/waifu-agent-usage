@@ -4,9 +4,10 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, unlinkSync, writeFileSync }
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { setTimeout as delay } from "node:timers/promises";
 import { codexTokenLine as tokenLine } from "../test-support/codex-log-fixture.mjs";
 
-import { createHistoryArchiveCandidate } from "../src/history-archive.js";
+import { createHistoryArchiveCandidate, prepareHistoryArchiveCommit } from "../src/history-archive.js";
 import { createUsageServer } from "../src/server.js";
 import { UsageStore } from "../src/usage-store.js";
 
@@ -16,11 +17,11 @@ const COLD_MS = Date.parse(COLD_TIME);
 const HOT_MS = Date.parse(HOT_TIME);
 const SESSION_ID = "cold-dashboard-api-session";
 
-function sessionPrefix(codexHome) {
+function sessionPrefix(codexHome, sessionId = SESSION_ID) {
   return [
     JSON.stringify({
       type: "session_meta",
-      payload: { id: SESSION_ID, source: "cli", cwd: codexHome },
+      payload: { id: sessionId, source: "cli", cwd: codexHome },
     }),
     JSON.stringify({ type: "turn_context", payload: { model: "gpt-6-sol" } }),
   ].join("\n");
@@ -96,23 +97,8 @@ async function createArchivedFixture() {
         startMs: COLD_MS,
         endMs: HOT_MS,
       });
-      const registered = await store.registerHistoryArchiveCandidate(segmentFile);
-      store.database
-        .prepare("INSERT INTO store_meta (key, value) VALUES (?, ?)")
-        .run(
-          "history_archive_event_authority",
-          JSON.stringify({ formatVersion: 1, segmentIds: [registered.segmentId] }),
-        );
-      store.database.exec("BEGIN IMMEDIATE");
-      try {
-        store.database.prepare("DELETE FROM events WHERE source_path = ?").run(usageFile);
-        store.database.exec("COMMIT");
-      } catch (error) {
-        store.database.exec("ROLLBACK");
-        throw error;
-      }
-      store.database.prepare("UPDATE source_files SET size = -1, mtime_ms = -1 WHERE path = ?").run(usageFile);
-      await store.sync({ options: source });
+      const plan = await prepareHistoryArchiveCommit(store.database, segmentFile);
+      await store.commitHistoryArchiveEvents(plan);
       assert.deepEqual(
         store.database
           .prepare("SELECT total FROM events")
@@ -186,6 +172,50 @@ test("cold-aware dashboard APIs fail closed when the authorized segment is missi
     }
   } finally {
     if (server) await server.close();
+    fixture.close();
+  }
+});
+
+test("an unsealed source selected over HTTP cannot make authorized history unreadable", {
+  timeout: 30_000,
+}, async (t) => {
+  const fixture = await createArchivedFixture();
+  const server = createUsageServer(fixture.serverOptions);
+  try {
+    const baseUrl = await listen(server);
+    const usageRoute = `${baseUrl}/api/usage?preset=all&calendarZone=utc`;
+    const before = await fetch(usageRoute, { signal: t.signal });
+    assert.equal(before.status, 200);
+    await before.json();
+
+    const source = path.join(fixture.root, "new-codex-home");
+    const file = path.join(source, "sessions", "2026", "07", "12", "rollout-unsealed-source.jsonl");
+    mkdirSync(path.dirname(file), { recursive: true });
+    writeFileSync(file, `${sessionPrefix(source, "unsealed-session")}\n${tokenLine(COLD_TIME, 25, 25)}\n`);
+    const imported = await fetch(`${baseUrl}/api/imports`, {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: baseUrl },
+      body: JSON.stringify({ path: source }),
+      signal: t.signal,
+    });
+    const accepted = await imported.json();
+    assert.equal(imported.status, 200, JSON.stringify(accepted));
+    let task = accepted.importTask;
+    while (task.status === "running") {
+      await delay(20, undefined, { signal: t.signal });
+      const response = await fetch(`${baseUrl}/api/imports`, { signal: t.signal });
+      assert.equal(response.status, 200);
+      ({ importTask: task } = await response.json());
+    }
+    assert.match(task.error?.message ?? task.warnings?.join("\n") ?? "", /rollout-unsealed-source\.jsonl/);
+
+    const after = await fetch(usageRoute, { signal: t.signal });
+    const body = await after.json();
+    assert.equal(after.status, 200, JSON.stringify(body));
+    assert.equal(body.summary.totals.total, fixture.oracleKeys.summary.total);
+    assert.equal(body.summary.eventCount, fixture.oracleKeys.summary.eventCount);
+  } finally {
+    await server.close();
     fixture.close();
   }
 });

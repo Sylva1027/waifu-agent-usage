@@ -1,4 +1,5 @@
 import { removeLegacyUsageRecordTriggers } from "./usage-record-migration.js";
+import { isSqliteBusy } from "./sqlite-busy.js";
 import { sourceFactIdentity } from "./usage-fact-identity.js";
 import {
   publishedUsageEventFromRow,
@@ -1409,6 +1410,17 @@ export function createUsageFactStoreClass(QueryOwner) {
       if (this.database) {
         return;
       }
+      await mkdir(path.dirname(this.databaseFile), { recursive: true });
+      if (this.database) return;
+      try {
+        this.#initializeDatabase();
+      } catch (error) {
+        this.#closeFailedConnection(error);
+        throw error;
+      }
+    }
+
+    #initializeDatabase() {
       this.sourceProof ||= new UsageSourceProof();
       this.clearEditionQueryCaches?.("open");
       this.ownsDatabase = true;
@@ -1423,15 +1435,14 @@ export function createUsageFactStoreClass(QueryOwner) {
       this.summaryProjectionCache = null;
       // D3：quota 观测映射同为连接级状态（键含实例修订，但连接/库可能已换）⇒ 重开时一并复位。
       this.quotaObservationCache = null;
-      await mkdir(path.dirname(this.databaseFile), { recursive: true });
       this.database = new DatabaseSync(
         this.databaseFile === ":memory:" ? this.databaseFile : path.toNamespacedPath(this.databaseFile),
       );
+      this.database.exec("PRAGMA busy_timeout = 5000");
       removeLegacyUsageRecordTriggers(this.database);
       this.registerReadFunctions();
       this.database.exec(`
       PRAGMA foreign_keys = ON;
-      PRAGMA busy_timeout = 5000;
       PRAGMA journal_mode = WAL;
       PRAGMA journal_size_limit = 67108864;
       CREATE TABLE IF NOT EXISTS store_meta (
@@ -1511,17 +1522,10 @@ export function createUsageFactStoreClass(QueryOwner) {
        */
       const migrate = (sql, nextVersion, verify) => {
         this.database.exec("BEGIN IMMEDIATE");
-        try {
-          this.database.exec(sql);
-          if (verify) verify();
-          this.database.exec(`PRAGMA user_version = ${nextVersion}`);
-          this.database.exec("COMMIT");
-        } catch (error) {
-          this.database.exec("ROLLBACK");
-          this.database.close();
-          this.database = null;
-          throw error;
-        }
+        this.database.exec(sql);
+        if (verify) verify();
+        this.database.exec(`PRAGMA user_version = ${nextVersion}`);
+        this.database.exec("COMMIT");
       };
       if (version === 1) {
         migrate(
@@ -1686,8 +1690,6 @@ export function createUsageFactStoreClass(QueryOwner) {
         version = 25;
       }
       if (version !== 0 && version !== STORE_SCHEMA_VERSION) {
-        this.database.close();
-        this.database = null;
         throw new Error(`不支持的用量索引版本：${version}`);
       }
       if (version === 0) {
@@ -1756,16 +1758,11 @@ export function createUsageFactStoreClass(QueryOwner) {
       if (this.readMetaRaw("codex_rollout_reader_version") !== CODEX_ROLLOUT_READER_VERSION) {
         // Re-read existing Codex events once: readline used to split valid Unicode JSON strings.
         this.database.exec("BEGIN");
-        try {
-          this.database.exec(
-            "UPDATE source_files SET size = -1, mtime_ms = -1 WHERE kind IN ('main', 'jetbrains', 'extra', 'codex')",
-          );
-          this.writeMeta("codex_rollout_reader_version", CODEX_ROLLOUT_READER_VERSION);
-          this.database.exec("COMMIT");
-        } catch (error) {
-          this.database.exec("ROLLBACK");
-          throw error;
-        }
+        this.database.exec(
+          "UPDATE source_files SET size = -1, mtime_ms = -1 WHERE kind IN ('main', 'jetbrains', 'extra', 'codex')",
+        );
+        this.writeMeta("codex_rollout_reader_version", CODEX_ROLLOUT_READER_VERSION);
+        this.database.exec("COMMIT");
       }
       this.generatedAt = this.readMeta("generated_at");
       const quotaEvidence = this.readMetaRaw("quota_source_log_evidence");
@@ -1782,6 +1779,14 @@ export function createUsageFactStoreClass(QueryOwner) {
       this.openedUsageProjectionIdentity = this.usageProjectionDatabaseIdentity();
       this.openedUsageProjectionChanges = Number(this.database.prepare("SELECT total_changes() AS value").get().value);
       this.observedPublicationChanges = this.openedUsageProjectionChanges;
+    }
+
+    #closeFailedConnection(error) {
+      try {
+        this.close();
+      } catch (closeError) {
+        error.closeError = closeError;
+      }
     }
 
     usageProjectionDatabaseIdentity() {
@@ -1981,6 +1986,18 @@ export function createUsageFactStoreClass(QueryOwner) {
       // D4：回滚后派生缓存一并失效（含观测聚合）。
     }
 
+    #rollbackWriteTransaction(error, database = this.database) {
+      try {
+        if (database.isTransaction !== false) database.exec("ROLLBACK");
+      } catch (rollbackError) {
+        error.rollbackError = rollbackError;
+        this.#closeFailedConnection(error);
+        throw error;
+      } finally {
+        this.rollbackReplaceFileTransaction();
+      }
+    }
+
     readMeta(key) {
       return String(this.database.prepare("SELECT value FROM store_meta WHERE key = ?").get(key)?.value || "");
     }
@@ -2101,11 +2118,7 @@ export function createUsageFactStoreClass(QueryOwner) {
         this.commitStoreRevision("history-archive-rebind");
         this.syncDerivedRevision();
       } catch (error) {
-        try {
-          this.database.exec("ROLLBACK");
-        } finally {
-          this.rollbackReplaceFileTransaction();
-        }
+        this.#rollbackWriteTransaction(error);
         throw error;
       }
     }
@@ -2378,11 +2391,7 @@ export function createUsageFactStoreClass(QueryOwner) {
           eventCount: candidate.events.rows,
         };
       } catch (error) {
-        try {
-          this.database.exec("ROLLBACK");
-        } finally {
-          this.rollbackReplaceFileTransaction();
-        }
+        this.#rollbackWriteTransaction(error);
         throw error;
       }
     }
@@ -2544,11 +2553,11 @@ export function createUsageFactStoreClass(QueryOwner) {
      * @param {string} filePath
      * @param {Record<string, unknown>} source
      * @param {{reuseProjection?: boolean}} [options]
-     * @returns {Promise<{prefixes: any[], revisionState: any | null, usedProjection?: boolean}>}
+     * @returns {Promise<{prefixes: any[], unboundRanges: {segmentId: string, startMs: number, endMs: number}[], revisionState: any | null, usedProjection?: boolean}>}
      */
     async historyArchiveReparsePrefixes(filePath, source, { reuseProjection = false } = {}) {
       const authorizedSegmentIds = historyArchiveAuthorizedSegmentIds(this.database);
-      if (authorizedSegmentIds.size === 0) return { prefixes: [], revisionState: null };
+      if (authorizedSegmentIds.size === 0) return { prefixes: [], unboundRanges: [], revisionState: null };
       const allRecords = this.database
         .prepare(
           `SELECT segment_id, database_path, database_sha256, start_ms, end_ms, event_count, registered_at_ms
@@ -2563,6 +2572,7 @@ export function createUsageFactStoreClass(QueryOwner) {
       );
       const records = allRecords.filter((record) => authorizedSegmentIds.has(String(record.segment_id)));
       const prefixes = [];
+      const unboundRanges = [];
       const owned = new Set();
       let published = null;
       const projectionIdentity =
@@ -2615,6 +2625,7 @@ export function createUsageFactStoreClass(QueryOwner) {
             });
           const coldSource = snapshot.sourceIdentities.find((source) => String(source.path) === filePath);
           if (!coldSource && source.kind !== "hermes") {
+            unboundRanges.push({ segmentId: String(record.segment_id), startMs, endMs });
             originalRows.close();
             owned.delete(originalRows);
             continue;
@@ -2680,7 +2691,12 @@ export function createUsageFactStoreClass(QueryOwner) {
             observedCount: 0,
           });
         }
-        return { prefixes, revisionState: { segmentsById, revisionsBySegment }, usedProjection: Boolean(published) };
+        return {
+          prefixes,
+          unboundRanges,
+          revisionState: { segmentsById, revisionsBySegment },
+          usedProjection: Boolean(published),
+        };
       } catch (error) {
         for (const rows of owned) rows.close();
         throw error;
@@ -3156,8 +3172,7 @@ export function createUsageFactStoreClass(QueryOwner) {
         };
       } catch (error) {
         closePrevious();
-        database.exec("ROLLBACK");
-        this.rollbackReplaceFileTransaction();
+        this.#rollbackWriteTransaction(error, database);
         if (error === mismatch) return null;
         if (!warningsPublished) publishWarnings();
         throw error;
@@ -3179,7 +3194,8 @@ export function createUsageFactStoreClass(QueryOwner) {
       if (reused) return reused;
       const database = this.database;
       const codexThreaded = canonicalizeKind(source.kind || "codex") === "codex";
-      const hot = !database.prepare("SELECT 1 FROM store_meta WHERE key=?").get(HISTORY_ARCHIVE_EVENT_AUTHORITY_META);
+      const authorityBeforeProof = this.readMetaRaw(HISTORY_ARCHIVE_EVENT_AUTHORITY_META);
+      const hot = authorityBeforeProof === undefined;
       if (!hot) await this.ensureHistoryProjectionTracking();
       const proofEligible =
         (hot || this.sourceAppendArchiveEnd() !== null) &&
@@ -3280,8 +3296,13 @@ export function createUsageFactStoreClass(QueryOwner) {
       const projectLogMalformedLines = new Set();
       database.exec("BEGIN IMMEDIATE");
       this.writeTransactionDepth += 1;
-      const projectionBefore = !hot ? this.historyProjectionModule.readHistoryProjectionStamp(database) : null;
       try {
+        if (this.readMetaRaw(HISTORY_ARCHIVE_EVENT_AUTHORITY_META) !== authorityBeforeProof)
+          throw Object.assign(new Error("Archive authority changed before source replacement"), {
+            code: "LIVE_SOURCE_CHANGED",
+            retryable: true,
+          });
+        const projectionBefore = !hot ? this.historyProjectionModule.readHistoryProjectionStamp(database) : null;
         const previousSource = database
           .prepare("SELECT path, kind, home_id, home_label, home_path, size FROM source_files WHERE path = ?")
           .get(filePath);
@@ -3343,6 +3364,14 @@ export function createUsageFactStoreClass(QueryOwner) {
               coldPrefix.observedRows.set(String(coldPrefix.observedCount++), { ...row });
               return;
             }
+            const unboundRange = coldReparse.unboundRanges.find(
+              ({ startMs, endMs }) => row.timestamp_ms >= startMs && row.timestamp_ms < endMs,
+            );
+            if (unboundRange)
+              throw historyArchiveError(
+                "HISTORY_ARCHIVE_SOURCE_UNSEALED",
+                `Source ${filePath} has usage in authorized archive segment ${unboundRange.segmentId} without a cold source binding`,
+              );
             insertEvent.add(EVENT_INSERT_COLUMNS.map((column) => row[column]));
             if (hot && codexThreaded) {
               addCumulativeFingerprint(nextCumulative, row);
@@ -3635,8 +3664,7 @@ export function createUsageFactStoreClass(QueryOwner) {
           journalBytes: (sourceFence?.journalBytes || 0) + (proofWork?.journalBytes || 0),
         };
       } catch (error) {
-        database.exec("ROLLBACK");
-        this.rollbackReplaceFileTransaction();
+        this.#rollbackWriteTransaction(error, database);
         if (progressEligible && error.code === "SOURCE_PROGRESS_UNSUPPORTED") {
           return this.replaceFile({ filePath, source, info, relocatedFrom }, { onWarning, progress: false });
         }
@@ -3671,8 +3699,9 @@ export function createUsageFactStoreClass(QueryOwner) {
         database.prepare("SELECT 1 FROM usage_source_reparse WHERE source_path=?").get(filePath)
       )
         return null;
+      const authorityBeforeProof = this.readMetaRaw(HISTORY_ARCHIVE_EVENT_AUTHORITY_META);
       let archiveEnd = null;
-      if (database.prepare("SELECT 1 FROM store_meta WHERE key=?").get(HISTORY_ARCHIVE_EVENT_AUTHORITY_META)) {
+      if (authorityBeforeProof !== undefined) {
         archiveEnd = this.sourceAppendArchiveEnd();
         if (archiveEnd === null) return null;
         await this.ensureHistoryProjectionTracking();
@@ -3730,14 +3759,16 @@ export function createUsageFactStoreClass(QueryOwner) {
       database.exec("BEGIN IMMEDIATE");
       this.writeTransactionDepth += 1;
       try {
-        const projectionBefore =
-          archiveEnd === null ? null : this.historyProjectionModule.readHistoryProjectionStamp(database);
-        // Verification awaited filesystem I/O: another connection may have replaced the cursor meanwhile.
+        // Source proof awaits I/O before this lock, so recheck the archive and source cursor.
         if (
+          this.readMetaRaw(HISTORY_ARCHIVE_EVENT_AUTHORITY_META) !== authorityBeforeProof ||
+          (archiveEnd !== null && this.sourceAppendArchiveEnd() !== archiveEnd) ||
           JSON.stringify(readUsageSourceProgress(database, filePath)) !== JSON.stringify(saved) ||
           database.prepare("SELECT 1 FROM usage_source_reparse WHERE source_path=?").get(filePath)
         )
           throw unsupported();
+        const projectionBefore =
+          archiveEnd === null ? null : this.historyProjectionModule.readHistoryProjectionStamp(database);
         if (
           archiveEnd !== null &&
           codex &&
@@ -3852,8 +3883,7 @@ export function createUsageFactStoreClass(QueryOwner) {
           journalBytes: (verified.journalBytes || 0) + (proof.journalBytes || 0),
         };
       } catch (error) {
-        database.exec("ROLLBACK");
-        this.rollbackReplaceFileTransaction();
+        this.#rollbackWriteTransaction(error, database);
         if (error.code === "SOURCE_PROGRESS_UNSUPPORTED") return null;
         throw error;
       } finally {
@@ -3933,6 +3963,7 @@ export function createUsageFactStoreClass(QueryOwner) {
           }
           return { ...result, ...(receipt ? { acquisition: receipt } : {}) };
         } catch (error) {
+          if (!this.database) throw error;
           acquisition.invalidate();
           if (error.code === "LIVE_SOURCE_CHANGED" && error.retryable === true)
             throw Object.assign(new Error("Source update is still pending"), {
@@ -4135,6 +4166,7 @@ export function createUsageFactStoreClass(QueryOwner) {
             if (
               error.code !== "LIVE_SOURCE_CHANGED" ||
               error.retryable !== true ||
+              !this.database ||
               this.database.isTransaction ||
               this.writeTransactionDepth
             )
@@ -4206,8 +4238,9 @@ export function createUsageFactStoreClass(QueryOwner) {
             }
             acceptSource(file, outcome);
           } catch (error) {
-            if (plan) throw error;
-            if (file.relocatedFrom || needsReparse || error.code === "LIVE_SOURCE_CHANGED") throw error;
+            if (plan || !this.database) throw error;
+            if (file.relocatedFrom || needsReparse || error.code === "LIVE_SOURCE_CHANGED" || isSqliteBusy(error))
+              throw error;
             if (canonicalizeKind(file.source.kind) === "codex" && (Number(error?.errcode) & 0xff) === 19) throw error;
             warnings.push(`无法索引 ${file.filePath}: ${error.message}`);
           }
@@ -4399,16 +4432,11 @@ export function createUsageFactStoreClass(QueryOwner) {
             await buildUsageFingerprint({ ...syncOptions, homes, scannedFiles: files, failedHomes }),
           );
       }
-      this.homes = homes;
-      this.generatedAt = new Date().toISOString();
-      this.fingerprint = status.fingerprint;
-      this.checkedAt = status.checkedAt;
-      this.warnings = warnings;
-
+      const generatedAt = new Date().toISOString();
       this.database.exec("BEGIN IMMEDIATE");
       try {
-        this.writeMeta("generated_at", this.generatedAt);
-        this.writeMeta("fingerprint", this.fingerprint);
+        this.writeMeta("generated_at", generatedAt);
+        this.writeMeta("fingerprint", status.fingerprint);
         if (!plan) this.writeMeta("usage_file_fingerprints", JSON.stringify(nextFingerprints));
         if (this.readMetaRaw("perf_file_warnings") !== publishedFileWarningsSnapshot) {
           this.writeMeta("perf_file_warnings", publishedFileWarningsSnapshot);
@@ -4419,6 +4447,11 @@ export function createUsageFactStoreClass(QueryOwner) {
         this.database.exec("ROLLBACK");
         throw error;
       }
+      this.homes = homes;
+      this.generatedAt = generatedAt;
+      this.fingerprint = status.fingerprint;
+      this.checkedAt = status.checkedAt;
+      this.warnings = warnings;
 
       if (usageDerivedChanged || homeSetChanged || this.storeRevision !== this.derivedRevision) {
         this.metadataCache = null;
@@ -4512,11 +4545,7 @@ export function createUsageFactStoreClass(QueryOwner) {
               this.writeMeta(LOCAL_ROLLUP_ZONE_META, localRollupZone);
               this.database.exec("COMMIT");
             } catch (error) {
-              try {
-                this.database.exec("ROLLBACK");
-              } finally {
-                this.writeTransactionDepth -= 1;
-              }
+              this.#rollbackWriteTransaction(error);
               throw error;
             }
             this.writeTransactionDepth -= 1;
@@ -4746,11 +4775,7 @@ export function createUsageFactStoreClass(QueryOwner) {
         publish(this.database, events);
         this.database.exec("COMMIT");
       } catch (error) {
-        try {
-          this.database.exec("ROLLBACK");
-        } finally {
-          this.rollbackReplaceFileTransaction();
-        }
+        this.#rollbackWriteTransaction(error);
         throw error;
       }
       if (this.writeTransactionDepth > 0) this.writeTransactionDepth -= 1;

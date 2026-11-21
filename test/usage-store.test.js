@@ -1797,6 +1797,68 @@ async function d1MakeProjectLogHome(prefix) {
   return { homeDir, importDir, file, databaseFile, options, reportOptions: { homeDir, importDirs: [importDir] } };
 }
 
+test("open closes the failed connection and retries initialization on the same store", async () => {
+  const homeDir = await mkdtemp(path.join(tmpdir(), "usage-open-retry-"));
+  const databaseFile = path.join(homeDir, "usage-index.sqlite");
+  const store = new UsageStore({ homeDir, databaseFile });
+  const key = "quota_source_log_evidence";
+  try {
+    await store.open();
+    store.writeMeta(key, "{");
+    store.close();
+
+    await assert.rejects(store.open(), SyntaxError);
+    assert.equal(store.database, null);
+
+    const repair = new DatabaseSync(databaseFile);
+    try {
+      repair.prepare("DELETE FROM store_meta WHERE key=?").run(key);
+    } finally {
+      repair.close();
+    }
+    await store.open();
+    assert.equal(store.database.prepare("PRAGMA user_version").get().user_version, STORE_SCHEMA_VERSION);
+  } finally {
+    store.close();
+    await rm(homeDir, { recursive: true, force: true });
+  }
+});
+
+test("SQLite automatic rollback preserves the source failure and allows the next sync", async () => {
+  const fixture = await d1MakeProjectLogHome("usage-auto-rollback-");
+  const options = { ...fixture.reportOptions, env: {} };
+  const store = new UsageStore({ ...fixture.options, env: {} });
+  try {
+    await store.sync({ options });
+    const source = store.database.prepare("SELECT * FROM source_files WHERE path=?");
+    const before = source.get(fixture.file);
+    assert.ok(before);
+    const revision = store.storeRevision;
+    store.database.exec(
+      "CREATE TRIGGER force_rollback BEFORE INSERT ON events BEGIN SELECT RAISE(ROLLBACK, 'injected automatic rollback'); END",
+    );
+    await appendFile(fixture.file, jsonl([d1ProjectLog("next-session", 11, "2026-07-12T02:05:00.000Z")]));
+
+    const failed = await store.sync({ options });
+    assert.equal(failed.updatedFileCount, 0);
+    assert.match(store.warnings.join("\n"), /injected automatic rollback/);
+    assert.equal(store.database.isTransaction, false);
+    assert.equal(store.writeTransactionDepth, 0);
+    assert.equal(store.storeRevision, revision);
+    assert.deepEqual(source.get(fixture.file), before);
+    assert.equal(store.database.prepare("SELECT COUNT(*) AS n FROM events").get().n, 1);
+    assert.equal(store.database.prepare("SELECT COUNT(*) AS n FROM history_replaced_facts").get().n, 0);
+
+    store.database.exec("DROP TRIGGER force_rollback");
+    const recovered = await store.sync({ options });
+    assert.equal(recovered.updatedFileCount, 1);
+    assert.equal(store.database.prepare("SELECT COUNT(*) AS n FROM events").get().n, 2);
+  } finally {
+    store.close();
+    await rm(fixture.homeDir, { recursive: true, force: true });
+  }
+});
+
 function d1DataVersion(store) {
   return Number(store.database.prepare("PRAGMA data_version").get()?.data_version ?? 0) || 0;
 }

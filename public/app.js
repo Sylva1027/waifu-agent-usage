@@ -906,6 +906,8 @@ export function renderCostDetailHtml(rows, colorMap = null) {
     .join("");
 }
 
+let highlightedSeries = null;
+
 function renderTimelineDetails(summary, channelColors, modelColors) {
   const mode = state.timelineMode;
   const label = { channel: "按渠道", model: "按模型", cost: "按花销" }[mode] || "按渠道";
@@ -922,14 +924,19 @@ function renderTimelineDetails(summary, channelColors, modelColors) {
   const rows = timelineDetailRows(summary, mode);
   if (mode === "cost") {
     container.innerHTML = renderCostDetailHtml(rows, modelColors);
-    return;
+  } else {
+    renderBarList(
+      container,
+      rows,
+      mode === "model" ? modelColors : channelColors,
+      mode === "model" ? { modelNames: true } : null,
+    );
   }
-  renderBarList(
-    container,
-    rows,
-    mode === "model" ? modelColors : channelColors,
-    mode === "model" ? { modelNames: true } : null,
-  );
+  if (highlightedSeries !== null) {
+    container.querySelectorAll(".bar-row").forEach((element, index) => {
+      element.classList.toggle("series-muted", rows[index].name !== highlightedSeries);
+    });
+  }
 }
 
 // Last table published per kind. The table markup is a pure function of the filtered rows and
@@ -1163,6 +1170,7 @@ function updateTimelineModeButtons() {
 
 export function renderTimelineLegendHtml(summary, mode, channelColors, modelColors) {
   if (!["channel", "model", "cost"].includes(mode)) throw new TypeError(`unsupported timeline mode: ${mode}`);
+  if (summary.timelineError) return "";
   const isChannel = mode === "channel";
   const isCost = mode === "cost";
   const totalsByName = new Map();
@@ -1191,23 +1199,39 @@ export function renderTimelineLegendHtml(summary, mode, channelColors, modelColo
     .map((name) => {
       const color = safeChartColor(colorFor(name));
       const escapedName = escapeHtml(isChannel ? name : displayModelName(name));
-      return (
-        '<span class="timeline-legend-item" role="listitem"><span class="timeline-legend-swatch" style="background:' +
-        color +
-        '"></span><span title="' +
-        escapedName +
-        '">' +
-        escapedName +
-        "</span></span>"
-      );
+      return `<span role="listitem"><button type="button" class="timeline-legend-item" data-series="${escapeHtml(name)}" aria-pressed="false"><span class="timeline-legend-swatch" aria-hidden="true" style="background:${color}"></span><span title="${escapedName}">${escapedName}</span></button></span>`;
     })
     .join("");
 }
 
 function renderTimelineLegend(summary, channelColors, modelColors) {
-  const container = document.querySelector("#timelineLegend");
-  if (!container) return;
+  const container = $("#timelineLegend");
+  const focused = container.contains(document.activeElement) ? document.activeElement.dataset.series : null;
   container.innerHTML = renderTimelineLegendHtml(summary, state.timelineMode, channelColors, modelColors);
+  const buttons = [...container.querySelectorAll("button[data-series]")];
+  const selected = buttons.find((button) => button.dataset.series === highlightedSeries);
+  if (selected) selected.setAttribute("aria-pressed", "true");
+  else highlightedSeries = null;
+  if (focused) buttons.find((button) => button.dataset.series === focused)?.focus({ preventScroll: true });
+}
+
+function renderTimelinePanels(summary) {
+  const channelColors = getChannelColors(summary.channels);
+  const allPeriodModels = state.periodComparison?.models || [];
+  const modelColors = getModelColors([...allPeriodModels, ...summary.models]);
+  renderTimelineLegend(summary, channelColors, modelColors);
+  renderTimelineDetails(summary, channelColors, modelColors);
+  drawTimeline(
+    $("#timelineChart"),
+    summary.timeline,
+    summary.channels,
+    channelColors,
+    summary.range,
+    state.timelineMode,
+    summary.models,
+    modelColors,
+    highlightedSeries,
+  );
 }
 
 export function maxTimelineValue(values) {
@@ -1225,6 +1249,7 @@ export function drawTimeline(
   mode = state.timelineMode,
   modelRows = [],
   modelColorsByName = getModelColors(modelRows),
+  focusedSeries = null,
 ) {
   if (!["channel", "model", "cost"].includes(mode)) throw new TypeError(`unsupported timeline mode: ${mode}`);
   const startLabel = range?.start ? dateKey(asDate(range.start), rangeCalendarZone(range)) : "";
@@ -1261,6 +1286,7 @@ export function drawTimeline(
     outline: { roleId: "chart.axis-line", lineWidth: 1 },
     ratio: window.devicePixelRatio || 1,
     range,
+    focusedSeries,
     bucket: range?.bucket || state.bucket,
     series:
       mode === "cost"
@@ -1500,6 +1526,7 @@ function renderUnavailableQuota(reason, range = null) {
   }
   const legend = $("#timelineLegend");
   if (legend) legend.innerHTML = "";
+  highlightedSeries = null;
   const detailList = $("#detailList");
   if (detailList) detailList.innerHTML = `<div class="empty">${escapeHtml(message)}</div>`;
   updateTimelineModeButtons();
@@ -1520,6 +1547,7 @@ function renderEmptySummaryState() {
   }
   const legend = $("#timelineLegend");
   if (legend) legend.innerHTML = "";
+  highlightedSeries = null;
   const details = $("#detailList");
   if (details) details.innerHTML = `<div class="empty">${escapeHtml(message)}</div>`;
   drawTimeline($("#timelineChart"), [], [], new Map(), state.emptySummaryRange, state.timelineMode);
@@ -1574,27 +1602,13 @@ function render() {
       ? `此范围超过 ${MAX_TIMELINE_SLOTS.toLocaleString(getLocale())} 个时间槽，无法生成时间分布。请缩短日期范围。`
       : "";
   }
-  const channelColors = getChannelColors(summary.channels);
-  const allPeriodModels = state.periodComparison?.models || [];
-  const modelColors = getModelColors([...allPeriodModels, ...summary.models]);
   updateTimelineModeButtons();
-  renderTimelineDetails(summary, channelColors, modelColors);
-  renderTimelineLegend(summary, channelColors, modelColors);
+  renderTimelinePanels(summary);
   renderHomes(homeRowsFromMetadata(metadata), { canModify: true, excludedIds: state.excludedHomes });
   if (!$("#importDialog")?.hidden) {
     // 数据先于弹窗就绪时，让弹窗里的来源多选同步最新列表。
     renderSourceOptions();
   }
-  drawTimeline(
-    $("#timelineChart"),
-    summary.timeline,
-    summary.channels,
-    channelColors,
-    summary.range,
-    state.timelineMode,
-    summary.models,
-    modelColors,
-  );
   updateQuotaPresetButton();
   translateRenderedDashboard();
   if (!$("#importDialog")?.hidden) translatePage($("#importDialog"));
@@ -3127,7 +3141,16 @@ async function bootDashboard() {
     const button = event.target.closest("[data-timeline-mode]");
     if (!button || button.dataset.timelineMode === state.timelineMode) return;
     state.timelineMode = button.dataset.timelineMode;
+    highlightedSeries = null;
     render();
+  });
+  $("#timelineLegend").addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-series]");
+    const summary = currentSummary();
+    if (!button || !summary) return;
+    const { series } = button.dataset;
+    highlightedSeries = highlightedSeries === series ? null : series;
+    renderTimelinePanels(summary);
   });
 
   $("#updatePricingButton").addEventListener("click", openPricingDialog);

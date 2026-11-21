@@ -23,6 +23,8 @@ node src/cli-lite.js run --port 3766 --home-dir ./output/lite-home --state-file 
 
 并行实例使用独立端口、用户数据根目录和服务注册文件。`--home-dir` 会影响默认数据与配置位置，不只是筛选来源。正式运行包的两版入口均为 `node src/cli.js run`。
 
+`--host` 或 `HOST` 可以绑定局域网地址或主机名。通配绑定时，CLI 打印本机访问地址，局域网客户端使用服务机器的实际地址和监听端口。局域网直连没有账户认证，开放绑定限于受信任网络。反向代理需先校验浏览器端来源，再按后端监听地址和端口转发 Host 与 Origin。
+
 主命令为 `waifu-agent-usage`，`codex-usage` 和 `cud` 保留兼容别名。既有 `.codex-usage` 数据目录、`CODEX_USAGE_*` 环境变量与浏览器偏好继续沿用。
 
 ## 代码入口

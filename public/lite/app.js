@@ -46,7 +46,7 @@ import {
   setLocale,
   translatePage,
 } from "../locale.js";
-import { escapeHtml, safeChartColor } from "../html-utils.js";
+import { escapeHtml } from "../html-utils.js";
 import {
   calendarParts,
   rangeCalendarZone,
@@ -208,12 +208,6 @@ function showTimelineTooltip(row, anchor) {
   }
 }
 
-function bindUsageRows(container, selector, rows, options = null) {
-  container.querySelectorAll(selector).forEach((element, index) => {
-    tooltipRows.set(element, { row: rows[index], options });
-  });
-}
-
 function isQuotaPreset(preset = state.preset) {
   return QUOTA_PRESETS.includes(preset);
 }
@@ -309,12 +303,7 @@ function renderMetrics(summary) {
   $("#cacheHitRate").title = $("#cacheHitRate").textContent;
 }
 
-function renderBarList(container, rows, colorMap = null, options = null) {
-  container.innerHTML = renderBarListHtml(rows, colorMap, options || undefined);
-  bindUsageRows(container, ".bar-row", rows, options);
-}
-
-function renderTimelineDetails(summary, channelColors, modelColors) {
+function renderTimelineDetails(summary) {
   const mode = state.timelineMode;
   const label = mode === "model" ? "按模型" : "按渠道";
   $("#detailModeLabel").textContent = label;
@@ -329,12 +318,14 @@ function renderTimelineDetails(summary, channelColors, modelColors) {
   }
   const rows = timelineDetailRows(summary, mode);
 
-  renderBarList(
-    container,
-    rows,
-    mode === "model" ? modelColors : channelColors,
-    mode === "model" ? { modelNames: true } : null,
-  );
+  const options = { modelNames: mode === "model" };
+  container.innerHTML = renderBarListHtml(rows, null, options);
+  container.querySelectorAll(".bar-row").forEach((element, index) => {
+    const row = rows[index];
+    tooltipRows.set(element, { row, options });
+    element.querySelector(".bar-fill").style.background = chartPattern(row.name, mode).css;
+    element.classList.toggle("series-muted", Boolean(highlightedSeries && highlightedSeries !== row.name));
+  });
 }
 
 const periodComparisonTables = new Map();
@@ -400,12 +391,6 @@ function updateTimelineModeButtons() {
     button.classList.toggle("active", selected);
     button.setAttribute("aria-pressed", String(selected));
   }
-}
-
-function renderTimelineLegend(summary, channelColors, modelColors) {
-  const container = document.querySelector("#timelineLegend");
-  if (!container) return;
-  container.innerHTML = renderTimelineLegendHtml(summary, state.timelineMode, channelColors, modelColors);
 }
 
 function timelineRowAt(canvas, event) {
@@ -564,7 +549,7 @@ function renderUnavailableQuota(reason, range = null) {
   const detailList = $("#detailList");
   if (detailList) detailList.innerHTML = `<div class="empty">${escapeHtml(message)}</div>`;
   updateTimelineModeButtons();
-  drawTimeline($("#timelineChart"), [], [], new Map(), unavailableRange, state.timelineMode);
+  drawTimeline($("#timelineChart"), [], [], unavailableRange);
   updateQuotaPresetButton();
   updateDateRangeControl();
 }
@@ -583,7 +568,7 @@ function renderEmptySummaryState() {
   if (legend) legend.innerHTML = "";
   const details = $("#detailList");
   if (details) details.innerHTML = `<div class="empty">${escapeHtml(message)}</div>`;
-  drawTimeline($("#timelineChart"), [], [], new Map(), state.emptySummaryRange, state.timelineMode);
+  drawTimeline($("#timelineChart"), [], [], state.emptySummaryRange);
 }
 
 function render() {
@@ -634,27 +619,13 @@ function render() {
       ? `此范围超过 ${MAX_TIMELINE_SLOTS.toLocaleString(getLocale())} 个时间槽，无法生成时间分布。请缩短日期范围。`
       : "";
   }
-  const channelColors = getChannelColors(summary.channels);
-  const allPeriodModels = state.periodComparison?.models || [];
-  const modelColors = getModelColors([...allPeriodModels, ...summary.models]);
   updateTimelineModeButtons();
-  renderTimelineDetails(summary, channelColors, modelColors);
-  renderTimelineLegend(summary, channelColors, modelColors);
+  renderTimelinePanels(summary);
   renderHomes(homeRowsFromMetadata(metadata), { canModify: true, excludedIds: state.excludedHomes });
   if (!$("#importDialog")?.hidden) {
     // 数据先于弹窗就绪时，让弹窗里的来源多选同步最新列表。
     renderSourceOptions();
   }
-  drawTimeline(
-    $("#timelineChart"),
-    summary.timeline,
-    summary.channels,
-    channelColors,
-    summary.range,
-    state.timelineMode,
-    summary.models,
-    modelColors,
-  );
   updateQuotaPresetButton();
   translateRenderedDashboard();
   if (!$("#importDialog")?.hidden) translatePage($("#importDialog"));
@@ -934,17 +905,58 @@ function setLanguage(locale) {
   runtime.renderAutoRefreshControls();
   translatePage();
 }
-const GRAYS = ["#dedede", "#a5a5a5", "#777777", "#c4c4c4", "#8b8b8b", "#eeeeee"];
-function getModelColor(name) {
-  let h = 0;
-  for (const c of String(name)) h = (h * 31 + c.charCodeAt(0)) | 0;
-  return GRAYS[(h >>> 0) % GRAYS.length];
+// A six-pixel repeat remains recognizable inside both a narrow hour column and a detail bar.
+const TILE_SIZE = 6;
+const TILE_MARKS = [
+  "", // solid
+  "M-3 3L3 -3 M-3 9L9 -3 M3 9L9 3", // diagonal
+  "M2.9 3h0.2", // dot (round caps)
+  "M0 3h6", // horizontal
+  "M1.5 0v6 M0 1.5h6", // grid
+  "M3 0v6", // vertical
+  "M-3 3l6 6 M-3 -3l12 12 M3 -3l6 6", // reverse diagonal
+  "M0 1.5h3 M3 4.5h3", // check
+];
+const chartPatternSlots = { channel: new Map(), model: new Map() };
+const chartPatterns = [];
+let highlightedSeries = null;
+
+// Reserve remembered patterns for visible names before assigning free ones to newcomers.
+export function assignChartPatternSlots(names, slots) {
+  const palette = Array.from({ length: TILE_MARKS.length * 2 }, (_, index) => index);
+  for (let start = 0; start < names.length; start += palette.length) {
+    const free = new Set(palette);
+    const pending = names.slice(start, start + palette.length).filter((name) => !free.delete(slots.get(name)));
+    const available = [...free];
+    for (const [index, name] of pending.entries()) slots.set(name, available[index]);
+  }
 }
-function getModelColors(rows = []) {
-  return new Map(rows.map((row) => [row.name, getModelColor(row.name)]));
-}
-function getChannelColors(rows = []) {
-  return getModelColors(rows);
+
+function chartPattern(name, mode) {
+  const slot = chartPatternSlots[mode].get(name) ?? 0;
+  if (chartPatterns[slot]) return chartPatterns[slot];
+  const mark = slot % TILE_MARKS.length;
+  const dark = Boolean((slot + Math.floor(slot / TILE_MARKS.length)) % 2);
+  const base = dark ? "#737373" : "#dedede";
+  let css = base;
+  let paint = base;
+  if (mark) {
+    const tile = document.createElement("canvas");
+    tile.width = tile.height = TILE_SIZE * 2;
+    const ctx = tile.getContext("2d");
+    ctx.scale(2, 2);
+    ctx.fillStyle = base;
+    ctx.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
+    ctx.strokeStyle = dark ? "#f5f5f5" : "#404040";
+    ctx.lineWidth = mark === 2 || mark === 7 ? 3 : 1.5;
+    if (mark === 2) ctx.lineCap = "round";
+    ctx.stroke(new Path2D(TILE_MARKS[mark]));
+    paint = ctx.createPattern(tile, "repeat");
+    paint.setTransform(new DOMMatrix().scale(0.5));
+    css = `url(${tile.toDataURL()}) 0 0 / ${TILE_SIZE}px ${TILE_SIZE}px repeat`;
+  }
+  chartPatterns[slot] = { css, paint };
+  return chartPatterns[slot];
 }
 function timelineBreakdownReady(rows, mode) {
   return (
@@ -965,7 +977,7 @@ function timelineDetailRows(summary, mode) {
 function formatTimelineTooltip(row, mode = "channel", range = null) {
   const info = quotaTimelineSlotInfo(row);
   const note = info?.note ? `<div class="usage-tooltip-note">${escapeHtml(info.note)}</div>` : "";
-  const title = info?.title || timelineSlotRangeTitle(row, range);
+  const title = info?.title || timelineSlotRangeTitle(row, range) || row.key;
   if (mode === "channel") return formatUsageTooltip(row, title, { compactTokens: true }) + note;
   return (
     '<div class="usage-tooltip-title">' +
@@ -991,7 +1003,9 @@ function formatTimelineTooltip(row, mode = "channel", range = null) {
 }
 function timelineAccessibleLabel(row, mode, range) {
   const info = quotaTimelineSlotInfo(row);
-  const title = info ? [info.title, info.note].filter(Boolean).join(", ") : timelineSlotRangeTitle(row, range);
+  const title = info
+    ? [info.title, info.note].filter(Boolean).join(", ")
+    : timelineSlotRangeTitle(row, range) || row.key;
   return (
     title +
     ", " +
@@ -1002,40 +1016,31 @@ function timelineAccessibleLabel(row, mode, range) {
       .join(", ")
   );
 }
-function renderTimelineLegendHtml(summary, mode, channelColors, modelColors) {
-  const rows = summary.timelineError ? [] : summary.timeline || [];
-  const names = new Set(
-    rows.flatMap((r) =>
-      (mode === "model" ? r.models : r.channels || [])
-        .filter((s) => usageValue(s.total, "total") > 0)
-        .map((s) => s.name),
-    ),
-  );
-  return [...names]
-    .sort((a, b) => a.localeCompare(b))
-    .map(
-      (name) =>
-        '<span class="timeline-legend-item" role="listitem"><span class="timeline-legend-swatch" style="background:' +
-        safeChartColor((mode === "model" ? modelColors : channelColors).get(name) || getModelColor(name)) +
-        '"></span><span title="' +
-        escapeHtml(name) +
-        '">' +
-        escapeHtml(mode === "model" ? displayModelName(name) : name) +
-        "</span></span>",
-    )
+function renderTimelinePanels(summary) {
+  const mode = state.timelineMode;
+  const groups = timelineDetailRows(summary, mode);
+  const names = groups.filter((row) => usageValue(row.total) > 0).map((row) => row.name);
+  assignChartPatternSlots(names, chartPatternSlots[mode]);
+  if (!names.includes(highlightedSeries)) highlightedSeries = null;
+  renderTimelineDetails(summary);
+  const legend = $("#timelineLegend");
+  const focusedName = legend.contains(document.activeElement) ? document.activeElement.dataset.series : null;
+  legend.innerHTML = names
+    .map((name) => {
+      const label = escapeHtml(mode === "model" ? displayModelName(name) : name);
+      return `<span role="listitem"><button type="button" class="timeline-legend-item" data-series="${escapeHtml(name)}" aria-pressed="${name === highlightedSeries}">
+      <span class="timeline-legend-swatch" aria-hidden="true" style="background:${chartPattern(name, mode).css}"></span>
+      <span>${label}</span></button></span>`;
+    })
     .join("");
+  if (focusedName)
+    [...legend.querySelectorAll("button")]
+      .find((button) => button.dataset.series === focusedName)
+      ?.focus({ preventScroll: true });
+  drawTimeline($("#timelineChart"), summary.timeline, groups, summary.range);
 }
-function drawTimeline(
-  canvas,
-  rows,
-  channelRows = [],
-  channelColors = new Map(),
-  range = null,
-  mode = state.timelineMode,
-  modelRows = [],
-  modelColorsByName = getModelColors(modelRows),
-) {
-  if (!["channel", "model"].includes(mode)) throw new TypeError(`unsupported timeline mode: ${mode}`);
+function drawTimeline(canvas, rows, groups, range) {
+  const mode = state.timelineMode;
   const styles = getComputedStyle(document.documentElement);
   const unavailableQuota = isQuotaPreset(range?.preset) && range?.quotaState !== "available";
   const messages = {
@@ -1044,16 +1049,19 @@ function drawTimeline(
     emptyAria: unavailableQuota,
     unavailable: rows.length && !timelineBreakdownReady(rows, mode) ? localizeText("模型明细不可用，请重启服务") : null,
   };
-  const tokenSeries = () =>
-    tokenTimelineSeries(mode, {
-      channelRows,
-      channelColors,
-      modelRows,
-      modelColorsByName,
-      modelColor: getModelColor,
-      channelColor: styles.getPropertyValue("--green").trim() || "#aaaaaa",
-      formatAxis: formatCompact,
-    });
+  const paint = (name) =>
+    highlightedSeries && name !== highlightedSeries ? "#404040" : chartPattern(name, mode).paint;
+  const fills = new Map(groups.map(({ name }) => [name, paint(name)]));
+  const series = tokenTimelineSeries(mode, {
+    channelRows: groups,
+    channelColors: fills,
+    modelRows: groups,
+    modelColorsByName: fills,
+    modelColor: paint,
+    channelColor: "#aaaaaa",
+    formatAxis: formatCompact,
+  });
+  series.sortStacks = false; // Keep layers in detail/legend order across every interval.
   return drawTimelineCanvas(canvas, rows, {
     styles,
     palette: { line: "#777777", text: "#cccccc", fallback: "#cccccc" },
@@ -1061,7 +1069,7 @@ function drawTimeline(
     ratio: window.devicePixelRatio || 1,
     range,
     bucket: range?.bucket || state.bucket,
-    series: tokenSeries(),
+    series,
     messages,
     timelineBars,
     drawnChartBox,
@@ -1196,8 +1204,15 @@ async function bootDashboard() {
   $("#timelineModes").addEventListener("click", (event) => {
     const button = event.target.closest("[data-timeline-mode]");
     if (!button || button.dataset.timelineMode === state.timelineMode) return;
+    highlightedSeries = null;
     state.timelineMode = button.dataset.timelineMode;
     render();
+  });
+  $("#timelineLegend").addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-series]");
+    if (!button || !state.summary) return;
+    highlightedSeries = button.dataset.series === highlightedSeries ? null : button.dataset.series;
+    renderTimelinePanels(state.summary);
   });
 
   $("#addImportButton").addEventListener("click", sourceManager.openImportDialog);

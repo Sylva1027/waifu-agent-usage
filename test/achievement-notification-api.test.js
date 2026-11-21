@@ -167,7 +167,13 @@ test("late SSE requests disconnect for native retry while imported runtimes reta
       await new Promise((resolve) =>
         server.emit(
           "request",
-          { url: "/api/usage-events?watch=0", method: "GET", headers: {} },
+          {
+            url: "/api/usage-events?watch=0",
+            method: "GET",
+            headers: { host: "127.0.0.1:3765" },
+            headersDistinct: { host: ["127.0.0.1:3765"] },
+            socket: { localAddress: "127.0.0.1", localPort: 3765 },
+          },
           {
             writeHead: (code, values) => {
               status = code;

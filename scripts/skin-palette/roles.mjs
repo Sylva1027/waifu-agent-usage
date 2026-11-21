@@ -1108,7 +1108,7 @@ export const ROLE_CATALOG = Object.freeze([
   {
     id: "chart.legend-label",
     kind: "text",
-    selector: CSS("#timelineLegend:not([hidden]) > .timeline-legend-item > span:not(.timeline-legend-swatch)"),
+    selector: CSS("#timelineLegend:not([hidden]) .timeline-legend-item > span:not(.timeline-legend-swatch)"),
     states: ["dashboard-default", "dense-data"],
     foreground: v("--muted"),
     background: BG_PANEL_CERAMIC,

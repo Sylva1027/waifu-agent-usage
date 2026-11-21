@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { OPENROUTER_PRICES_URL } from "../src/pricing-catalog.js";
 import { spawn } from "node:child_process";
 import { appendFile, mkdir, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
+import { request as httpRequest } from "node:http";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -11,6 +12,7 @@ import { listenOnFetchPort } from "../test-support/fetch-port.mjs";
 import { glmPricingPage, stepfunPricingPage, kimiPricingPage } from "../test-support/pricing-official-fixture.mjs";
 
 import { createUsageServer as createUsageServerBase, isFullDetailHeapAvailable, readJsonBody } from "../src/server.js";
+import { createUsageServer as createLiteUsageServer } from "../src/server-lite.js";
 import { UsageStore } from "../src/usage-store.js";
 import { discoverUsageSources } from "../src/usage-core.js";
 import { createCodexIntegrationFixture } from "../test-support/usage-fixture.mjs";
@@ -1160,10 +1162,139 @@ test("server returns a picked directory from the local directory picker", async 
   }
 });
 
+function requestServer(server, path, { method = "GET", headers, body, hostname = "127.0.0.1" } = {}) {
+  return new Promise((resolve, reject) => {
+    const request = httpRequest({ hostname, port: server.address().port, path, method, headers }, async (response) => {
+      try {
+        const chunks = [];
+        for await (const chunk of response) chunks.push(chunk);
+        resolve({ status: response.statusCode, body: JSON.parse(Buffer.concat(chunks).toString()) });
+      } catch (error) {
+        reject(error);
+      }
+    });
+    request.once("error", reject);
+    request.end(body);
+  });
+}
+
+test("both editions validate HTTP authority and mutation metadata before dispatch", async (t) => {
+  for (const [edition, create] of [
+    ["Waifu", createUsageServer],
+    ["Lite", createLiteUsageServer],
+  ]) {
+    await t.test(edition, async () => {
+      const fixture = createCodexIntegrationFixture();
+      const picked = fixture.serverOptions.homeDir;
+      let picks = 0;
+      const server = create({
+        ...fixture.serverOptions,
+        pricingFetcher: r07PricingFetcher({ calls: [] }),
+        pickDirectory: async () => {
+          picks += 1;
+          return picked;
+        },
+      });
+      try {
+        await listenOnFetchPort(server);
+        const { port } = server.address();
+        for (const host of [`unused.test:${port}`, `localhost:${port + 1}`, `127.example.test:${port}`]) {
+          const response = await requestServer(server, "/api/usage", { headers: { host } });
+          assert.equal(response.status, 421);
+          assert.equal(response.body.code, "REQUEST_HOST_REJECTED");
+        }
+        const mismatchedTarget = await requestServer(server, `http://unused.test:${port}/api/imports`);
+        assert.equal(mismatchedTarget.status, 400);
+        assert.equal(mismatchedTarget.body.code, "INVALID_REQUEST_TARGET");
+
+        for (const headers of [
+          { origin: "null" },
+          { origin: `http://localhost:${port}`, host: `127.0.0.1:${port}` },
+          { "sec-fetch-site": "cross-site" },
+          { "sec-fetch-site": "same-site" },
+        ]) {
+          const response = await requestServer(server, "/api/pick-directory", { method: "POST", headers });
+          assert.equal(response.status, 403);
+          assert.equal(response.body.code, "ORIGIN_REJECTED");
+        }
+        assert.equal(picks, 0);
+
+        const local = {
+          host: `localhost:${port}`,
+          origin: `http://localhost:${port}`,
+          "sec-fetch-site": "same-origin",
+        };
+        const picker = await requestServer(server, "/api/pick-directory", { method: "POST", headers: local });
+        assert.deepEqual(picker, { status: 200, body: { path: picked } });
+        assert.equal(picks, 1);
+
+        for (const route of ["/api/imports", "/api/history/imports"]) {
+          const wrongType = await requestServer(server, route, {
+            method: "POST",
+            headers: { ...local, "content-type": "application/jsonp" },
+            body: "{}",
+          });
+          assert.equal(wrongType.status, 415);
+          assert.equal(wrongType.body.code, "JSON_BODY_REQUIRED");
+          const accepted = await requestServer(server, route, {
+            method: "POST",
+            headers: { ...local, "content-type": "application/json; charset=utf-8" },
+            body: "{}",
+          });
+          assert.equal(accepted.status, 400, "JSON passes the boundary and reaches route-specific path validation");
+        }
+
+        if (edition === "Waifu") {
+          const emptyRefresh = await requestServer(server, "/api/pricing/refresh", { method: "POST" });
+          assert.equal(emptyRefresh.status, 200, emptyRefresh.body.error);
+        }
+      } finally {
+        await server.close();
+        fixture.close();
+      }
+    });
+  }
+});
+
+test("HTTP authorities follow the socket address on dynamic and explicit bindings", async (t) => {
+  for (const { bind, client, alias, authority } of [
+    { bind: "0.0.0.0", client: "127.0.0.1" },
+    { bind: "127.0.0.1", client: "127.0.0.1", alias: "usage.test", authority: "usage.test" },
+    { bind: "::1", client: "::1", authority: "[0:0:0:0:0:0:0:1]" },
+  ]) {
+    await t.test(alias ?? bind, async () => {
+      const fixture = createCodexIntegrationFixture();
+      const server = createLiteUsageServer({ ...fixture.serverOptions, listenHost: alias ?? bind });
+      try {
+        await new Promise((resolve, reject) => {
+          server.once("error", reject);
+          server.listen(0, bind, resolve);
+        });
+        const { port } = server.address();
+        const response = await requestServer(server, "/api/imports", {
+          hostname: client,
+          ...(authority ? { headers: { host: `${authority}:${port}` } } : {}),
+        });
+        assert.equal(response.status, 200, response.body.error);
+        assert.ok(Array.isArray(response.body.imports));
+        if (bind === "0.0.0.0") {
+          const wildcard = await requestServer(server, "/api/imports", { headers: { host: `${bind}:${port}` } });
+          assert.equal(wildcard.status, 421);
+        }
+      } finally {
+        await server.close();
+        fixture.close();
+      }
+    });
+  }
+});
+
 test("JSON request parsing preserves UTF-8 split across chunks and returns client errors", async () => {
   const payload = Buffer.from(JSON.stringify({ path: "项目" }), "utf8");
   const split = payload.indexOf(Buffer.from("项目", "utf8")) + 1;
+  const headers = { "content-type": "application/json" };
   const request = {
+    headers,
     async *[Symbol.asyncIterator]() {
       yield payload.subarray(0, split);
       yield payload.subarray(split);
@@ -1174,6 +1305,7 @@ test("JSON request parsing preserves UTF-8 split across chunks and returns clien
 
   await assert.rejects(
     readJsonBody({
+      headers,
       async *[Symbol.asyncIterator]() {
         yield Buffer.from("{invalid", "utf8");
       },
@@ -1182,6 +1314,7 @@ test("JSON request parsing preserves UTF-8 split across chunks and returns clien
   );
   await assert.rejects(
     readJsonBody({
+      headers,
       async *[Symbol.asyncIterator]() {
         yield Buffer.alloc(16_385, 32);
       },

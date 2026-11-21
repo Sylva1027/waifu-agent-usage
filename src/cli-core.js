@@ -3,11 +3,9 @@ import { spawn } from "node:child_process";
 import { realpathSync } from "node:fs";
 import { mkdir, readFile, rename, rm, stat, unlink, writeFile } from "node:fs/promises";
 import { request as httpRequest } from "node:http";
-import { isIP } from "node:net";
 import { homedir, platform } from "node:os";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { domainToASCII } from "node:url";
 
 import { toPublicUsageReport } from "./usage-sources.js";
 import {
@@ -19,6 +17,7 @@ import {
   verifyPublishedHistoryArchiveBundle,
 } from "./history-archive.js";
 import { createHistoryBackup, restoreHistoryBackup, verifyHistoryBackup } from "./history-backup.js";
+import { formatUsageServerUrl } from "./server-core.js";
 
 const DEFAULT_HOST = "127.0.0.1";
 const DEFAULT_PORT = 3765;
@@ -94,12 +93,6 @@ function parsePositiveInteger(value, optionName) {
     throw new Error(`Invalid ${optionName}: ${value}`);
   }
   return number;
-}
-
-function formatUrl(host, port) {
-  const hostname = isIP(host) === 6 ? URL.parse(`http://[${host}]`)?.hostname || "" : domainToASCII(host);
-  const address = hostname === "0.0.0.0" ? "127.0.0.1" : hostname === "[::]" ? "[::1]" : hostname;
-  return `http://${address}:${port}`;
 }
 
 function withoutOption(args, name) {
@@ -345,7 +338,7 @@ export async function runCli({
     if (
       typeof service.host !== "string" ||
       !Number.isInteger(service.port) ||
-      service.url !== formatUrl(service.host, service.port)
+      service.url !== formatUsageServerUrl(service.host, service.port)
     )
       return false;
     if (!service.instanceId) return true;
@@ -406,6 +399,7 @@ export async function runCli({
     let registered = false;
     const server = createUsageServer({
       ...options,
+      listenHost: host,
       shutdownToken,
       instanceId,
       onShutdown: () => void shutdown(),
@@ -414,7 +408,7 @@ export async function runCli({
     server.once("listening", async () => {
       const address = server.address();
       const actualPort = typeof address === "object" && address ? address.port : candidatePorts[attempt];
-      const url = formatUrl(host, actualPort);
+      const url = formatUsageServerUrl(host, actualPort);
       try {
         await registerService(stateFile, {
           pid: process.pid,

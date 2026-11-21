@@ -454,12 +454,29 @@ label {
   font-size: 11px;
 }
 
+.timeline-legend > [role="listitem"] {
+  max-width: 100%;
+  min-width: 0;
+}
+
 .timeline-legend-item {
   display: inline-flex;
   align-items: center;
   gap: 5px;
   max-width: 100%;
   min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.timeline-legend-item[aria-pressed="true"] {
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .timeline-legend-item > span:last-child {
@@ -1575,6 +1592,10 @@ details.panel:not([open]) > .panel-heading {
   height: 100%;
   border-radius: 999px;
   background: linear-gradient(90deg, var(--green), var(--blue));
+}
+
+#detailList .series-muted .bar-fill {
+  opacity: 0.25;
 }
 
 .home-row {

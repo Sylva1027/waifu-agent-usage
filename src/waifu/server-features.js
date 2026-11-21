@@ -312,12 +312,7 @@ export function createWaifuServerFeatures(options, context) {
         sendJson(response, 404, { error: "Not found" });
         return true;
       }
-      const origin = request.headers.origin;
-      if ((origin && origin !== `http://${request.headers.host}`) || request.headers["sec-fetch-site"] === "cross-site")
-        throw httpError(403, "Same-origin request required", "ACHIEVEMENT_ORIGIN_REJECTED");
-      if (!/^application\/json(?:;|$)/i.test(request.headers["content-type"] || ""))
-        throw httpError(415, "JSON required", "ACHIEVEMENT_JSON_REQUIRED");
-      const body = await readJsonBody(request);
+      const body = await readJsonBody(request, { mediaTypeCode: "ACHIEVEMENT_JSON_REQUIRED" });
       if (!body || typeof body !== "object" || Array.isArray(body))
         throw httpError(400, "Invalid achievement request", "ACHIEVEMENT_INVALID_REQUEST");
       let result;
@@ -425,7 +420,7 @@ export function createWaifuServerFeatures(options, context) {
         });
         return true;
       }
-      const body = await readJsonBody(request);
+      const body = await readJsonBody(request, { allowEmpty: true });
       let model = null;
       if (Object.hasOwn(body, "model")) {
         if (typeof body.model !== "string" || !body.model.trim() || body.model.trim().length > 128) {

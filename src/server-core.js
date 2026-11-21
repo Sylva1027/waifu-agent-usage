@@ -3,9 +3,10 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { createHash, randomUUID } from "node:crypto";
 import { execFile } from "node:child_process";
 import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
+import { isIP } from "node:net";
 import os from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { domainToASCII, fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import v8 from "node:v8";
 import {
@@ -214,7 +215,56 @@ function httpError(statusCode, message, code) {
   return error;
 }
 
-export async function readJsonBody(request, { maxBytes = 16_384 } = {}) {
+function bindingHostname(host) {
+  return isIP(host) === 6 ? URL.parse(`http://[${host}]`)?.hostname || "" : domainToASCII(host);
+}
+
+export function formatUsageServerUrl(host, port) {
+  const hostname = bindingHostname(host);
+  const address = hostname === "0.0.0.0" ? "127.0.0.1" : hostname === "[::]" ? "[::1]" : hostname;
+  return `http://${address}:${port}`;
+}
+
+function isLoopbackHostname(host) {
+  return host === "localhost" || host === "[::1]" || (isIP(host) === 4 && host.startsWith("127."));
+}
+
+/** @param {import("node:http").IncomingMessage} request */
+function requestHttpOrigin(request, listenHost) {
+  const host = request.headers.host;
+  const match = /^(\[[\da-f:.]+\]|[a-z0-9.-]+)(?::\d{1,5})?$/i.exec(host ?? "");
+  if (!match || request.headersDistinct.host?.length !== 1) return null;
+  const authority = URL.parse(`http://${host}`);
+  if (!authority || Number(authority.port || 80) !== request.socket.localPort) return null;
+  const { hostname } = authority;
+  if (!match[1].startsWith("[") && match[1].toLowerCase() !== hostname) return null;
+
+  const localAddress = request.socket.localAddress || "";
+  const localHost = bindingHostname(localAddress);
+  const mappedAddress = localAddress.startsWith("::ffff:") ? localAddress.slice(7) : "";
+  if (hostname === "0.0.0.0" || hostname === "[::]") return null;
+  if (
+    hostname === localHost ||
+    hostname === listenHost ||
+    (isIP(mappedAddress) === 4 && hostname === mappedAddress) ||
+    ((isLoopbackHostname(localHost) || isLoopbackHostname(mappedAddress)) && isLoopbackHostname(hostname))
+  )
+    return authority.origin;
+  return null;
+}
+
+export async function readJsonBody(
+  request,
+  { maxBytes = 16_384, allowEmpty = false, mediaTypeCode = "JSON_BODY_REQUIRED" } = {},
+) {
+  const { headers } = request;
+  if (
+    (!allowEmpty || Number(headers["content-length"]) > 0 || headers["transfer-encoding"] !== undefined) &&
+    (!/^application\/json(?:[ \t]*;|$)/i.test(headers["content-type"] || "") ||
+      request.headersDistinct?.["content-type"]?.length > 1)
+  )
+    throw httpError(415, "JSON required", mediaTypeCode);
+
   const chunks = [];
   let byteLength = 0;
   for await (const chunk of request) {
@@ -314,6 +364,7 @@ async function serveStatic(requestPath, response, publicFiles) {
 /** @param {Record<string,any>} options @param {any} definition */
 export function createUsageServer(options = {}, definition) {
   const { createUsageExecutor, UsageSummaryCache, summaryCacheKey, buildUsageReport, summarizeUsage } = definition;
+  const listenHost = bindingHostname(options.listenHost || "");
   // W1：阻塞工作（`sync`/`summarize`/`periodComparison`/`snapshot`）移入**唯一**持有
   // `DatabaseSync` 的执行器；主线程只保留读侧快照与轻量端点（`/api/status` 就地扫 fs）。
   const importContext = options.importContext ?? null;
@@ -975,7 +1026,29 @@ export function createUsageServer(options = {}, definition) {
   }
 
   const server = createServer((request, response) => {
-    const url = new URL(request.url || "/", "http://127.0.0.1");
+    const origin = requestHttpOrigin(request, listenHost);
+    if (!origin) {
+      sendJson(response, 421, { code: "REQUEST_HOST_REJECTED", error: "Request host does not match this server." });
+      return;
+    }
+    const url = URL.parse(request.url || "/", origin);
+    if (!url || url.origin !== origin) {
+      sendJson(response, 400, { code: "INVALID_REQUEST_TARGET", error: "Invalid request target." });
+      return;
+    }
+    const requestOrigin = request.headers.origin;
+    const fetchSite = request.headers["sec-fetch-site"];
+    if (
+      request.method !== "GET" &&
+      request.method !== "HEAD" &&
+      request.method !== "OPTIONS" &&
+      ((requestOrigin !== undefined && requestOrigin !== origin) ||
+        (fetchSite !== undefined && fetchSite !== "same-origin" && fetchSite !== "none"))
+    ) {
+      const code = url.pathname.startsWith("/api/achievements/") ? "ACHIEVEMENT_ORIGIN_REJECTED" : "ORIGIN_REJECTED";
+      sendJson(response, 403, { code, error: "Same-origin request required" });
+      return;
+    }
     const requestId = request.headers["x-usage-request-id"];
     if (requestId !== undefined && (typeof requestId !== "string" || !/^[a-zA-Z0-9:_-]{1,160}$/.test(requestId))) {
       sendJson(response, 400, { code: "INVALID_ACTIVITY_REQUEST_ID", error: "Invalid usage request identity." });
@@ -1005,7 +1078,7 @@ export function createUsageServer(options = {}, definition) {
         };
         if (task) updateActivity(task);
         try {
-          await handleRequest(request, response);
+          await handleRequest(request, response, url);
         } finally {
           if (task) updateActivity({ ...task, state: "done" });
         }
@@ -1013,8 +1086,7 @@ export function createUsageServer(options = {}, definition) {
     );
   });
 
-  async function handleRequest(request, response, recoveryAttempted = false) {
-    const url = new URL(request.url || "/", "http://127.0.0.1");
+  async function handleRequest(request, response, url, recoveryAttempted = false) {
     let createdSnapshot = null;
 
     try {
@@ -1693,7 +1765,7 @@ export function createUsageServer(options = {}, definition) {
             snapshots.delete(createdSnapshot.id);
             await removeSnapshotArtifacts(createdSnapshot, await snapshotDirectoryPromise);
           }
-          return handleRequest(request, response, true);
+          return handleRequest(request, response, url, true);
         }
       }
       const statusCode =

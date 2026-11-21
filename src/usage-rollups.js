@@ -1,5 +1,6 @@
 const TABLE = "usage_rollup_daily";
 const DAY_TABLE = "usage_rollup_days";
+const DAY_RANGE_INDEX_DDL = `CREATE INDEX IF NOT EXISTS usage_rollup_days_end_start_idx ON ${DAY_TABLE}(end_ms, start_ms)`;
 const MODEL_TABLE = "usage_rollup_models";
 const REPOSITORY_TABLE = "usage_rollup_repositories";
 const SESSION_TABLE = "usage_rollup_sessions";
@@ -626,6 +627,7 @@ function ensureCurrentRollupFormat(db) {
       end_ms INTEGER NOT NULL,
       PRIMARY KEY (calendar_zone, day_key)
     ) STRICT;
+    ${DAY_RANGE_INDEX_DDL};
     CREATE TABLE IF NOT EXISTS ${TABLE} (
       calendar_zone TEXT NOT NULL,
       day_key TEXT NOT NULL,
@@ -691,6 +693,7 @@ export function createUsageRollups(db) {
   if (hasCurrentRollupFormat(db)) {
     ensureModelRollupSchema(db);
     ensureUsageRollupProgressSchema(db);
+    db.exec(DAY_RANGE_INDEX_DDL);
     return;
   }
   withWriteTransaction(db, () => ensureCurrentRollupFormat(db));

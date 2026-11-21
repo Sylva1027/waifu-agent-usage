@@ -613,6 +613,38 @@ test("legacy local-calendar progress is rebuilt without changing committed facts
   }
 });
 
+test("an existing format-9 rollup gains a day bound index without changing its cached state", () => {
+  const { db, directory } = openDatabase();
+  try {
+    seedAndCertify(db, [seedDetailEvent("2026-07-12T01:00:00.000Z")]);
+    const indexColumns = db.prepare(
+      "SELECT name FROM pragma_index_info('usage_rollup_days_end_start_idx') ORDER BY seqno",
+    );
+    assert.deepEqual(
+      indexColumns.all().map(({ name }) => name),
+      ["end_ms", "start_ms"],
+    );
+    db.exec("DROP INDEX usage_rollup_days_end_start_idx");
+    insertEvent(db, seedDetailEvent("2026-07-14T01:00:00.000Z"));
+    assert.deepEqual(listDirtyUsageRollupDays(db), ["2026-07-14"]);
+    const rollups = snapshotRollups(db);
+    const progress = snapshotProgress(db);
+
+    createUsageRollups(db);
+
+    assert.deepEqual(
+      indexColumns.all().map(({ name }) => name),
+      ["end_ms", "start_ms"],
+    );
+    assert.equal(db.prepare("SELECT format_version FROM usage_rollup_format").get().format_version, 9);
+    assert.deepEqual(snapshotRollups(db), rollups);
+    assert.deepEqual(snapshotProgress(db), progress);
+  } finally {
+    db.close();
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 test("progress schema readiness is read-only and partial triggers recover atomically", () => {
   const { db, directory } = openDatabase();
   const databaseFile = path.join(directory, "index.sqlite");

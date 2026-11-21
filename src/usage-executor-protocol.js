@@ -25,8 +25,12 @@ export function executorError(error, code) {
   const wrapped = new Error(error?.message ?? String(error));
   // `checkJs` 的 `Error` 类型上没有这些字段：用一次 JSDoc 断言把它们显式化，
   // **运行期行为逐字不变**（只是让 tsc 看得见 `code/statusCode/quota/retryable`）。
-  const detail = /** @type {{ code?: string, statusCode?: number, quota?: unknown, retryable?: boolean }} */ (wrapped);
+  const detail =
+    /** @type {{ code?: string, errcode?: number, statusCode?: number, quota?: unknown, retryable?: boolean }} */ (
+      wrapped
+    );
   detail.code = error?.code ?? code ?? "EXECUTOR_ERROR";
+  if (error?.errcode !== undefined) detail.errcode = error.errcode;
   // 保留 HTTP 层需要的字段（`QUOTA_WINDOW_UNAVAILABLE` 的 409 + quota 载荷全靠它）。
   if (error?.statusCode !== undefined && error.statusCode !== null) detail.statusCode = error.statusCode;
   if (error?.quota !== undefined) detail.quota = error.quota;

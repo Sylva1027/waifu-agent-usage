@@ -849,6 +849,7 @@ export async function runUsageExecutorProcess({ createStore, createRuntime, back
           error: {
             message: error?.message ?? String(error),
             code: error?.code ?? "EXECUTOR_ERROR",
+            errcode: error?.errcode,
             statusCode: error?.statusCode ?? null,
             quota: toWire(error?.quota ?? null),
           },
@@ -890,6 +891,7 @@ export async function runUsageExecutorProcess({ createStore, createRuntime, back
           error: {
             message: error?.message ?? String(error),
             code: error?.code ?? "EXECUTOR_ERROR",
+            errcode: error?.errcode,
           },
         });
       } catch {

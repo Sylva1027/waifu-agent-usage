@@ -134,7 +134,9 @@ test("production modal uses real API progress and dates; material preview is rea
 test("S07 desktop geometry, filters, search, focus and bilingual themed card presentation remain stable", async (t) => {
   const { fixture, page, errors } = await setup(t);
   await page.goto(fixture.url);
+  const pageOverflow = await page.evaluate(() => getComputedStyle(document.body).overflowY);
   await open(page);
+  assert.equal(await page.evaluate(() => getComputedStyle(document.body).overflowY), pageOverflow);
   const initial = await box(page);
   assert.equal(initial.width, 980);
   assert.equal(initial.listHeight, 486);

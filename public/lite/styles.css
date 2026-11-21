@@ -882,31 +882,53 @@ html[lang="en-US"] .recent-segment {
 
 .timeline-legend {
   display: flex;
+  flex: 0 0 auto;
   flex-wrap: wrap;
-  gap: 6px 12px;
+  align-content: start;
+  gap: 2px 10px;
   min-width: 0;
   min-height: 25px;
-  padding-top: 14px;
+  max-height: 116px;
+  padding: 8px 3px 3px;
+  overflow: auto;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
+}
+
+.timeline-legend > span {
+  max-width: 100%;
 }
 
 .timeline-legend-item {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   min-width: 0;
+  min-height: 24px;
   max-width: 100%;
+  padding: 2px 3px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  text-align: start;
   overflow-wrap: anywhere;
 }
 
+.timeline-legend-item[aria-pressed="true"] {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.timeline-legend-item:hover {
+  color: var(--ink);
+}
+
 .timeline-legend-swatch {
-  flex: 0 0 9px;
-  width: 9px;
-  height: 9px;
-  border: 1px solid var(--muted);
+  flex: 0 0 22px;
+  width: 22px;
+  height: 13px;
   border-radius: 2px;
-  background: var(--muted);
 }
 
 .detail-panel > .panel-heading {
@@ -969,6 +991,10 @@ html[lang="en-US"] .recent-segment {
   height: 100%;
   border-radius: inherit;
   background: var(--muted);
+}
+
+.series-muted .bar-fill {
+  opacity: 0.3;
 }
 
 .period-comparison-grid {

@@ -1,9 +1,41 @@
 import assert from "node:assert/strict";
 import { readFile, writeFile, appendFile } from "node:fs/promises";
+import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import { UsageStore as WaifuStore } from "../src/usage-store.js";
 import { UsageStore as LiteStore } from "../src/usage-store-lite.js";
 import { createLiteEditionFixture } from "../test-support/lite-edition-fixture.mjs";
+
+test("a busy source replacement cannot acknowledge a partially indexed scan", async (t) => {
+  const fixture = createLiteEditionFixture();
+  const store = new LiteStore(fixture.options);
+  let writer;
+  try {
+    await store.sync();
+    const original = await readFile(fixture.rolloutFiles[0], "utf8");
+    await writeFile(fixture.rolloutFiles[0], original.replace('"total_tokens":120', '"total_tokens":220'));
+    writer = new DatabaseSync(fixture.options.databaseFile);
+    store.database.exec("PRAGMA busy_timeout = 0");
+    const replaceFile = store.replaceFile;
+    const locked = t.mock.method(store, "replaceFile", async function (...args) {
+      writer.exec("BEGIN IMMEDIATE");
+      try {
+        return await replaceFile.apply(this, args);
+      } finally {
+        writer.exec("ROLLBACK");
+      }
+    });
+    await assert.rejects(store.sync({ forceFull: true }), { code: "ERR_SQLITE_ERROR", errcode: 5 });
+    assert.ok(locked.mock.callCount() > 0);
+    locked.mock.restore();
+    await store.sync();
+    assert.equal(store.summarize(fixture.filters).totals.total, 410);
+  } finally {
+    writer?.close();
+    store.close();
+    fixture.close();
+  }
+});
 
 function waifuRows(database) {
   const names = database

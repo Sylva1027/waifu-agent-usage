@@ -2,6 +2,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { fork } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { calendarContext } from "./calendar-context.js";
+import { isSqliteBusy } from "./sqlite-busy.js";
 import { activityKind, executorError, toWire } from "./usage-executor-protocol.js";
 
 const REQUEST_TIMEOUT_MS = 900_000;
@@ -456,8 +457,12 @@ export function createUsageExecutorClient(
       reportActivity(activity, "done");
       return result;
     } catch (error) {
-      reportActivity(activity, "failed", activity?.phase, error);
-      throw error;
+      const failure =
+        isSqliteBusy(error) && ["sync", "check", "statistics"].includes(context?.kind)
+          ? executorError({ message: "Source update is still pending", statusCode: 409 }, "SOURCE_UPDATE_PENDING")
+          : error;
+      reportActivity(activity, "failed", activity?.phase, failure);
+      throw failure;
     }
   };
 

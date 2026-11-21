@@ -153,6 +153,13 @@ async function prepare(tree) {
     };
   }
 
+  if (missing.length) {
+    console.log(`prepare: ${missing.length} file(s) missing:`);
+    for (const file of missing) console.log(`  ${file}`);
+    process.exitCode = 1;
+    return;
+  }
+
   const manifest = {
     generatedBy: "scripts/prepare-skin-assets.mjs",
     encodingGeneratedBy: GENERATOR_REFERENCE,
@@ -170,11 +177,6 @@ async function prepare(tree) {
   console.log(`prepare: ${Object.keys(assets).length} assets recorded`);
   console.log(`prepare: wrote ${path.relative(tree.root, tree.manifestFile)}`);
   console.log(`prepare: ${bootstrapChanged ? "wrote" : "unchanged"} ${path.relative(tree.root, tree.bootstrapFile)}`);
-  if (missing.length) {
-    console.log(`prepare: ${missing.length} file(s) missing:`);
-    for (const file of missing) console.log(`  ${file}`);
-    process.exitCode = 1;
-  }
 }
 
 // ---------------------------------------------------------------------------

@@ -418,10 +418,6 @@
   --line: #70687e20;
 }
 
-body:has(#achievementDialog[open]) {
-  overflow: hidden;
-}
-
 @media (max-width: 850px) {
   #achievementDialog {
     --row-height: 100px;

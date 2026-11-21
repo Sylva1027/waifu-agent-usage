@@ -8,6 +8,7 @@ import { QUOTA_PERCENT_STALE_AFTER_MS, usageComparisonFromAggregates } from "./u
 import { readUsageSourceInputs } from "./usage-source-inputs.js";
 import { buildUsageFingerprint, discoverUsageSources } from "./usage-sources.js";
 import { calendarContext } from "./calendar-context.js";
+import { isSqliteBusy } from "./sqlite-busy.js";
 
 const digest = (value) => createHash("sha256").update(value).digest("hex");
 // Bump when payload formulas or executor snapshot semantics change.
@@ -97,21 +98,34 @@ export class UsageSummaryCache {
     this.samePublicationRevision = 0;
   }
 
-  async open() {
-    if (this.database) return;
+  async open({ optional = false } = {}) {
+    if (this.database) return true;
     await mkdir(path.dirname(this.file), { recursive: true });
-    if (this.database) return;
-    this.database = new DatabaseSync(this.file);
-    this.database.exec(`
+    if (this.database) return true;
+    let database;
+    try {
+      database = new DatabaseSync(this.file);
+      database.exec(`PRAGMA busy_timeout = ${optional ? 0 : 5000}`);
+      this.initialize(database);
+      this.database = database;
+      return true;
+    } catch (error) {
+      database?.close();
+      if (optional && isSqliteBusy(error)) return false;
+      throw error;
+    }
+  }
+
+  initialize(database) {
+    database.exec(`
       PRAGMA journal_mode = WAL;
-      PRAGMA busy_timeout = 5000;
       CREATE TABLE IF NOT EXISTS summary_state (singleton INTEGER PRIMARY KEY CHECK(singleton = 1), signature TEXT, state TEXT);
       INSERT OR IGNORE INTO summary_state VALUES (1, NULL, NULL);
       CREATE TABLE IF NOT EXISTS summaries (key TEXT PRIMARY KEY, signature TEXT NOT NULL, created_at REAL NOT NULL, valid_until REAL NOT NULL, payload TEXT NOT NULL);
     `);
-    this.readState = this.database.prepare("SELECT signature,state FROM summary_state WHERE singleton = 1");
-    this.readEntry = this.database.prepare("SELECT * FROM summaries WHERE key = ?");
-    this.writeEntry = this.database.prepare("INSERT OR REPLACE INTO summaries VALUES (?, ?, ?, ?, ?)");
+    this.readState = database.prepare("SELECT signature,state FROM summary_state WHERE singleton = 1");
+    this.readEntry = database.prepare("SELECT * FROM summaries WHERE key = ?");
+    this.writeEntry = database.prepare("INSERT OR REPLACE INTO summaries VALUES (?, ?, ?, ?, ?)");
     const retained = this.readState.get();
     if (retained.state) {
       let saved;
@@ -121,7 +135,7 @@ export class UsageSummaryCache {
         // Rebuildable state must not prevent a fresh index query.
       }
       if (saved?.version !== SUMMARY_CACHE_VERSION) {
-        this.database.exec("DELETE FROM summaries; UPDATE summary_state SET signature = NULL, state = NULL");
+        database.exec("DELETE FROM summaries; UPDATE summary_state SET signature = NULL, state = NULL");
         return;
       }
       if (saved.publication && this.observedVersion === null) {
@@ -132,7 +146,6 @@ export class UsageSummaryCache {
   }
 
   async readSourceState(options = this.options) {
-    await this.open();
     const homes = await discoverUsageSources(options);
     const usage = await buildUsageFingerprint({ ...options, homes });
     const { inputs, auxiliary, routingFingerprint } = await this.readInputs(options, homes, usage.fingerprint);
@@ -148,7 +161,6 @@ export class UsageSummaryCache {
   }
 
   async readCertifiedSourceState(options, status) {
-    await this.open();
     const acquisition = status?.acquisition;
     if (acquisition?.format !== 1) return null;
     const input = await this.readInputs(options, acquisition.homes, status.fingerprint);
@@ -194,6 +206,8 @@ export class UsageSummaryCache {
   }
 
   async readPublication() {
+    // Restore the cache's publication revision before computing identities for persisted results.
+    if (!(await this.open({ optional: true }))) return null;
     try {
       const info = await stat(this.databaseFile);
       const identity = `${info.dev}:${info.ino}`;
@@ -238,7 +252,7 @@ export class UsageSummaryCache {
 
   async retainedState() {
     // A startup hint only; current source and publication checks authorize reuse.
-    await this.open();
+    if (!(await this.open({ optional: true }))) return null;
     try {
       const saved = JSON.parse(String(this.readState.get().state));
       return saved?.executor || null;
@@ -248,7 +262,7 @@ export class UsageSummaryCache {
   }
 
   async stateFor(source) {
-    await this.open();
+    if (!source.publication || !(await this.open({ optional: true }))) return null;
     const row = this.readState.get();
     if (row.signature !== source.signature || !row.state) return null;
     const saved = JSON.parse(String(row.state));
@@ -256,9 +270,7 @@ export class UsageSummaryCache {
   }
 
   async get(key, source, now) {
-    if (!key) return null;
-    await this.open();
-    if (!source.publication) return null;
+    if (!key || !source.publication || !(await this.open({ optional: true }))) return null;
     const row = this.readEntry.get(key);
     if (
       !row ||
@@ -271,7 +283,6 @@ export class UsageSummaryCache {
     try {
       payload = JSON.parse(String(row.payload));
     } catch {
-      this.database.prepare("DELETE FROM summaries WHERE key = ?").run(key);
       return null;
     }
     if (
@@ -283,14 +294,13 @@ export class UsageSummaryCache {
   }
 
   async publish(key, payload, state, source, now) {
-    if (!key) return;
+    if (!key || !source.publication || source.publication.pending) return;
     if (
       payload.metadata?.calendarContext?.timeZone &&
       payload.metadata.calendarContext.timeZone !== calendarContext().timeZone
     )
       return;
-    await this.open();
-    if (!this.source || !source.publication || source.publication.pending) return;
+    if (!(await this.open({ optional: true })) || !this.source) return;
     // Cold carriers must be verified by their existing readers, including missing-segment checks.
     if (this.source.prepare("SELECT 1 FROM archive_segments LIMIT 1").get()) return;
     const next = this.source
@@ -335,7 +345,13 @@ export class UsageSummaryCache {
 
   async invalidate() {
     await this.open();
-    this.database.exec("DELETE FROM summaries; UPDATE summary_state SET signature = NULL, state = NULL");
+    try {
+      this.database.exec(
+        "PRAGMA busy_timeout = 5000; DELETE FROM summaries; UPDATE summary_state SET signature = NULL, state = NULL",
+      );
+    } finally {
+      this.database.exec("PRAGMA busy_timeout = 0");
+    }
   }
 
   close() {
