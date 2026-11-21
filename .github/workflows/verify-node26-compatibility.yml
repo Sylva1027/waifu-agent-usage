@@ -1,0 +1,15 @@
+name: Verify Node 26 compatibility
+
+on:
+  push:
+    branches: [codex/posix-core-ci]
+    paths: [.github/workflows/verify-node26-compatibility.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  compatibility:
+    uses: ./.github/workflows/ci.yml
+    with:
+      release-candidate: true
