@@ -3,9 +3,6 @@ run-name: Release candidate • ${{ github.ref_name }} @ ${{ github.sha }}
 
 on:
   workflow_dispatch:
-  push:
-    branches: [codex/posix-core-ci]
-    paths: [.github/workflows/release.yml]
 
 permissions:
   contents: read
@@ -20,7 +17,6 @@ defaults:
 
 jobs:
   compatibility:
-    if: github.event_name == 'workflow_dispatch'
     uses: ./.github/workflows/ci.yml
     with:
       release-candidate: true
@@ -28,7 +24,6 @@ jobs:
   package:
     name: Verify Waifu and Lite ZIPs
     needs: compatibility
-    if: ${{ !cancelled() && (needs.compatibility.result == 'success' || (github.event_name == 'push' && needs.compatibility.result == 'skipped')) }}
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
