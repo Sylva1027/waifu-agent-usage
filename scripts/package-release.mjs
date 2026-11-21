@@ -83,7 +83,8 @@ export function commonHashes(lite, waifu) {
 }
 
 export async function extractChecked(zip, destination, expected) {
-  const { stdout } = await exec("tar", ["-tf", zip], { maxBuffer: 4 * 1024 * 1024 });
+  const tar = process.platform === "linux" ? "bsdtar" : "tar";
+  const { stdout } = await exec(tar, ["-tf", zip], { maxBuffer: 4 * 1024 * 1024 });
   const entries = stdout
     .trim()
     .split(/\r?\n/)
@@ -103,7 +104,7 @@ export async function extractChecked(zip, destination, expected) {
   assert.equal(new Set(files).size, files.length, "Duplicate ZIP entry");
   assert.deepEqual(files.sort(), Object.keys(expected).sort(), "ZIP inventory differs");
   await mkdir(destination);
-  await exec("tar", ["-xf", zip, "-C", destination]);
+  await exec(tar, ["-xf", zip, "-C", destination]);
   assert.deepEqual(await fileHashes(destination), expected, "Extracted ZIP hashes differ");
 }
 

@@ -165,18 +165,7 @@ jobs:
       - name: Run refresh delivery tests
         run: npm test -- --test-reporter=spec --test-concurrency=1 --test-timeout=120000 test/q5-refresh-delivery.test.js
       - name: Install Playwright and Chromium
-        run: |
-          browser="$RUNNER_TEMP/waifu-agent-usage-browser"
-          npm install --prefix "$browser" --no-package-lock --no-save playwright@1.62.1
-          install_flags=(--no-shell)
-          if [[ "$RUNNER_OS" == Linux ]]; then
-            install_flags+=(--with-deps)
-          fi
-          node "$browser/node_modules/playwright/cli.js" install "${install_flags[@]}" chromium
-          executable=$(node -p 'require(process.argv[1]).chromium.executablePath()' "$browser/node_modules/playwright")
-          test -x "$executable"
-          echo "AGENT_USAGE_PLAYWRIGHT_MODULE=$browser/node_modules/playwright/index.mjs" >> "$GITHUB_ENV"
-          echo "AGENT_USAGE_EDGE_PATH=$executable" >> "$GITHUB_ENV"
+        uses: ./.github/actions/setup-chromium
       - name: Run Playwright acceptance
         run: |
           npm test -- --test-reporter=spec --test-concurrency=1 --test-timeout=120000 \

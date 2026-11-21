@@ -9,6 +9,7 @@ permissions:
 
 env:
   TZ: Asia/Shanghai
+  RELEASE_DIR: output/release-candidate
 
 defaults:
   run:
@@ -24,8 +25,6 @@ jobs:
     name: Verify Waifu and Lite ZIPs
     needs: compatibility
     runs-on: windows-latest
-    env:
-      RELEASE_DIR: output/release-candidate
     steps:
       - uses: actions/checkout@v4
         with:
@@ -91,4 +90,46 @@ jobs:
             ${{ env.RELEASE_DIR }}/*.zip
             ${{ env.RELEASE_DIR }}/release-manifest.json
             ${{ env.RELEASE_DIR }}/acceptance-browser.json
+          if-no-files-found: error
+
+  accept-posix:
+    name: Verify ZIPs on ${{ matrix.os }}
+    needs: package
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/download-artifact@v4
+        with:
+          name: waifu-agent-usage-waifu-lite-windows-${{ github.sha }}
+          path: ${{ env.RELEASE_DIR }}
+      - name: Install ZIP extractor
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libarchive-tools
+      - run: npm ci
+      - name: Install Playwright and Chromium
+        uses: ./.github/actions/setup-chromium
+      - name: Accept the Windows-built Waifu and Lite ZIPs
+        timeout-minutes: 10
+        run: npm run package:check -- "$RELEASE_DIR" --browser
+      - uses: actions/upload-artifact@v4
+        with:
+          name: acceptance-${{ matrix.os }}-${{ github.sha }}
+          path: ${{ env.RELEASE_DIR }}/acceptance-browser.json
           if-no-files-found: error
