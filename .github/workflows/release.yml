@@ -100,6 +100,7 @@ jobs:
   accept-posix:
     name: Verify ZIPs on ${{ matrix.os }}
     needs: package
+    if: ${{ !cancelled() && needs.package.result == 'success' }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     defaults:
