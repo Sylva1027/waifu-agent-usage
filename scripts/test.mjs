@@ -16,7 +16,7 @@ try {
     : await mkdtemp(path.join(localParent, "codex-usage-appdata-"));
   if (localParent !== root) directories.push({ directory: local, parent: localParent });
   await mkdir(path.join(local, "Temp"), { recursive: true });
-  const env = { ...process.env, LOCALAPPDATA: local, TEMP: root, TMP: root };
+  const env = { ...process.env, LOCALAPPDATA: local, TEMP: root, TMP: root, TMPDIR: root };
   for (const name of ["HERMES_HOME", "HERMES_DATA_DIR_SUFFIX", "CODEX_USAGE_HERMES_HOMES", "CODEX_USAGE_HERMES"])
     delete env[name];
   const args = process.argv.slice(2);

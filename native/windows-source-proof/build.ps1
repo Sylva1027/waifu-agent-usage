@@ -8,7 +8,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-if (-not $IsWindows) {
+if (-not $IsWindows -and -not $Check) {
   throw "windows-source-proof must be built on Windows."
 }
 

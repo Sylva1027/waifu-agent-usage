@@ -34,6 +34,8 @@ async function checkNative(unpacked, work, edition) {
   const helper = path.join(unpacked, "native/windows-source-proof/bin/windows-source-proof.exe");
   const receipt = JSON.parse(await readFile(`${helper.slice(0, -4)}.build.json`, "utf8"));
   assert.equal((await readFile(helper)).length, receipt.bytes);
+  const evidence = { receipt: "passed", target: receipt.target, bytes: receipt.bytes, sha256: receipt.sha256 };
+  if (process.platform !== "win32") return { ...evidence, pairedLocks: "not-applicable" };
   const { WindowsSourceProof } = await import(pathToFileURL(path.join(unpacked, "src/usage-source-native.js")).href);
   const files = [path.join(work, `${edition}-native.sqlite`), path.join(work, `${edition}-native.json`)];
   const database = new DatabaseSync(files[0]);
@@ -70,13 +72,10 @@ async function checkNative(unpacked, work, edition) {
       await writer.close();
     }
     return {
-      receipt: "passed",
+      ...evidence,
       pairedLocks: "passed",
       denyWriteDeleteRenameReplace: "passed",
       released: "passed",
-      target: receipt.target,
-      bytes: receipt.bytes,
-      sha256: receipt.sha256,
     };
   } finally {
     await lease?.close();
@@ -465,6 +464,8 @@ export async function checkRelease(output = "output/releases", { browserRequeste
   const report = {
     version: manifest.version,
     releaseVersion: manifest.releaseVersion,
+    platform: process.platform,
+    architecture: process.arch,
     coreSha256: manifest.coreSha256,
     browser: "not-run",
     editions: {},

@@ -59,11 +59,13 @@ Tests use Node's built-in `node:test`. Check the exit code and pass, failure, an
 
 For browser tests, set `AGENT_USAGE_PLAYWRIGHT_MODULE` to an installed Playwright `index.mjs`; `AGENT_USAGE_EDGE_PATH` can specify Edge. Browser dependencies are for development only. Native behavior tests can use `Q6_TEST_HELPER` to select the helper; `AGENT_USAGE_TEST_NATIVE_BUILD=1` enables build tests. See [CI](../.github/workflows/ci.yml) for commands and environment.
 
-A new push to a PR cancels its older CI run. Docs-only changes check new local links and image paths, as well as references to removed files. Other PRs run static and core checks on Windows with Node 24. Changes that affect data sources, storage, or the Windows helper also run native acceptance. Code changes on main run the full Node 24 suite. The full Node 26 suite runs weekly and can also be started manually in Actions.
+A new push to a PR cancels its older CI run. Docs-only changes check new local links and image paths, as well as references to removed files.
+
+Code PRs run static and core checks on Windows with Node 24. Changes that affect data sources, storage, or the Windows helper also run native acceptance. Code changes on `main` run the full Windows suite on Node 24. Ubuntu x64 and Apple Silicon macOS run the Node 24 core tests and Playwright Chromium checks for code PRs and changes on `main`. Weekly, manual, and release-candidate compatibility checks use Node 26.
 
 Pull requests targeting `main` must pass the GitHub Actions check `test (24)`. A docs-only PR satisfies this requirement after its lightweight check succeeds.
 
-Before publishing, run [Release candidate](../.github/workflows/release.yml) in Actions for the candidate branch, or use `gh workflow run release.yml --ref <tag>` for a tag. It runs the full Node 26 suite, checks the source archive, and verifies the actual Waifu and Lite ZIPs on Node 24 for the same commit. Download the ZIPs and SHA-256 manifest from the successful run and publish those files.
+Before publishing, run [Release candidate](../.github/workflows/release.yml) in Actions for the candidate branch, or use `gh workflow run release.yml --ref <tag>` for a tag. After the Node 26 compatibility checks pass, Windows checks the source archive fixtures, then builds and verifies the Waifu and Lite ZIPs. Ubuntu and Apple Silicon macOS download those same ZIPs from the run, verify the SHA-256 hashes and package contents, and run CLI, HTTP, and Playwright checks on Node 24. Download the ZIPs and SHA-256 manifest from the successful run and publish those files.
 
 The interface primarily targets desktop mouse and keyboard use. Check large screens, side-by-side windows, and narrow windows, retaining keyboard navigation, focus restoration, and reduced-motion support. Place explanations of mechanisms and costs in details users choose to open.
 
