@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, codex/posix-core-ci]
   pull_request:
   schedule:
     - cron: '17 2 * * 1'
@@ -28,28 +28,46 @@ defaults:
     shell: pwsh
 
 jobs:
+  changes:
+    if: ${{ !inputs.release-candidate && (github.event_name == 'pull_request' || github.event_name == 'push') }}
+    runs-on: ubuntu-24.04
+    outputs:
+      docs-only: ${{ steps.scope.outputs.docs-only }}
+      native: ${{ steps.scope.outputs.native }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Check documentation and select CI scope
+        id: scope
+        shell: bash
+        env:
+          CI_BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: node scripts/ci-changes.mjs
+
   test:
+    needs: changes
+    # Keep the required check visible when classification fails.
+    if: ${{ !cancelled() }}
     runs-on: windows-latest
     strategy:
       matrix:
         node-version: ["${{ (inputs.release-candidate || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && '26' || '24' }}"]
     steps:
+      - name: Require change classification
+        if: needs.changes.result != 'success' && needs.changes.result != 'skipped'
+        run: throw "Change classification failed. See the changes job."
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
           cache: npm
-      - name: Check documentation and select CI scope
-        id: changes
-        if: ${{ !inputs.release-candidate && (github.event_name == 'pull_request' || github.event_name == 'push') }}
-        env:
-          CI_BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
-        run: node scripts/ci-changes.mjs
       - name: Install dev dependencies
-        if: steps.changes.outputs.docs-only != 'true'
+        if: needs.changes.outputs.docs-only != 'true'
         run: npm.cmd ci --prefer-offline
       - name: Check types, lint and formatting
-        if: steps.changes.outputs.docs-only != 'true'
+        if: needs.changes.outputs.docs-only != 'true'
         run: |
           npm.cmd run typecheck
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -57,7 +75,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           npm.cmd run format:check
       - name: Set up Windows test paths and Edge driver
-        if: steps.changes.outputs.docs-only != 'true'
+        if: needs.changes.outputs.docs-only != 'true'
         run: |
           $browser = Join-Path $env:RUNNER_TEMP "waifu-agent-usage-browser"
           npm.cmd install --prefix "$browser" --no-package-lock --no-save playwright@1.62.1
@@ -66,13 +84,13 @@ jobs:
           "TMP=$env:RUNNER_TEMP" >> $env:GITHUB_ENV
           "AGENT_USAGE_PLAYWRIGHT_MODULE=$browser/node_modules/playwright/index.mjs" >> $env:GITHUB_ENV
       - name: Build matching Windows helper
-        if: steps.changes.outputs.docs-only != 'true'
+        if: needs.changes.outputs.docs-only != 'true'
         run: |
           npm.cmd run native:build
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           npm.cmd run native:check
       - name: Run core Windows suite
-        if: github.event_name == 'pull_request' && steps.changes.outputs.docs-only != 'true'
+        if: github.event_name == 'pull_request' && needs.changes.outputs.docs-only != 'true'
         timeout-minutes: 10
         run: |
           $core = @(
@@ -95,11 +113,11 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           npm.cmd test -- --test-reporter=spec '--test-name-pattern=^ZCode 1000-event history' test/usage-source-prefix-publication.test.js
       - name: Run full Windows suite
-        if: github.event_name != 'pull_request' && steps.changes.outputs.docs-only != 'true'
+        if: github.event_name != 'pull_request' && needs.changes.outputs.docs-only != 'true'
         timeout-minutes: 30
         run: npm.cmd test -- --test-reporter=spec --test-concurrency=4 --test-timeout=720000
       - name: Run explicit Windows native acceptance
-        if: steps.changes.outputs.docs-only != 'true' && (github.event_name != 'pull_request' || steps.changes.outputs.native == 'true')
+        if: needs.changes.outputs.docs-only != 'true' && (github.event_name != 'pull_request' || needs.changes.outputs.native == 'true')
         timeout-minutes: 10
         env:
           Q6_TEST_HELPER: ${{ github.workspace }}/native/windows-source-proof/bin/windows-source-proof.exe
@@ -112,3 +130,56 @@ jobs:
           $env:TMP = $env:TEMP
           New-Item -ItemType Directory -Path "$env:TEMP" -Force | Out-Null
           npm.cmd test -- --test-reporter=spec --test-concurrency=1 test/usage-source-acquisition.test.js test/usage-source-additions.test.js test/usage-source-coalescing.test.js test/usage-source-directory.test.js test/final-status-version.test.js test/usage-source-acquisition-server.test.js test/history-archive-native-lock.test.js test/windows-source-build.test.js
+
+  posix:
+    needs: changes
+    if: ${{ !cancelled() && (needs.changes.result == 'success' || needs.changes.result == 'skipped') && needs.changes.outputs.docs-only != 'true' }}
+    name: ${{ matrix.os }} / Node ${{ matrix.node-version }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15]
+        node-version: ["${{ (inputs.release-candidate || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && '26' || '24' }}"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+      - run: npm ci
+      - name: Run core tests
+        run: |
+          npm test -- --test-reporter=spec --test-concurrency=2 --test-timeout=120000 \
+            test/cli.test.js \
+            test/cli-editions.test.js \
+            test/source-imports.test.js \
+            test/source-wake.test.js \
+            test/lite-server.test.js \
+            test/three-path-parity.test.js \
+            test/history-archive-api.test.js
+      - name: Run refresh delivery tests
+        run: npm test -- --test-reporter=spec --test-concurrency=1 --test-timeout=120000 test/q5-refresh-delivery.test.js
+      - name: Install Playwright and Chromium
+        run: |
+          browser="$RUNNER_TEMP/waifu-agent-usage-browser"
+          npm install --prefix "$browser" --no-package-lock --no-save playwright@1.62.1
+          install_flags=(--no-shell)
+          if [[ "$RUNNER_OS" == Linux ]]; then
+            install_flags+=(--with-deps)
+          fi
+          node "$browser/node_modules/playwright/cli.js" install "${install_flags[@]}" chromium
+          executable=$(node -p 'require(process.argv[1]).chromium.executablePath()' "$browser/node_modules/playwright")
+          test -x "$executable"
+          echo "AGENT_USAGE_PLAYWRIGHT_MODULE=$browser/node_modules/playwright/index.mjs" >> "$GITHUB_ENV"
+          echo "AGENT_USAGE_EDGE_PATH=$executable" >> "$GITHUB_ENV"
+      - name: Run Playwright acceptance
+        run: |
+          npm test -- --test-reporter=spec --test-concurrency=1 --test-timeout=120000 \
+            test/achievement-dialog-browser.test.js \
+            test/source-imports-browser.test.js \
+            test/local-calendar-browser.test.js
