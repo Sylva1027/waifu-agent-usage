@@ -2,7 +2,7 @@
 
 简体中文 · [English](03-development.en.md)
 
-项目使用 Node.js ESM、SQLite 和浏览器原生 JavaScript。v1.0 的包版本为 `1.0.0`，发布标识 `releaseVersion` 为 `1.0`，下载 tag 为 `v1.0`。
+项目使用 Node.js ESM、SQLite 和浏览器原生 JavaScript。v1.0a 的包版本为 `1.0.1`，发布标识 `releaseVersion` 为 `1.0a`，下载标签为 `v1.0a`。
 
 ## 环境与启动
 
@@ -84,17 +84,17 @@ npm.cmd run native:check
 
 助手利用已有 NTFS 变更日志加速来源核验，并提供归档读取租约。缺少来源证明时回退到内容核验；显式归档压实需要可用的文件租约。助手不会启用系统 journal。更多构建参数见[助手说明](../native/windows-source-proof/README.md)。
 
-## 打包 v1.0
+## 打包 v1.0a
 
 在完成检查并准备好匹配的 Windows 助手后执行：
 
 ```powershell
 npm.cmd run native:check
-npm.cmd run package:release -- output/releases-v1.0
-npm.cmd run package:check -- output/releases-v1.0 --browser
+npm.cmd run package:release -- output/releases-v1.0a
+npm.cmd run package:check -- output/releases-v1.0a --browser
 ```
 
-输出目录须为 `output/` 下尚不存在的新目录。包名来自 `releaseVersion: "1.0"`：`1.0-waifu.zip` 和 `1.0-lite.zip`；包内 `version` 为 `1.0.0`。
+输出目录须为 `output/` 下尚不存在的新目录。`releaseVersion: "1.0a"` 对应 `1.0a-waifu.zip` 和 `1.0a-lite.zip`。包内 `version` 为 `1.0.1`。
 
 打包脚本收集实际依赖、各版页面资源、许可和 Windows 助手，不包含用户数据、开发依赖或作者 PNG。生成的 `release-manifest.json` 保存 ZIP 与逐文件 SHA-256。`package:check` 校验实际解包内容并运行隔离 HTTP 检查，`--browser` 追加浏览器检查；省略该参数只运行包与 HTTP 检查。
 

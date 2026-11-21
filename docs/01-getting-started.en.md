@@ -2,36 +2,18 @@
 
 [简体中文](01-getting-started.md) · English
 
-Version 1.0 offers two Windows x64 packages, both with package version `1.0.0`:
+Both v1.0a ZIPs were verified on Windows x64, Ubuntu 24.04 x64, and macOS 15 on Apple Silicon. The package version is `1.0.1`.
 
-- **[Waifu](https://github.com/Sylva1027/waifu-agent-usage/releases/download/v1.0/1.0-waifu.zip):** usage and trends, cost estimates, light and dark themes, character skins, sharing, and achievements.
-- **[Lite](https://github.com/Sylva1027/waifu-agent-usage/releases/download/v1.0/1.0-lite.zip):** usage and trends, source management, quota windows, and history management in a simple dark interface.
+- **[Waifu](https://github.com/Sylva1027/waifu-agent-usage/releases/download/v1.0a/1.0a-waifu.zip):** usage and trends, cost estimates, light and dark themes, character skins, sharing, and achievements.
+- **[Lite](https://github.com/Sylva1027/waifu-agent-usage/releases/download/v1.0a/1.0a-lite.zip):** usage and trends, source management, quota windows, and history management in a simple dark interface.
 
-[View the v1.0 release](https://github.com/Sylva1027/waifu-agent-usage/releases/tag/v1.0).
+[View the v1.0a release](https://github.com/Sylva1027/waifu-agent-usage/releases/tag/v1.0a).
 
 ## Install and start
 
 1. Install [Node.js](https://nodejs.org/en/download) 23.8 or newer.
 2. Extract your chosen package to a permanent folder. If upgrading, follow the [upgrade guide](15-delivery-upgrade.en.md) to back up your data first.
-3. Open a terminal in the extracted package root and run:
-
-```sh
-node src/cli.js run
-```
-
-Open the URL printed in the terminal. Both packages use the same command and require no `npm install` or compilation. Keep the terminal open while the service is running. Press `Ctrl+C` to stop, and run the same command from the same folder to start again.
-
-If the port is in use, specify another one:
-
-```sh
-node src/cli.js run --port 3766
-```
-
-Windows command examples use PowerShell 7 (`pwsh`).
-
-## Start in the background with port fallback
-
-Run the following command from the installation folder when using the current source or a runtime package with automatic port fallback. For the v1.0 downloads above, use the preceding instructions.
+3. Open a terminal in the extracted package root. Both editions are ready to run with the command below.
 
 ```sh
 node src/cli.js dashboard
@@ -40,6 +22,8 @@ node src/cli.js dashboard
 The `dashboard` command starts the service in the background and opens its actual URL in your browser. It tries port 3765 first and tries 3766–3770 if that port is in use. On later launches, it tries the last successful fallback port first. To choose a specific port, use `--port` or set `PORT`.
 
 Run `node src/cli.js stop` to stop the background service. If you used `--state-file` to start it, pass the same path when stopping it.
+
+To run in the foreground, use `node src/cli.js run` and open the URL it prints. Press `Ctrl+C` to stop.
 
 ## Windows desktop shortcut
 
