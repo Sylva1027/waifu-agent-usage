@@ -71,7 +71,7 @@ function checkpointFor(store, filePath) {
   return row ? JSON.parse(row.checkpoint_json) : null;
 }
 
-async function fixture(t, { archiveCount = 2, dsh = false, coldOnly = false } = {}) {
+async function fixture(t, { archiveCount = 2, dsh = false, coldOnly = false, withHotGap = false } = {}) {
   const root = await mkdtemp(path.join(tmpdir(), "history-source-append-"));
   const filePath = dsh
     ? path.join(root, ".dsh", "sessions", "fixture", "history-append", "session.v4.jsonl.zstd")
@@ -116,7 +116,7 @@ async function fixture(t, { archiveCount = 2, dsh = false, coldOnly = false } = 
     const candidate = path.join(root, `archive-${day}.sqlite`);
     await createHistoryArchiveCandidate(store.database, candidate, {
       startMs: START + day * DAY,
-      endMs: START + (day + 1) * DAY,
+      endMs: START + (day + 1) * DAY - (withHotGap && day === 0 ? DAY / 2 : 0),
     });
     candidates.push(candidate);
   }
@@ -184,6 +184,95 @@ async function assertCanonical(f) {
     full.close();
   }
 }
+
+test("sync rejects a new source crossing an authorized range and accepts hot gaps and tails", async (t) => {
+  const f = await fixture(t, { withHotGap: true });
+  const directory = path.dirname(f.filePath);
+  const rejected = path.join(directory, "rollout-new-cold-source.jsonl");
+  const allowed = path.join(directory, "rollout-new-hot-source.jsonl");
+  const usageFile = (session, tokens) =>
+    jsonl([
+      { type: "session_meta", payload: { id: session, source: "cli", cwd: f.root } },
+      { type: "turn_context", payload: { model: "gpt-5.1-codex" } },
+      ...tokens,
+    ]);
+  const before = await f.store.publishedHistoryUsageEvents();
+  const stamp = readHistoryProjectionStamp(f.store.database);
+  await writeFile(rejected, usageFile("blocked", [token(START - 1000, 5, 5), token(START, 15, 10)]));
+
+  assert.equal((await f.store.sync()).updatedFileCount, 0);
+  assert.ok(f.store.warnings.some((warning) => warning.includes(rejected) && warning.includes("cold source binding")));
+  assert.equal(f.store.database.prepare("SELECT 1 FROM source_files WHERE path=?").get(rejected), undefined);
+  assert.equal(checkpointFor(f.store, rejected), null);
+  assert.deepEqual(
+    appendBatches(f.store, stamp.sequence).filter((batch) => batch.sources.includes(rejected)),
+    [],
+  );
+  assert.deepEqual(await f.store.publishedHistoryUsageEvents(), before);
+
+  await f.reopen();
+  assert.deepEqual(await f.store.publishedHistoryUsageEvents(), before);
+  await writeFile(allowed, usageFile("allowed", [token(START + DAY / 2, 7, 7), token(COLD_END, 16, 9)]));
+  assert.equal((await f.store.sync()).updatedFileCount, 1);
+  assert.deepEqual(
+    f.store.database
+      .prepare("SELECT timestamp_ms,total FROM events WHERE source_path=? ORDER BY timestamp_ms")
+      .all(allowed)
+      .map(({ timestamp_ms, total }) => [timestamp_ms, total]),
+    [
+      [START + DAY / 2, 7],
+      [COLD_END, 9],
+    ],
+  );
+  assert.equal((await f.store.publishedHistoryUsageEvents()).length, before.length + 2);
+});
+
+test("append rechecks archive authority after source proof and before writing", async (t) => {
+  const f = await fixture(t, { archiveCount: 0 });
+  const newColdTime = START + 4 * DAY;
+  const seed = path.join(path.dirname(f.filePath), "rollout-new-archive-seed.jsonl");
+  await writeFile(
+    seed,
+    jsonl([
+      { type: "session_meta", payload: { id: "seed", source: "cli", cwd: f.root } },
+      { type: "turn_context", payload: { model: "gpt-5.1-codex" } },
+      token(newColdTime, 30, 30),
+    ]),
+  );
+  await f.store.sync();
+  const candidate = path.join(f.root, "archive-between-proof-and-write.sqlite");
+  await createHistoryArchiveCandidate(f.store.database, candidate, { startMs: newColdTime, endMs: newColdTime + 1000 });
+  const checkpoint = checkpointFor(f.store, f.filePath);
+  assert.ok(checkpoint);
+  const writer = f.openStore();
+  try {
+    await writer.open();
+    const plan = await prepareHistoryArchiveCommit(writer.database, candidate);
+    const verify = f.store.sourceProof.verify;
+    const verification = t.mock.method(f.store.sourceProof, "verify", async function (...args) {
+      const result = await verify.apply(this, args);
+      assert.ok(result, "the old hot cursor must otherwise be eligible");
+      await writer.commitHistoryArchiveEvents(plan);
+      return result;
+    });
+    await appendFile(f.filePath, jsonl([token(newColdTime, 258, 36)]));
+    const homes = await discoverUsageSources(f.store.options);
+    const source = homes.find((home) => f.filePath.startsWith(home.path));
+    assert.ok(source);
+    assert.equal(await f.store.appendFile({ filePath: f.filePath, source, info: await stat(f.filePath) }), null);
+    assert.equal(verification.mock.callCount(), 1);
+  } finally {
+    writer.close();
+  }
+  assert.deepEqual(checkpointFor(f.store, f.filePath), checkpoint);
+  assert.equal(f.store.database.prepare("SELECT 1 FROM events WHERE timestamp_ms=?").get(newColdTime), undefined);
+  const published = await f.store.publishedHistoryUsageEvents();
+  const coldEvents = published.filter((event) => Date.parse(event.timestamp) === newColdTime);
+  assert.deepEqual(
+    coldEvents.map((event) => event.total.total),
+    [30],
+  );
+});
 
 test("multi-archive ordinary Codex appends only the certified tail and matches canonical money exactly", async (t) => {
   const f = await fixture(t);

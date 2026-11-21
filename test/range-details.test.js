@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import path from "node:path";
 import test from "node:test";
 import { resolveDateRange, previousUsageRange, summarizeUsage } from "../src/usage-core.js";
 import { canonicalRecentValue, displayRecentValue } from "../public/i18n.js";
 import { createPricingPolicyFixture } from "../test-support/pricing-official-fixture.mjs";
 import { UsageStore } from "../src/usage-store.js";
+import { UsageStore as LiteUsageStore } from "../src/usage-store-lite.js";
 
 test("last year uses complete calendar years and year comparisons clamp leap days", () => {
   for (const [now, start, end] of [
@@ -42,8 +44,13 @@ test("local year boundaries use the selected non-UTC calendar", () => {
 test("range details preserve known cohorts and named identity across SQL and memory, including open bounds", async () => {
   const fixture = createPricingPolicyFixture();
   const store = new UsageStore(fixture.options);
+  const lite = new LiteUsageStore({
+    ...fixture.options,
+    databaseFile: path.join(fixture.options.homeDir, "lite.sqlite"),
+  });
   try {
     await store.sync();
+    await lite.sync();
     const report = await store.publishedHistoryUsageReport();
     for (const selection of [
       { preset: "today" },
@@ -58,20 +65,50 @@ test("range details preserve known cohorts and named identity across SQL and mem
       { preset: "custom" },
     ]) {
       const filters = { ...fixture.filters, ...selection, now: new Date(fixture.filters.now), calendarZone: "utc" };
-      const memory = summarizeUsage(report, filters),
-        payload = await store.dashboardHistory(filters, { includeDetails: false });
-      assert.deepEqual(payload.summary.details, memory.details, JSON.stringify(selection));
+      const memory = summarizeUsage(report, filters);
+      const payload = await store.dashboardHistory(filters, { includeDetails: false });
+      const litePayload = await lite.dashboardHistory(filters, { includeDetails: false });
+      for (const field of ["totals", "details", "quota"]) {
+        assert.deepEqual(payload.summary[field], memory[field], JSON.stringify({ selection, field, edition: "Waifu" }));
+        assert.deepEqual(
+          litePayload.summary[field],
+          memory[field],
+          JSON.stringify({ selection, field, edition: "Lite" }),
+        );
+      }
+      for (const field of ["channels", "models"]) {
+        const byKey = (left, right) => left.key.localeCompare(right.key);
+        const expected = memory[field].toSorted(byKey);
+        assert.deepEqual(
+          payload.summary[field].toSorted(byKey),
+          expected,
+          JSON.stringify({ selection, field, edition: "Waifu" }),
+        );
+        assert.deepEqual(
+          litePayload.summary[field].toSorted(byKey),
+          expected,
+          JSON.stringify({ selection, field, edition: "Lite" }),
+        );
+      }
       assert.deepEqual(payload.summary.rangeMetrics, memory.rangeMetrics, JSON.stringify(selection));
       assert.equal(payload.summary.range.recentValue, memory.range.recentValue);
       assert.equal(payload.summary.range.asOf, memory.range.asOf);
     }
-    const s = await store.dashboardHistory(
-      { ...fixture.filters, now: new Date(fixture.filters.now), preset: "all" },
-      { includeDetails: false },
-    );
-    assert.equal(s.summary.details.uncachedInput, 480);
-    assert.equal(s.summary.details.uncachedInputUnavailableTokens, 600);
+    const filters = { ...fixture.filters, now: new Date(fixture.filters.now), preset: "all" };
+    const { summary } = await store.dashboardHistory(filters, { includeDetails: true });
+    const { summary: liteSummary } = await lite.dashboardHistory(filters, { includeDetails: true });
+    for (const field of ["projects", "repositories", "homes"]) {
+      assert.ok(summary[field].length, field);
+      assert.deepEqual(liteSummary[field], summary[field], field);
+    }
+    for (const field of ["costEstimate", "rangeMetrics", "records"]) {
+      assert.ok(Object.hasOwn(summary, field), field);
+      assert.ok(!Object.hasOwn(liteSummary, field), field);
+    }
+    assert.equal(summary.details.uncachedInput, 480);
+    assert.equal(summary.details.uncachedInputUnavailableTokens, 600);
   } finally {
+    lite.close();
     store.close();
     fixture.close();
   }

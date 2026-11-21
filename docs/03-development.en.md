@@ -23,6 +23,8 @@ node src/cli-lite.js run --port 3766 --home-dir ./output/lite-home --state-file 
 
 Parallel instances need separate ports, data roots, and service registration files. `--home-dir` affects default data and configuration locations, not just source selection. Both release packages use `node src/cli.js run`.
 
+Use `--host` or `HOST` to bind to a LAN address or hostname. With a wildcard bind, the CLI prints a loopback URL. LAN clients use the server machine's address and listening port. Direct LAN connections have no account authentication, so limit open bindings to trusted networks. Reverse proxies should validate the browser origin before forwarding Host and Origin for the backend address and port.
+
 The primary command is `waifu-agent-usage`; `codex-usage` and `cud` remain compatible aliases. Existing `.codex-usage` data, `CODEX_USAGE_*` environment variables, and browser preferences continue to work.
 
 ## Code entry points

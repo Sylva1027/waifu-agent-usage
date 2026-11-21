@@ -1,4 +1,4 @@
-import { createUsageServer as createServerCore } from "./server-core.js";
+import { createUsageServer as createServerCore, formatUsageServerUrl } from "./server-core.js";
 export { withoutExcludedHomes, isFullDetailHeapAvailable, describeImportEntry, readJsonBody } from "./server-core.js";
 import { createUsageExecutor } from "./usage-executor-waifu.js";
 import { UsageSummaryCache, summaryCacheKey } from "./usage-summary-cache.js";
@@ -53,10 +53,10 @@ export async function createHistoryArchiveImportServer(importDirectory, options 
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
   const port = Number(process.env.PORT || 3765);
   const host = process.env.HOST || "127.0.0.1";
-  const server = createUsageServer();
+  const server = createUsageServer({ listenHost: host });
   server.listen(port, host, () => {
     const address = server.address();
     const actualPort = typeof address === "object" && address ? address.port : port;
-    console.log(`Waifu Agent Usage dashboard: http://${host}:${actualPort}`);
+    console.log(`Waifu Agent Usage dashboard: ${formatUsageServerUrl(host, actualPort)}`);
   });
 }

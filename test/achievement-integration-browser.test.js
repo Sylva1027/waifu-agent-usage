@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { existsSync } from "node:fs";
-import { mkdir, readFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 import { promisify } from "node:util";
@@ -12,7 +12,6 @@ import { verifyHistoryBackup } from "../src/history-backup.js";
 import { createAchievementUiFixture } from "../test-support/achievement-ui-fixture.mjs";
 
 const exec = promisify(execFile);
-const evidence = "docs/validation/2026-11-16-achievement-production/S10";
 const row = (snapshot, id) => snapshot.rows.find((entry) => entry.id === id);
 
 async function setup(t) {
@@ -43,7 +42,10 @@ async function setup(t) {
   ]);
   await page.waitForFunction(() => document.querySelector("#totalTokens").textContent !== "-");
   assert.equal(await page.locator("html").getAttribute("data-skin"), "classic");
-  return { fixture, page };
+  const output = path.join("output", "playwright");
+  await mkdir(output, { recursive: true });
+  const screenshots = await mkdtemp(path.join(output, "achievement-integration-"));
+  return { fixture, page, screenshots };
 }
 
 async function open(page) {
@@ -63,11 +65,10 @@ async function select(page, id) {
 test("all 42 real achievement cards render approved bilingual content and all 96 badges decode in the production page", {
   timeout: 60_000,
 }, async (t) => {
-  const { fixture, page } = await setup(t);
+  const { fixture, page, screenshots } = await setup(t);
   const snapshot = await fixture.snapshot();
   assert.equal(snapshot.rows.length, 42);
   assert.deepEqual(snapshot.rows.map((entry) => entry.id).sort(), ACHIEVEMENT_CONTENT.map((entry) => entry.id).sort());
-  await mkdir(evidence, { recursive: true });
   let inspected = 0;
   for (const locale of ["zh", "en"]) {
     await open(page);
@@ -99,7 +100,7 @@ test("all 42 real achievement cards render approved bilingual content and all 96
       }
     }
     await select(page, "A76");
-    await page.screenshot({ path: `${evidence}/sub2-${locale}-achievement-window.png` });
+    await page.screenshot({ path: path.join(screenshots, `sub2-${locale}-achievement-window.png`) });
     await page.keyboard.press("Escape");
     await page.waitForFunction(() => !document.querySelector("#achievementDialog").open);
     if (locale === "zh") {
@@ -136,7 +137,7 @@ test("actual picker, share download and CLI restore award A44/A43/A46 in the ori
 }, async (t) => {
   let stage = "starting isolated fixture";
   t.after(() => t.diagnostic(`Last integration stage: ${stage}`));
-  const { fixture, page } = await setup(t);
+  const { fixture, page, screenshots } = await setup(t);
   const before = await fixture.snapshot();
   assert.equal(row(before, "A44").observedValue, "0");
   assert.equal(row(before, "A43").highestEarned, null);
@@ -238,7 +239,7 @@ test("actual picker, share download and CLI restore award A44/A43/A46 in the ori
   );
   assert.equal(await page.locator(".detail-panel > .badge").getAttribute("src"), "/assets/achievements/A46/stone.webp");
   assert.match(await page.locator(".detail-date").textContent(), /^Earned /);
-  await page.screenshot({ path: `${evidence}/sub2-real-restore-achievement.png` });
+  await page.screenshot({ path: path.join(screenshots, "sub2-real-restore-achievement.png") });
   stage = "replaying completed CLI restore";
   const replay = await cli(["restore", backup, target]);
   assert.match(replay.stdout, /Restore already completed/);

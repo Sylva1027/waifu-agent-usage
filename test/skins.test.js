@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
   appendFileSync,
@@ -351,11 +351,13 @@ test("skins:check:sources binds every committed copy to its authoring PNG", (t) 
   assert.match(output, /check-sources: PASS \(40 sources bound to their public copies\)/);
 });
 
-test("source binding is skipped, not faked, when a release archive has no authoring PNGs", async () => {
+test("a release tree without authoring PNGs can be checked but cannot regenerate assets", async () => {
   const { verifySkinTree } = await import("../scripts/prepare-skin-assets.mjs");
   const sandbox = mkdtempSync(path.join(tmpdir(), "skins-no-sources-"));
   try {
-    cpSync(path.join(root, "public"), path.join(sandbox, "public"), { recursive: true });
+    for (const entry of ["public", "scripts", "package.json"]) {
+      cpSync(path.join(root, entry), path.join(sandbox, entry), { recursive: true });
+    }
 
     const plain = await verifySkinTree({ root: sandbox });
     assert.equal(plain.status, "pass");
@@ -364,6 +366,20 @@ test("source binding is skipped, not faked, when a release archive has no author
     const withSources = await verifySkinTree({ root: sandbox, requireSources: true });
     assert.equal(withSources.status, "pass");
     assert.equal(withSources.sourceBinding, "skipped", "absent PNGs must never read as verified");
+
+    const manifest = path.join(sandbox, "public", "skin-assets.json");
+    const bootstrap = path.join(sandbox, "public", "skin-bootstrap.js");
+    appendFileSync(bootstrap, "\n// Deliberately stale fixture bootstrap.\n");
+    const hashes = () =>
+      [manifest, bootstrap].map((file) => createHash("sha256").update(readFileSync(file)).digest("hex"));
+    const before = hashes();
+    const prepared = spawnSync(process.execPath, ["scripts/prepare-skin-assets.mjs", "prepare"], {
+      cwd: sandbox,
+      encoding: "utf8",
+    });
+    assert.equal(prepared.status, 1, prepared.stderr);
+    assert.match(prepared.stdout, /prepare: \d+ file\(s\) missing:/);
+    assert.deepEqual(hashes(), before);
   } finally {
     rmSync(sandbox, { recursive: true, force: true });
   }
