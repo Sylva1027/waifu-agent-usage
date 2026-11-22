@@ -4,9 +4,30 @@
 
 Waifu Agent Usage 是由 Sylva1027 独立维护的本地 AI 编程用量看板。汇总多个 AI 编程工具的用量，看清 Token 消耗、模型分布和使用趋势；通过角色皮肤、分享卡片与成就，让每天的使用记录也能有自己的风格。
 
-支持的 harness：Codex、Claude Code、OpenCode、ZCode、DSH、WorkBuddy 和 Hermes。
-
 ![Claude 浅色英文与 ChatGPT 浅色中文看板，示例数据](docs/images/dashboard-bilingual.png)
+
+## 支持的 Harness
+
+<table>
+  <tr>
+    <td width="50%"><a href="docs/data-sources/codex.md"><img src="docs/images/harnesses/codex.png" width="20" height="20" align="absmiddle" alt="">&nbsp;Codex</a></td>
+    <td width="50%"><a href="docs/data-sources/claude-code.md"><img src="docs/images/harnesses/claude-code.png" width="20" height="20" align="absmiddle" alt="">&nbsp;Claude Code</a></td>
+  </tr>
+  <tr>
+    <td width="50%"><a href="docs/data-sources/opencode.md"><img src="docs/images/harnesses/opencode.png" width="20" height="20" align="absmiddle" alt="">&nbsp;OpenCode</a></td>
+    <td width="50%"><a href="docs/data-sources/zcode.md"><img src="docs/images/harnesses/zcode.png" width="20" height="20" align="absmiddle" alt="">&nbsp;ZCode</a></td>
+  </tr>
+  <tr>
+    <td width="50%"><a href="docs/data-sources/dsh.md"><img src="docs/images/harnesses/dsh.svg" width="20" height="20" align="absmiddle" alt="">&nbsp;DSH</a></td>
+    <td width="50%"><a href="docs/data-sources/workbuddy.md"><img src="docs/images/harnesses/workbuddy.svg" width="20" height="20" align="absmiddle" alt="">&nbsp;WorkBuddy</a></td>
+  </tr>
+  <tr>
+    <td width="50%"><a href="docs/data-sources/hermes.md"><img src="docs/images/harnesses/hermes.png" width="20" height="20" align="absmiddle" alt="">&nbsp;Hermes</a></td>
+    <td></td>
+  </tr>
+</table>
+
+计划适配 [Google Antigravity](https://antigravity.google/) 和 [(Oh My) Pi](https://github.com/can1357/oh-my-pi)。
 
 ## 让 Agent 帮你安装
 
@@ -30,6 +51,10 @@ node src/cli.js dashboard
 ```
 
 命令在后台启动服务并打开浏览器。在来源管理中扫描并导入日志。运行包无需 `npm install` 或编译，用 `node src/cli.js stop` 停止服务。 [开始使用](docs/01-getting-started.md)
+
+### Windows 双击启动
+
+Waifu 和 Lite 都可以用 PowerShell 7 创建桌面快捷方式，之后双击即可打开看板。[查看创建步骤](docs/01-getting-started.md#windows-桌面快捷方式)
 
 ## 功能一览
 
