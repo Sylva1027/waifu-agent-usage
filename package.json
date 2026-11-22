@@ -34,7 +34,9 @@
     "skins:review": "node scripts/skin-palette/review-cli.mjs",
     "skins:quality": "node scripts/skin-palette/review-cli.mjs verify",
     "summary": "node src/cli.js summary",
-    "serve": "node src/cli.js run"
+    "serve": "node src/cli.js run",
+    "visuals:build": "esbuild node_modules/three/build/three.module.js --bundle --format=esm --minify --legal-comments=inline --outfile=public/dev/waifu-visuals/three.js",
+    "visuals:serve": "npm run visuals:build && esbuild --servedir=public --serve=127.0.0.1:4178"
   },
   "engines": {
     "node": ">=23.8"
@@ -42,6 +44,8 @@
   "devDependencies": {
     "@biomejs/biome": "2.5.14",
     "@types/node": "22.20.4",
+    "esbuild": "0.28.2",
+    "three": "0.187.0",
     "typescript": "5.9.3"
   }
 }

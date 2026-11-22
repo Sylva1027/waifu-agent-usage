@@ -1,0 +1,111 @@
+.notice-page {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--ui-font-sans);
+}
+.notice-demo {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: clamp(20px, 5vw, 52px) clamp(16px, 4vw, 32px);
+}
+.notice-demo header a {
+  color: var(--muted);
+  font-size: 13px;
+  text-underline-offset: 3px;
+}
+.notice-demo h1 {
+  margin: 12px 0 20px;
+  font-size: clamp(24px, 3.5vw, 34px);
+  line-height: 1.35;
+}
+.notice-preview {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: clamp(205px, 38vh, 330px);
+  overflow: hidden;
+  isolation: isolate;
+  border-radius: 21px;
+  background: var(--panel);
+  box-shadow: var(--neo-raised);
+}
+.notice-sample {
+  width: min(65%, 275px);
+}
+.notice-sample .auto-refresh-heading {
+  margin: 0 0 5px 2px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.notice-sample .refresh-label {
+  color: var(--record);
+  font-weight: 650;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.notice-sample .auto-refresh-well {
+  min-height: 40px;
+}
+.notice-sample .auto-refresh-info {
+  color: var(--muted);
+  font-size: 13px;
+}
+#noticeCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.notice-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 14px;
+  margin: 24px 0 0;
+}
+.notice-controls label {
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.notice-controls select,
+.notice-controls button {
+  min-height: 38px;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  background: var(--panel);
+  font: inherit;
+  font-size: 14px;
+}
+.notice-controls #simulateUnlock {
+  margin-left: auto;
+  border-color: var(--record);
+  background: var(--record);
+  color: var(--active-ink);
+  font-weight: 650;
+  cursor: pointer;
+}
+.notice-readout {
+  min-height: 1.5em;
+  margin: 15px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 500px) {
+  .notice-controls {
+    gap: 10px;
+  }
+  .notice-controls #simulateUnlock {
+    margin-left: 0;
+  }
+  .notice-sample {
+    width: min(76%, 250px);
+  }
+}

@@ -1,0 +1,80 @@
+.preview-header {
+  padding-block-end: 24px;
+  border-block-end: 1px solid var(--demo-edge);
+}
+
+.preview-header p {
+  margin-block-end: 0;
+}
+
+.preview-links {
+  display: grid;
+}
+
+.preview-links a {
+  display: grid;
+  grid-template-columns: clamp(100px, 21vw, 215px) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: clamp(14px, 4vw, 45px);
+  padding-block: 18px;
+  border-block-end: 1px solid var(--demo-edge);
+  color: inherit;
+  text-decoration: none;
+}
+
+.preview-links h2,
+.preview-links p {
+  margin: 0;
+}
+
+.preview-links h2 {
+  font-size: clamp(19px, 3.5vw, 34px);
+  margin-block-end: 6px;
+}
+
+.preview-links p {
+  color: var(--demo-muted);
+  line-height: 1.5;
+}
+
+.preview-links a:hover h2 {
+  color: var(--demo-action);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.preview-links a > span {
+  color: var(--demo-action);
+  font-size: 22px;
+}
+
+.specimen {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  block-size: 120px;
+  border-radius: 12px;
+}
+
+.specimen-badge {
+  background: #dce5ef;
+}
+
+.specimen-notice {
+  color: #9dcafb;
+  background: #1e3045;
+  font-size: 16px;
+  font-weight: 650;
+  text-shadow: 0 0 10px #9dcafb96;
+}
+
+.specimen-skin {
+  align-items: end;
+  background: radial-gradient(circle at 48% 48%, #cee6f2 0 30%, #dbeaf4 31% 100%);
+}
+
+.specimen-skin img {
+  display: block;
+  object-fit: contain;
+  object-position: center bottom;
+}
