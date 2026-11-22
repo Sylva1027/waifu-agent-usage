@@ -215,6 +215,9 @@ export function createNoticeScene(drawBloom) {
   return {
     configure,
     render,
+    prepare(renderer) {
+      return renderer.compileAsync(scene, camera);
+    },
     dispose() {
       geometry.dispose();
       material.dispose();

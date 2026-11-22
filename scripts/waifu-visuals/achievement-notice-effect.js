@@ -46,11 +46,6 @@ export function playAchievementNoticeEffect({ button, canvas, onFinish }) {
           finish();
           return;
         }
-        if (!renderer) {
-          renderer = new WebGLRenderer({ canvas, alpha: true, antialias: true });
-          canvas.addEventListener("webglcontextlost", finish);
-          effect = createNoticeScene();
-        }
         const ratio = Math.min(devicePixelRatio || 1, 2);
         const bufferWidth = Math.round(width * ratio);
         const bufferHeight = Math.round(height * ratio);
@@ -59,7 +54,6 @@ export function playAchievementNoticeEffect({ button, canvas, onFinish }) {
         }
         effect.configure({ target: button, canvas, variant: "orbit", theme: document.documentElement.dataset.theme });
         effect.render({ renderer, width, height, progress: done ? 1 : elapsed / duration });
-        // First-use WebGL setup and shader compilation should not eat into the animation.
         start ??= performance.now();
       }
       if (done) finish();
@@ -69,6 +63,19 @@ export function playAchievementNoticeEffect({ button, canvas, onFinish }) {
     }
   }
 
-  request = requestAnimationFrame(frame);
+  request = requestAnimationFrame(() => {
+    if (document.hidden || motion.matches || button.hidden || !canvas.isConnected) return finish();
+    try {
+      renderer = new WebGLRenderer({ canvas, alpha: true, antialias: true });
+      canvas.addEventListener("webglcontextlost", finish);
+      effect = createNoticeScene();
+      // Compile before starting the timeline so a cold shader doesn't consume its first frames.
+      void effect.prepare(renderer).then(() => {
+        if (!disposed) request = requestAnimationFrame(frame);
+      }, finish);
+    } catch {
+      finish();
+    }
+  });
   return { dispose };
 }
