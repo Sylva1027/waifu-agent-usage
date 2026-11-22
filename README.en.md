@@ -4,9 +4,30 @@
 
 Waifu Agent Usage is a local AI coding usage dashboard independently maintained by Sylva1027. Bring usage from your AI coding tools into one place, see where your tokens go, follow usage trends, and make it your own with character skins, share cards, and achievements.
 
-Supported harnesses: Codex, Claude Code, OpenCode, ZCode, DSH, WorkBuddy, and Hermes.
-
 ![Claude light dashboard in English and ChatGPT light dashboard in Chinese, sample data](docs/images/dashboard-bilingual.png)
+
+## Supported harnesses
+
+<table>
+  <tr>
+    <td width="50%"><a href="docs/data-sources/codex.en.md"><img src="docs/images/harnesses/codex.png" width="20" height="20" align="absmiddle" alt="">&nbsp;Codex</a></td>
+    <td width="50%"><a href="docs/data-sources/claude-code.en.md"><img src="docs/images/harnesses/claude-code.png" width="20" height="20" align="absmiddle" alt="">&nbsp;Claude Code</a></td>
+  </tr>
+  <tr>
+    <td width="50%"><a href="docs/data-sources/opencode.en.md"><img src="docs/images/harnesses/opencode.png" width="20" height="20" align="absmiddle" alt="">&nbsp;OpenCode</a></td>
+    <td width="50%"><a href="docs/data-sources/zcode.en.md"><img src="docs/images/harnesses/zcode.png" width="20" height="20" align="absmiddle" alt="">&nbsp;ZCode</a></td>
+  </tr>
+  <tr>
+    <td width="50%"><a href="docs/data-sources/dsh.en.md"><img src="docs/images/harnesses/dsh.svg" width="20" height="20" align="absmiddle" alt="">&nbsp;DSH</a></td>
+    <td width="50%"><a href="docs/data-sources/workbuddy.en.md"><img src="docs/images/harnesses/workbuddy.svg" width="20" height="20" align="absmiddle" alt="">&nbsp;WorkBuddy</a></td>
+  </tr>
+  <tr>
+    <td width="50%"><a href="docs/data-sources/hermes.en.md"><img src="docs/images/harnesses/hermes.png" width="20" height="20" align="absmiddle" alt="">&nbsp;Hermes</a></td>
+    <td></td>
+  </tr>
+</table>
+
+Planned integrations are [Google Antigravity](https://antigravity.google/) and [(Oh My) Pi](https://github.com/can1357/oh-my-pi).
 
 ## Let your agent install it
 
@@ -30,6 +51,10 @@ node src/cli.js dashboard
 ```
 
 The command starts the service in the background and opens your browser. Use source management to scan and import your logs. The ZIP is ready to run without installing npm packages or compiling. Stop the service with `node src/cli.js stop`. [Getting started](docs/01-getting-started.en.md)
+
+### Windows desktop shortcut
+
+Use PowerShell 7 to create a desktop shortcut for Waifu or Lite, then double-click it to open the dashboard. [Create a desktop shortcut](docs/01-getting-started.en.md#windows-desktop-shortcut)
 
 ## Features
 
