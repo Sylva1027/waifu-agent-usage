@@ -43,6 +43,8 @@ test("Lite closure binds all canonical entries and retains the exact common runt
   assert.ok(Object.keys(inputs).length > 60);
   assert.deepEqual(Object.keys(inputs).filter(isLiteForbidden), []);
   assert.equal(inputs["public/waifu-achievement-badge.js"], undefined);
+  assert.equal(inputs["public/waifu-achievement-notice-effect.js"], undefined);
+  assert.equal(inputs["public/waifu-visuals-core.js"], undefined);
   assert.doesNotMatch(Object.keys(inputs).join("\n"), /^public\/(?:assets|i18n|share|skin|achievement)|^src\/waifu/m);
 });
 
@@ -60,6 +62,8 @@ test("Waifu closure keeps 42 achievement families / 96 original badge bytes and 
     "public/share-card.js",
     "public/skin-palette-studio.js",
     "public/waifu-achievement-badge.js",
+    "public/waifu-achievement-notice-effect.js",
+    "public/waifu-visuals-core.js",
     "native/windows-source-proof/src/usn.rs",
     "native/windows-source-proof/bin/windows-source-proof.build.json",
   ])

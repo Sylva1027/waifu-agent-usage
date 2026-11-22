@@ -197,6 +197,31 @@ test("only the displayed earned tier loads and draws the 3D badge; redraws, fall
   await page.locator('[data-preview-grade="silver"]').click();
   assert.ok(await retained.evaluate((node) => node === document.querySelector(".detail-panel > canvas")));
   assert.equal(await image.evaluate((node) => getComputedStyle(node).opacity), "0");
+  const badgeBox = await image.boundingBox();
+  for (const [edge, x, y, axis, sign] of [
+    ["left", 0.1, 0.5, 2, -1],
+    ["right", 0.9, 0.5, 2, 1],
+    ["top", 0.5, 0.1, 6, 1],
+    ["bottom", 0.5, 0.9, 6, -1],
+  ]) {
+    await page.mouse.move(badgeBox.x + badgeBox.width * x, badgeBox.y + badgeBox.height * y);
+    // In the actual vertex shader's model-view matrix, entries 2 and 6 are the
+    // right/up axes' camera-space Z components. Increasing Z approaches the viewer.
+    await page
+      .waitForFunction(
+        ([axis, sign]) => {
+          const gl = document.querySelector(".badge-canvas").getContext("webgl2");
+          const program = gl.getParameter(gl.CURRENT_PROGRAM);
+          const location = program && gl.getUniformLocation(program, "modelViewMatrix");
+          return location && gl.getUniform(program, location)[axis] * sign > 0.04;
+        },
+        [axis, sign],
+        { timeout: 4000 },
+      )
+      .catch((cause) => {
+        throw new Error(`Hovering the ${edge} edge must bring it closer to the viewer`, { cause });
+      });
+  }
   const frameTimes = await image.evaluate(async (node) => {
     const rect = node.getBoundingClientRect();
     const start = performance.now();

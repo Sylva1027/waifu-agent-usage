@@ -2,3 +2,5 @@
 # Keep independently verified fixture bytes unchanged in clones and source archives.
 /test/fixtures/** -text
 /public/waifu-achievement-badge.js linguist-generated=true -whitespace
+/public/waifu-achievement-notice-effect.js linguist-generated=true -whitespace
+/public/waifu-visuals-core.js linguist-generated=true -whitespace

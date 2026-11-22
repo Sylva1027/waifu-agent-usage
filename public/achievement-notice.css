@@ -20,3 +20,10 @@
   outline-offset: 4px;
   border-radius: 3px;
 }
+.achievement-notice-effect {
+  position: fixed;
+  z-index: 30;
+  width: min(190px, 100vw);
+  height: min(116px, 100vh);
+  pointer-events: none;
+}

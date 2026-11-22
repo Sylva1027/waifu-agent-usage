@@ -110,7 +110,7 @@ export function mountAchievementBadge({ image, canvas, host, grade, onReady, onU
     try {
       started ??= now;
       const settle = pointing ? 0 : Math.max(0, 1 - (now - started) / settleMs);
-      badge.rotation.set(-0.055 - pointerY * 0.24 - 0.07 * settle ** 2, 0.13 + pointerX * 0.36 + 0.29 * settle ** 2, 0);
+      badge.rotation.set(-0.055 - pointerY * 0.24 - 0.07 * settle ** 2, 0.13 - pointerX * 0.36 + 0.29 * settle ** 2, 0);
       const ratio = Math.min(devicePixelRatio || 1, 2);
       const bufferWidth = Math.round(width * ratio);
       const bufferHeight = Math.round(height * ratio);

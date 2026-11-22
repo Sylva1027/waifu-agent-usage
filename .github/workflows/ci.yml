@@ -71,7 +71,7 @@ jobs:
         run: |
           npm.cmd run typecheck
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          npm.cmd run visuals:build:badge -- --check
+          npm.cmd run visuals:build:runtime -- --check
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           npm.cmd run lint
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -107,6 +107,7 @@ jobs:
             "test/usage-record-connection.test.js"
             "test/history-archive-api.test.js"
             "test/achievement-dialog-browser.test.js"
+            "test/achievement-notification-browser.test.js"
             "test/package-release.test.js"
           )
           npm.cmd test -- --test-reporter=spec --test-concurrency=4 @core
@@ -172,5 +173,6 @@ jobs:
         run: |
           npm test -- --test-reporter=spec --test-concurrency=1 --test-timeout=120000 \
             test/achievement-dialog-browser.test.js \
+            test/achievement-notification-browser.test.js \
             test/source-imports-browser.test.js \
             test/local-calendar-browser.test.js

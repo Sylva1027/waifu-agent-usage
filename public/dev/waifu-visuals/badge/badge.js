@@ -149,8 +149,8 @@ interactive.addEventListener("pointermove", (event) => {
     return;
   const rect = interactive.getBoundingClientRect();
   pointerAngles = [
-    ((event.clientY - rect.top) / rect.height - 0.5) * 0.5,
-    ((event.clientX - rect.left) / rect.width - 0.5) * 0.7,
+    (0.5 - (event.clientY - rect.top) / rect.height) * 0.5,
+    (0.5 - (event.clientX - rect.left) / rect.width) * 0.7,
   ];
   if (pointerTimer) return;
   pointerTimer = setTimeout(

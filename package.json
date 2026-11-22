@@ -36,7 +36,7 @@
     "summary": "node src/cli.js summary",
     "serve": "node src/cli.js run",
     "visuals:build": "esbuild node_modules/three/build/three.module.js --bundle --format=esm --minify --legal-comments=inline --outfile=public/dev/waifu-visuals/three.js",
-    "visuals:build:badge": "node scripts/waifu-visuals/build-badge.mjs",
+    "visuals:build:runtime": "node scripts/waifu-visuals/build-runtime.mjs",
     "visuals:serve": "npm run visuals:build && esbuild --servedir=public --serve=127.0.0.1:4178"
   },
   "engines": {

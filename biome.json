@@ -16,6 +16,8 @@
       "test-support/usage-fixture.mjs",
       "!!docs/validation",
       "!!public/waifu-achievement-badge.js",
+      "!!public/waifu-achievement-notice-effect.js",
+      "!!public/waifu-visuals-core.js",
       "!!.tmp",
       "!!output"
     ],
