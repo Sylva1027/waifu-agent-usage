@@ -17,16 +17,20 @@
       <section class="controls" aria-label="角色与背景">
         <label>角色<select id="skin"></select></label>
         <label>主题<select id="theme"><option value="light">浅色</option><option value="dark">深色</option></select></label>
-        <label>背景<select id="effect"><option value="original">原图</option><option value="halo" selected>细光环</option><option value="orbit">稀疏轨道光点</option></select></label>
+        <div class="background-choice">
+          <label>背景<select id="effect"><option value="original">原图</option><option value="lab" selected>AI Lab 标识</option></select></label>
+          <output for="skin effect" id="lab-name" hidden></output>
+        </div>
         <label class="opacity-control">透明度 <output for="opacity" id="opacity-value">50%</output><input type="range" id="opacity" min="0" max="100" value="50" /></label>
         <label class="check"><input type="checkbox" id="characters" checked />显示角色</label>
         <label class="check"><input type="checkbox" id="parallax" />鼠标视差</label>
       </section>
       <section id="stage" aria-label="角色与看板预览">
         <div id="art" aria-hidden="true">
-          <canvas id="fx"></canvas>
-          <img id="side" alt="" />
-          <img id="front" alt="" />
+          <canvas id="fx" hidden></canvas>
+          <div id="logo-fallback" hidden></div>
+          <img id="side" class="portrait" alt="" />
+          <img id="front" class="portrait" alt="" />
         </div>
         <div id="board">
           <header><strong>Agent Usage</strong><small>示例数据</small></header>

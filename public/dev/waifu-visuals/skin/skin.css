@@ -33,6 +33,7 @@ body {
   gap: 10px 16px;
   padding: 12px 0;
 }
+.background-choice,
 .controls label,
 .playback label {
   display: inline-flex;
@@ -74,7 +75,7 @@ body {
   overflow: hidden;
   opacity: 0.5;
 }
-#art img {
+#art .portrait {
   display: block;
   position: absolute;
   bottom: 0;
@@ -83,10 +84,21 @@ body {
   height: calc(78% * var(--scale, 1));
   transform: translateX(var(--shift, -50%));
 }
-#art img:not([data-ready]) {
+#art .portrait:not([data-ready]) {
   visibility: hidden;
 }
-#fx[hidden],
+#lab-name {
+  color: var(--demo-muted);
+  font-size: 0.875rem;
+}
+#logo-fallback img {
+  position: absolute;
+  transform: translate(-50%, 50%);
+}
+#fx[hidden] {
+  display: block;
+  visibility: hidden;
+}
 #art[hidden] {
   display: none;
 }
