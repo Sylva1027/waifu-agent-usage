@@ -3,6 +3,7 @@ import { stat } from "node:fs/promises";
 import { DatabaseSync } from "node:sqlite";
 import path from "node:path";
 import { codexQuotaFile, readCodexQuotaObservations } from "./codex-quota-cache.js";
+import { readCodexHomeWorktreeRoots, serializeCodexWorktreeRoots } from "./codex-worktree-roots.js";
 import { invalidateQuotaSourceLog } from "./quota-source-evidence.js";
 
 const logInputs = new Map();
@@ -58,6 +59,11 @@ export async function readUsageSourceInputs(
   input.update("\0quota\0").update(quota);
   auxiliary.update("\0quota\0").update(quota);
   routing.update("\0quota\0").update(quota);
+  const roots = readCodexHomeWorktreeRoots(homes);
+  if (roots.size) {
+    const worktrees = serializeCodexWorktreeRoots(roots);
+    for (const hash of [input, auxiliary, routing]) hash.update("\0worktrees\0").update(worktrees);
+  }
   const verifiedLogs = new Set();
   for (const file of [...files].sort()) {
     if (file.endsWith("logs_2.sqlite-wal") && verifiedLogs.has(file.slice(0, -4))) continue;

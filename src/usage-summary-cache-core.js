@@ -12,7 +12,7 @@ import { isSqliteBusy } from "./sqlite-busy.js";
 
 const digest = (value) => createHash("sha256").update(value).digest("hex");
 // Bump when payload formulas or executor snapshot semantics change.
-const SUMMARY_CACHE_VERSION = 11;
+const SUMMARY_CACHE_VERSION = 12;
 
 /** Recompute clock fields from cached aggregates, using the shared formulas. */
 export function refreshSummaryClock(payload, now) {
