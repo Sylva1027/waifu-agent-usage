@@ -67,14 +67,3 @@
   font-weight: 650;
   text-shadow: 0 0 10px #9dcafb96;
 }
-
-.specimen-skin {
-  align-items: end;
-  background: radial-gradient(circle at 48% 48%, #cee6f2 0 30%, #dbeaf4 31% 100%);
-}
-
-.specimen-skin img {
-  display: block;
-  object-fit: contain;
-  object-position: center bottom;
-}
