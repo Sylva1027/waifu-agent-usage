@@ -71,6 +71,8 @@ jobs:
         run: |
           npm.cmd run typecheck
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm.cmd run visuals:build:badge -- --check
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           npm.cmd run lint
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           npm.cmd run format:check

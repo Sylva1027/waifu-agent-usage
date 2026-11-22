@@ -1,3 +1,4 @@
 * text=auto eol=lf
 # Keep independently verified fixture bytes unchanged in clones and source archives.
 /test/fixtures/** -text
+/public/waifu-achievement-badge.js linguist-generated=true -whitespace

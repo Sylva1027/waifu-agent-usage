@@ -1,11 +1,11 @@
 const canvas = document.querySelector("#noticeCanvas");
 const target = document.querySelector("#achievementNotice");
 const variant = document.querySelector("#variant");
-const fps = document.querySelector("#fps");
 const theme = document.querySelector("#theme");
 const readout = document.querySelector("#renderStats");
 const motion = matchMedia("(prefers-reduced-motion: reduce)");
-const duration = 1200;
+const duration = 2000;
+const fps = 12;
 let effect,
   preview,
   loading,
@@ -70,7 +70,7 @@ async function simulate() {
     if (request !== generation || document.hidden) return;
     configure();
     canvas.style.opacity = "1";
-    preview.play({ fps: Number(fps.value), duration });
+    preview.play({ fps, duration });
   } catch {
     unavailable();
   }
@@ -90,10 +90,9 @@ function changeOptions() {
   readout.dataset.state = "idle";
   readout.dataset.frames = "0";
   readout.dataset.elapsedMs = "0";
-  readout.textContent = motion.matches ? "减少动态效果已开启，显示静态通知" : "就绪";
+  readout.textContent = motion.matches ? "减少动态效果已开启，显示静态通知" : "12 FPS · 就绪";
 }
 variant.addEventListener("change", changeOptions);
-fps.addEventListener("change", changeOptions);
 const observer = new ResizeObserver(configure);
 observer.observe(canvas);
 motion.addEventListener("change", () => {

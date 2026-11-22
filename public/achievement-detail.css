@@ -14,10 +14,24 @@
   box-shadow: 0 6px 14px #00000038;
 }
 
-#achievementDialog .detail-panel > .badge {
+#achievementDialog .detail-panel > .badge,
+#achievementDialog .detail-panel > .badge-canvas {
   width: 120px;
   height: 120px;
   margin: 0 auto 8px;
+}
+
+#achievementDialog .detail-panel > .badge-canvas {
+  display: block;
+  margin-bottom: -120px;
+  pointer-events: none;
+  visibility: hidden;
+}
+#achievementDialog .detail-panel > .badge-canvas.is-ready {
+  visibility: visible;
+}
+#achievementDialog .detail-panel > .badge-canvas.is-ready + .badge {
+  opacity: 0;
 }
 
 #achievementDialog .detail-panel h3 {
@@ -197,7 +211,8 @@
     align-items: center;
   }
 
-  #achievementDialog .detail-panel > .badge {
+  #achievementDialog .detail-panel > .badge,
+  #achievementDialog .detail-panel > .badge-canvas {
     width: 72px;
     height: 72px;
     margin: 0;

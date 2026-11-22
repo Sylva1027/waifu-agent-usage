@@ -36,12 +36,69 @@ export function createAchievementDialog({ readSnapshot, onSnapshot = () => {}, o
   let renderVersion = 0;
   let recentIntent = 0;
   let shownIntent = -1;
+  const detail = $("#achievementDetail");
+  const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
+  let activeBadge = null;
+  let failedBadgeSource = null;
   const ui = () => achievementUi(getLocale());
   const menu = (open, focus = false) => {
     $("#achievementStatusMenu").hidden = !open;
     $("#achievementStatusFilter").setAttribute("aria-expanded", String(open));
     if (focus) (open ? $('[data-status][aria-selected="true"]') : $("#achievementStatusFilter")).focus();
   };
+
+  function removeBadge() {
+    const previous = activeBadge;
+    activeBadge = null;
+    previous?.canvas.remove();
+    previous?.mounted?.dispose();
+  }
+
+  function syncBadge() {
+    const image = detail.querySelector(".detail-panel > img.badge");
+    if (!dialog.open || document.hidden || reducedMotion.matches || !image || image.classList.contains("is-locked")) {
+      removeBadge();
+      return;
+    }
+    if (activeBadge?.image.src === image.src) {
+      // Snapshot and locale updates replace the rest of the panel. Keep the mounted texture and its canvas.
+      if (activeBadge.image !== image) image.replaceWith(activeBadge.canvas, activeBadge.image);
+      return;
+    }
+    removeBadge();
+    if (failedBadgeSource === image.src) return;
+    failedBadgeSource = null;
+    const canvas = document.createElement("canvas");
+    canvas.className = "badge-canvas";
+    canvas.setAttribute("aria-hidden", "true");
+    image.before(canvas);
+    const pending = { image, canvas, mounted: null };
+    activeBadge = pending;
+
+    function fallback() {
+      if (activeBadge !== pending) return;
+      failedBadgeSource = image.src;
+      removeBadge();
+    }
+
+    void import("./waifu-achievement-badge.js")
+      .then(({ mountAchievementBadge }) => {
+        if (activeBadge !== pending || !dialog.open || document.hidden || reducedMotion.matches) return;
+        const mounted = mountAchievementBadge({
+          image,
+          canvas,
+          host: detail,
+          grade: image.parentElement.dataset.badgeGrade,
+          onReady() {
+            if (activeBadge === pending && dialog.open) canvas.classList.add("is-ready");
+          },
+          onUnavailable: fallback,
+        });
+        if (activeBadge === pending) pending.mounted = mounted;
+        else mounted.dispose();
+      })
+      .catch(fallback);
+  }
 
   function fit() {
     if (!dialog.open) return;
@@ -107,10 +164,11 @@ export function createAchievementDialog({ readSnapshot, onSnapshot = () => {}, o
     }
     list.scrollTop = scroll;
     const chosen = visible.find((row) => row.id === state.selectedId);
-    $("#achievementDetail").innerHTML = chosen
+    detail.innerHTML = chosen
       ? renderAchievementDetail(chosen, { locale, timeZone, previewGrade: state.previewGrade })
       : "";
     fit();
+    syncBadge();
     if (
       snapshot?.state === "ready" &&
       chosen &&
@@ -178,6 +236,7 @@ export function createAchievementDialog({ readSnapshot, onSnapshot = () => {}, o
     opener = document.activeElement;
     render();
     dialog.showModal();
+    syncBadge();
     button.setAttribute("aria-expanded", "true");
     fit();
     $("#achievementTitle").focus({ preventScroll: true });
@@ -185,6 +244,9 @@ export function createAchievementDialog({ readSnapshot, onSnapshot = () => {}, o
   }
   button.addEventListener("click", open);
   dialog.addEventListener("close", () => {
+    if (dialog.open) return;
+    removeBadge();
+    failedBadgeSource = null;
     clearTimeout(preparingRetry);
     menu(false);
     button.setAttribute("aria-expanded", "false");
@@ -255,6 +317,10 @@ export function createAchievementDialog({ readSnapshot, onSnapshot = () => {}, o
       menu(false, true);
     } else if (event.key === "Tab") menu(false);
   });
+  document.addEventListener("visibilitychange", syncBadge);
+  reducedMotion.addEventListener("change", syncBadge);
+  window.addEventListener("pagehide", removeBadge);
+  window.addEventListener("pageshow", syncBadge);
   window.addEventListener("resize", fit);
   window.addEventListener("focus", () => {
     if (dialog.open) {

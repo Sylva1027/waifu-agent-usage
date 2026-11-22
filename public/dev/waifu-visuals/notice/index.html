@@ -12,7 +12,7 @@
   <body class="notice-page">
     <main class="notice-demo">
       <header>
-        <a href="../index.html">返回视觉 Demo</a>
+        <a href="../../waifu-visuals-demo.html">返回视觉 Demo</a>
         <h1>成就通知粒子</h1>
       </header>
       <section class="notice-preview" aria-label="成就通知预览">
@@ -30,15 +30,8 @@
       <form class="notice-controls">
         <label>粒子样式
           <select id="variant">
-            <option value="dots">细点</option>
-            <option value="rays">细点与短光线</option>
-          </select>
-        </label>
-        <label>帧率
-          <select id="fps">
-            <option value="12">12 FPS</option>
-            <option value="15" selected>15 FPS</option>
-            <option value="30">30 FPS</option>
+            <option value="orbit">双弧流光</option>
+            <option value="bloom">星簇绽放</option>
           </select>
         </label>
         <label>主题
@@ -49,7 +42,7 @@
         </label>
         <button id="simulateUnlock" type="submit">模拟解锁</button>
       </form>
-      <p class="notice-readout" id="renderStats" role="status" data-state="idle">就绪</p>
+      <p class="notice-readout" id="renderStats" role="status" data-state="idle">12 FPS · 就绪</p>
     </main>
   </body>
 </html>

@@ -4,6 +4,7 @@ const fps = byId("fps");
 const size = byId("size");
 const edge = byId("edge");
 const tilt = byId("tilt");
+const locked = byId("locked");
 const reference = byId("reference");
 const fallback = byId("fallback");
 const interactive = byId("interactive");
@@ -72,6 +73,17 @@ async function setBadge() {
   reference.src = url;
   fallback.src = url;
   reference.alt = `${grade.selectedOptions[0].textContent}级原始徽章`;
+  tilt.disabled = locked.checked;
+  if (locked.checked) {
+    scene?.dispose();
+    scene = undefined;
+    unavailable = false;
+    byId("previewLabel").textContent = "未解锁 · 原始 WebP";
+    stats.textContent = "静态预览";
+    stats.dataset.state = "idle";
+    stats.dataset.frames = "0";
+    return;
+  }
   const artwork = new Image();
   artwork.src = url;
   try {
@@ -108,8 +120,9 @@ edge.addEventListener("change", () => {
 byId("theme").addEventListener("change", (event) => {
   document.documentElement.dataset.theme = event.target.value;
 });
-byId("locked").addEventListener("change", (event) => {
-  document.querySelector(".stage").dataset.locked = String(event.target.checked);
+locked.addEventListener("change", () => {
+  document.querySelector(".stage").dataset.locked = String(locked.checked);
+  void setBadge();
 });
 size.addEventListener("change", () => {
   document.querySelector(".badge-page").style.setProperty("--badge-size", `${size.value}px`);
