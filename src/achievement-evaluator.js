@@ -33,8 +33,14 @@ function contextFor(input) {
   )
     throw new TypeError("Achievement evaluation requires a prepared R7 input");
   const enabledAt = instant(profile.enabledAt);
+  const usageStart = instant(input.usageStart ?? enabledAt);
   instant(cutoff);
-  if (typeof cutoff !== "number" || cutoff < enabledAt || !Array.isArray(facts) || !Array.isArray(operations))
+  if (
+    typeof cutoff !== "number" ||
+    cutoff < Math.max(enabledAt, usageStart) ||
+    !Array.isArray(facts) ||
+    !Array.isArray(operations)
+  )
     throw new TypeError("Invalid prepared achievement input");
   validateAchievementTimeZone(profile.timeZone);
   const unique = new Map();
@@ -66,7 +72,7 @@ function contextFor(input) {
     unique.set(fact.factKey, fact);
   }
   const eligible = [...unique.values()].filter(
-    (fact) => fact.coverage.start >= enabledAt && fact.coverage.end < cutoff && BigInt(fact.totalTokens) > 0n,
+    (fact) => fact.coverage.start >= usageStart && fact.coverage.end < cutoff && BigInt(fact.totalTokens) > 0n,
   );
   const filteredOperations = operations.filter((operation) => {
     if (!operation || typeof operation.kind !== "string" || typeof operation.key !== "string" || !operation.key)
@@ -74,7 +80,7 @@ function contextFor(input) {
     const at = instant(operation.occurredAt);
     return at >= enabledAt && at < cutoff;
   });
-  return { facts: eligible, operations: filteredOperations, enabledAt, cutoff, timeZone: profile.timeZone };
+  return { facts: eligible, operations: filteredOperations, enabledAt: usageStart, cutoff, timeZone: profile.timeZone };
 }
 
 /** Evaluate one completed canonical input; award times are assigned only by AchievementStore. */

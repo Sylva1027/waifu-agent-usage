@@ -52,8 +52,9 @@ export class AchievementAggregates {
     }
   }
 
-  evaluate({ profile, cutoff, operations, inputKey }, existingAwards) {
-    const context = { enabledAt: Date.parse(profile.enabledAt), cutoff, timeZone: this.timeZone };
+  evaluate({ profile, cutoff, operations, inputKey, usageStart = Date.parse(profile.enabledAt) }, existingAwards) {
+    const enabledAt = Date.parse(profile.enabledAt);
+    const context = { enabledAt: usageStart, cutoff, timeZone: this.timeZone };
     /** @type {Record<string, bigint>} */
     const values = {
       ...evaluateCumulativeAchievements({ facts: [...this.cumulative.values()] }),
@@ -62,7 +63,7 @@ export class AchievementAggregates {
       ...evaluateOperationAchievements({
         operations: operations.filter(({ occurredAt }) => {
           const at = typeof occurredAt === "number" ? occurredAt : Date.parse(occurredAt);
-          return at >= context.enabledAt && at < cutoff;
+          return at >= enabledAt && at < cutoff;
         }),
       }),
     };

@@ -65,7 +65,7 @@ export function createWaifuExecutorRuntime(store, send) {
       });
     }
     publishAchievements();
-    return achievements.readSnapshot();
+    return { ...achievements.readSnapshot(), needsHistoryBackfill: achievements.needsHistoryBackfill };
   };
   const updateAchievements = async () => {
     if (!achievements) return null;

@@ -17,13 +17,16 @@ import {
 const PRICING_REFRESH_INTERVAL_MS = 60 * 60 * 1000;
 export function createWaifuServerFeatures(options, context) {
   const importContext = options.importContext ?? null;
-  const { usageOptions, runActivity, writeUsageEvent, sendJson, httpError, readJsonBody } = context;
+  const { usageOptions, runActivity, loadUsageStore, writeUsageEvent, sendJson, httpError, readJsonBody } = context;
 
   const localPricingCatalog = () => importContext?.pricingCatalog || getPricingCatalog();
   const liveAutomaticPricingStatus = () =>
     importContext ? (importContext.automaticPricingStatus ?? null) : getAutomaticPricingStatus();
   let achievementsEnabled = false;
   let achievementStartup = null;
+  let initialAchievementUpdate = null;
+  let needsHistoryBackfill = false;
+  let usageAcquired = false;
   let achievementUpdatePromise = null;
   let achievementUpdateRequested = false;
   let releaseAchievementWorker = null;
@@ -35,14 +38,19 @@ export function createWaifuServerFeatures(options, context) {
     releaseAchievementWorker = context.usageStore.retainWorker();
     await pricingReady;
     const sourceOptions = await usageOptions();
-    await context.usageStore.achievementStart({
+    const snapshot = await context.usageStore.achievementStart({
       edition: "waifu",
       timeZone: zone,
       sourceHomes: sourceOptions.confirmedSources,
       ...(options.databaseFile === ":memory:" ? { databaseFile: ":memory:" } : {}),
       ...(options.achievementDatabaseFile ? { databaseFile: options.achievementDatabaseFile } : {}),
     });
+    needsHistoryBackfill = snapshot?.needsHistoryBackfill === true;
     achievementsEnabled = true;
+  }
+  function onUsageAcquired() {
+    usageAcquired = true;
+    scheduleAchievementUpdate();
   }
   function scheduleAchievementUpdate() {
     if (!achievementsEnabled || context.serverClosed) return;
@@ -331,6 +339,13 @@ export function createWaifuServerFeatures(options, context) {
           !["share", "skin"].includes(body.kind)
         )
           throw httpError(400, "Invalid achievement operation", "ACHIEVEMENT_INVALID_REQUEST");
+        if (needsHistoryBackfill && !usageAcquired) {
+          try {
+            await loadUsageStore();
+          } catch {
+            throw httpError(503, "Achievement history is not ready", "ACHIEVEMENT_UNAVAILABLE");
+          }
+        }
         result = await context.usageStore.achievementOperation(body);
       }
       sendJson(response, 200, result);
@@ -460,10 +475,14 @@ export function createWaifuServerFeatures(options, context) {
 
   function onListening() {
     achievementStartup = startAchievements();
-    void achievementStartup.then(
-      () => scheduleAchievementUpdate(),
-      () => {},
-    );
+    initialAchievementUpdate = achievementStartup
+      .then(() => {
+        if (!achievementsEnabled || context.serverClosed) return;
+        // Raw source history may not be in the usage index yet.
+        if (needsHistoryBackfill && !usageAcquired) return loadUsageStore();
+        scheduleAchievementUpdate();
+      })
+      .catch(() => {});
     if (pricingRefreshSchedulerEnabled)
       void pricingReady.then(
         () => void runPricingRefreshCheck(),
@@ -479,7 +498,7 @@ export function createWaifuServerFeatures(options, context) {
     releaseAchievementWorker = null;
   }
   async function drainAchievements() {
-    await achievementStartup?.catch(() => {});
+    await initialAchievementUpdate;
     await achievementUpdatePromise;
   }
   async function drainPricing() {
@@ -509,7 +528,7 @@ export function createWaifuServerFeatures(options, context) {
     },
     activityKind: (path) => (path.startsWith("/api/pricing") ? "pricing" : null),
     pricingCatalog: localPricingCatalog,
-    scheduleAchievementUpdate,
+    onUsageAcquired,
     scheduleUsageDiscovery,
     handleRequest,
     onListening,
