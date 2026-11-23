@@ -36,8 +36,21 @@ let showCost = false;
 let sequence = 0;
 let previewUrl;
 let imageBlob;
-let originalHintTimer;
 const t = (zh, en) => (snapshot.locale === "en-US" ? en : zh);
+
+function bindHint(selector) {
+  const hint = $(selector);
+  let timer;
+  return (message = "") => {
+    clearTimeout(timer);
+    hint.textContent = message;
+    hint.hidden = !message;
+    if (message)
+      timer = setTimeout(() => {
+        hint.hidden = true;
+      }, 3000);
+  };
+}
 
 function recordSharedSnapshot(receipt) {
   if (document.documentElement.dataset.edition !== "waifu" || !receipt) return;
@@ -159,6 +172,8 @@ function trapFocus(event, dialog) {
 }
 
 function bind() {
+  const copyHint = bindHint("#shareCopyHint");
+  const originalHint = bindHint("#shareOriginalHint");
   try {
     showCost = localStorage.getItem(COST_STORAGE_KEY) === "true";
     if (localStorage.getItem(LAYOUT_STORAGE_KEY) === "landscape") layout = "landscape";
@@ -259,6 +274,7 @@ function bind() {
   });
   $("#shareDialog").addEventListener("close", () => {
     ++sequence;
+    copyHint();
     imageBlob = null;
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     previewUrl = null;
@@ -270,17 +286,10 @@ function bind() {
   $("#openShareImage").addEventListener("click", () => {
     $("#shareOriginalDialog img").src = previewUrl;
     $("#shareOriginalDialog").showModal();
-    const hint = $("#shareOriginalHint");
-    hint.textContent = t("按 Esc 退出", "Press Esc to exit");
-    hint.hidden = false;
-    clearTimeout(originalHintTimer);
-    originalHintTimer = setTimeout(() => {
-      hint.hidden = true;
-    }, 3000);
+    originalHint(t("按 Esc 退出", "Press Esc to exit"));
   });
   $("#shareOriginalDialog").addEventListener("close", () => {
-    clearTimeout(originalHintTimer);
-    $("#shareOriginalHint").hidden = true;
+    originalHint();
     $("#shareOriginalDialog img").removeAttribute("src");
     $("#openShareImage").focus({ preventScroll: true });
   });
@@ -320,10 +329,13 @@ function bind() {
     const receipt = snapshot.achievementReceipt;
     try {
       await navigator.clipboard.write([new ClipboardItem({ "image/png": imageBlob })]);
+      if (current === sequence) copyHint(t("图片已复制", "Image copied"));
       recordSharedSnapshot(receipt);
     } catch {
-      if (current === sequence)
+      if (current === sequence) {
+        copyHint();
         $("#shareStatus").textContent = t("暂时无法复制，请保存图片。", "Could not copy. Save the image instead.");
+      }
     }
   });
 }

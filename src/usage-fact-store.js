@@ -35,7 +35,13 @@ import {
   streamUsageFileEvents,
 } from "./usage-sources.js";
 import { resolveDateRange } from "./usage-query.js";
-import { createRepositoryResolver } from "./repository-identity.js";
+import { createRepositoryAliases, createSourceRepositoryResolver } from "./repository-aliases.js";
+import { createRepositoryResolver, normalizeDirectoryPath } from "./repository-identity.js";
+import {
+  CODEX_WORKTREE_ROOTS_META,
+  readCodexHomeWorktreeRoots,
+  serializeCodexWorktreeRoots,
+} from "./codex-worktree-roots.js";
 import {
   createUsageRollups,
   listDirtyUsageRollupDays,
@@ -444,8 +450,22 @@ function historyArchiveRowsByNativeIdentity(rows, segmentId, byIdentity) {
   return byIdentity;
 }
 
-function historyArchiveColdRevisionForRows(prefix) {
+function historyArchiveColdRevisionForRows(prefix, repositoryAliases) {
   const payloadFor = (row) => historyArchiveRevisionPayload(canonicalFactPayload(row, ["id"]), prefix.sourceIdentity);
+  const sameFact = (before, after) => {
+    const previous = sourceFactIdentity(payloadFor(before));
+    const observed = sourceFactIdentity(payloadFor(after));
+    // Worktree grouping is a read projection. Keep the original immutable checkout evidence.
+    if (
+      previous.repository_key !== observed.repository_key &&
+      repositoryAliases().resolve(previous.repository_key)?.key === observed.repository_key
+    ) {
+      previous.repository_key = observed.repository_key;
+      previous.repository_path = observed.repository_path;
+      previous.repository_kind = observed.repository_kind;
+    }
+    return JSON.stringify(previous) === JSON.stringify(observed);
+  };
   // Unchanged duplicates are legal; compare streams before requiring unique native identities.
   const previous = historyRows(prefix.effectiveRows)[Symbol.iterator]();
   const observed = historyRows(prefix.observedRows)[Symbol.iterator]();
@@ -458,10 +478,7 @@ function historyArchiveColdRevisionForRows(prefix) {
         unchanged = left.done === right.done;
         break;
       }
-      if (
-        JSON.stringify(sourceFactIdentity(payloadFor(left.value))) !==
-        JSON.stringify(sourceFactIdentity(payloadFor(right.value)))
-      ) {
+      if (!sameFact(left.value, right.value)) {
         unchanged = false;
         break;
       }
@@ -499,10 +516,7 @@ function historyArchiveColdRevisionForRows(prefix) {
       currentChangedRows = [];
     for (const [identity, row] of effectiveByIdentity.entries()) {
       const current = observedByIdentity.get(identity);
-      if (
-        !current ||
-        JSON.stringify(sourceFactIdentity(payloadFor(row))) !== JSON.stringify(sourceFactIdentity(payloadFor(current)))
-      ) {
+      if (!current || !sameFact(row, current)) {
         previousChangedRows.push(row);
         if (current) currentChangedRows.push(current);
       }
@@ -793,7 +807,7 @@ function* revisedHistorySourceRows(database, sourcePath, revisions) {
   }
 }
 
-function publishedUsageEventsFromUnion(union, serviceTierEvidence, resolveQuotaSource) {
+function publishedUsageEventsFromUnion(union, serviceTierEvidence, resolveQuotaSource, aliases = null) {
   // This request owns the rows; release raw facts as their public projection replaces them.
   for (let index = 0; index < union.rows.length; index += 1) {
     const row = union.rows[index];
@@ -804,7 +818,7 @@ function publishedUsageEventsFromUnion(union, serviceTierEvidence, resolveQuotaS
         `published source ${String(row.source_path)} has no verified source identity`,
       );
     }
-    union.rows[index] = publishedUsageEventFromRow(row, sourceKind, serviceTierEvidence, resolveQuotaSource);
+    union.rows[index] = publishedUsageEventFromRow(row, sourceKind, serviceTierEvidence, resolveQuotaSource, aliases);
   }
   return union.rows;
 }
@@ -1020,21 +1034,30 @@ class UsageReplacementFacts {
     return { previousCount, currentCount };
   }
 
-  coversRelocated(table, previousPath, currentPath) {
+  coversRelocated(table, previousPath, currentPath, aliases = null) {
     if (!this.database) return true;
     this.database.exec("CREATE TABLE relocation(digest TEXT PRIMARY KEY,remaining INTEGER) WITHOUT ROWID");
     try {
       // price_version is stamped by the local catalog, not read from the rollout; retain its old value in replaced facts.
       const excluded = table === "events" ? ["id", "price_version"] : [];
+      const digest = (row) => {
+        const payload = sourceFactIdentity({ ...row, source_path: previousPath }, excluded);
+        const alias = aliases?.resolve(payload.repository_key);
+        if (alias) {
+          payload.repository_key = alias.key;
+          payload.repository_path = alias.path;
+          payload.repository_kind = alias.kind;
+        }
+        if (aliases && payload.repository_kind === "git")
+          payload.repository_path = normalizeDirectoryPath(payload.repository_path);
+        return historyPayloadDigest(payload);
+      };
       const insert = this.database.prepare(`INSERT INTO relocation VALUES (?,?)
         ON CONFLICT(digest) DO UPDATE SET remaining=remaining+excluded.remaining`);
       for (const row of this.database
         .prepare("SELECT payload,previous_count FROM facts WHERE fact_table=? AND source_path=?")
         .iterate(table, previousPath)) {
-        insert.run(
-          historyPayloadDigest(sourceFactIdentity(JSON.parse(String(row.payload)), excluded)),
-          row.previous_count,
-        );
+        insert.run(digest(JSON.parse(String(row.payload))), row.previous_count);
       }
       const consume = this.database.prepare(
         "UPDATE relocation SET remaining=remaining-1 WHERE digest=? AND remaining>0",
@@ -1042,8 +1065,7 @@ class UsageReplacementFacts {
       for (const row of this.sourceDatabase
         .prepare(`SELECT * FROM ${table} WHERE source_path=?`)
         .iterate(currentPath)) {
-        const payload = sourceFactIdentity({ ...row, source_path: previousPath }, excluded);
-        consume.run(historyPayloadDigest(payload));
+        consume.run(digest(row));
       }
       return !this.database.prepare("SELECT 1 FROM relocation WHERE remaining>0 LIMIT 1").get();
     } finally {
@@ -1959,6 +1981,7 @@ export function createUsageFactStoreClass(QueryOwner) {
       if (this.derivedRevision === this.storeRevision && !localUsageChanged) return false;
       this.metadataCache = null;
       this.periodComparisonCache.clear();
+      this.repositoryAliasCache = null;
       // D4：观测聚合缓存同为"用量侧静态输入"派生物 ⇒ 与上面两个缓存同一失效入口。
       // D3：quota 观测的**规范映射**同为"用量侧静态输入"派生物 ⇒ 与上面两个缓存同一失效入口。
       this.quotaObservationCache = null;
@@ -3143,7 +3166,10 @@ export function createUsageFactStoreClass(QueryOwner) {
               insertedEvents += 1;
             }
           },
-          { repositoryResolver: this.repositoryResolver, onWarning: (warning) => warnings.push(String(warning)) },
+          {
+            repositoryResolver: this.sourceRepositoryResolver || this.repositoryResolver,
+            onWarning: (warning) => warnings.push(String(warning)),
+          },
         );
         if (!exhausted && !previous.next().done) throw mismatch;
         closePrevious();
@@ -3379,7 +3405,7 @@ export function createUsageFactStoreClass(QueryOwner) {
             }
           },
           {
-            repositoryResolver: this.repositoryResolver,
+            repositoryResolver: this.sourceRepositoryResolver || this.repositoryResolver,
             previousCumulativeForSession,
             ...(progressEligible
               ? {
@@ -3438,11 +3464,12 @@ export function createUsageFactStoreClass(QueryOwner) {
             });
           }
         }
+        const sourceAliases = this.sourceRepositoryAliases ?? (() => this.repositoryAliases());
         if (
           relocatedFrom &&
           (!previousSiblingSource ||
             !hot ||
-            !replacementFacts.coversRelocated("events", relocatedFrom, filePath) ||
+            !replacementFacts.coversRelocated("events", relocatedFrom, filePath, sourceAliases()) ||
             !replacementFacts.coversRelocated("rate_limit_observations", relocatedFrom, filePath))
         ) {
           throw Object.assign(new Error("Archived rollout does not preserve its indexed history"), {
@@ -3451,7 +3478,7 @@ export function createUsageFactStoreClass(QueryOwner) {
         }
         let coldRevisionStateChanged = false;
         for (const prefix of coldReparsePrefixes) {
-          const revision = historyArchiveColdRevisionForRows(prefix);
+          const revision = historyArchiveColdRevisionForRows(prefix, sourceAliases);
           if (revision) coldRemovedEventCount += revision.removedColdEventCount;
           if (!revision || !coldReparse.revisionState) continue;
           const { revisionsBySegment } = coldReparse.revisionState;
@@ -3794,7 +3821,7 @@ export function createUsageFactStoreClass(QueryOwner) {
             if (codex) bounds.add(row.home_id, row.session_id, Number(row.timestamp_ms));
           },
           {
-            repositoryResolver: this.repositoryResolver,
+            repositoryResolver: this.sourceRepositoryResolver || this.repositoryResolver,
             resume: saved.checkpoint,
             endOffset: info.size,
             onSourceBytes: parsedHash
@@ -4009,6 +4036,14 @@ export function createUsageFactStoreClass(QueryOwner) {
       const homes =
         plan?.homes ||
         (await discoverUsageSources({ ...syncOptions, onWarning: (warning) => discoveryWarnings.push(warning) }));
+      const worktreeRoots = readCodexHomeWorktreeRoots(homes);
+      const worktreeSnapshot = serializeCodexWorktreeRoots(worktreeRoots);
+      this.sourceRepositoryResolver = createSourceRepositoryResolver(homes, worktreeRoots, (cwd) =>
+        this.repositoryResolver(cwd),
+      );
+      let sourceAliases;
+      this.sourceRepositoryAliases = () =>
+        (sourceAliases ??= createRepositoryAliases(homes, this.database, worktreeRoots));
       const quotaObservations = readCodexQuotaObservations({ ...syncOptions, homes });
       if (quotaObservations.length) {
         const saved = JSON.stringify(quotaObservations);
@@ -4433,8 +4468,12 @@ export function createUsageFactStoreClass(QueryOwner) {
           );
       }
       const generatedAt = new Date().toISOString();
+      let worktreesChanged = false;
       this.database.exec("BEGIN IMMEDIATE");
       try {
+        const previousWorktrees = this.readMetaRaw(CODEX_WORKTREE_ROOTS_META);
+        worktreesChanged = (previousWorktrees ?? "[]") !== worktreeSnapshot;
+        if (previousWorktrees !== worktreeSnapshot) this.writeMeta(CODEX_WORKTREE_ROOTS_META, worktreeSnapshot);
         this.writeMeta("generated_at", generatedAt);
         this.writeMeta("fingerprint", status.fingerprint);
         if (!plan) this.writeMeta("usage_file_fingerprints", JSON.stringify(nextFingerprints));
@@ -4447,6 +4486,7 @@ export function createUsageFactStoreClass(QueryOwner) {
         this.database.exec("ROLLBACK");
         throw error;
       }
+      if (worktreesChanged) this.commitStoreRevision("worktrees");
       this.homes = homes;
       this.generatedAt = generatedAt;
       this.fingerprint = status.fingerprint;
@@ -4711,10 +4751,15 @@ export function createUsageFactStoreClass(QueryOwner) {
      * must be read; the original synchronous hot-only reader stays unchanged.
      * @returns {Promise<import("./usage-types.js").UsageEvent[]>}
      */
-    async publishedHistoryUsageEvents() {
+    async publishedHistoryUsageEvents({ normalizeRepositories = true } = {}) {
       const union = await this.historyArchiveEventUnionForRange(undefined, { completeHistory: true });
       this.quotaSourceLookup?.clearCache();
-      return publishedUsageEventsFromUnion(union, this.historyEventEvidence?.(), this.quotaSourceFor.bind(this));
+      return publishedUsageEventsFromUnion(
+        union,
+        this.historyEventEvidence?.(),
+        this.quotaSourceFor.bind(this),
+        normalizeRepositories ? this.repositoryAliases() : null,
+      );
     }
 
     /**
@@ -4771,7 +4816,9 @@ export function createUsageFactStoreClass(QueryOwner) {
       try {
         // Hot-only rebuilds aggregate in SQLite instead of materializing every event twice.
         const events =
-          historyArchiveAuthorizedSegmentIds(this.database).size > 0 ? await this.publishedHistoryUsageEvents() : null;
+          historyArchiveAuthorizedSegmentIds(this.database).size > 0
+            ? await this.publishedHistoryUsageEvents({ normalizeRepositories: false })
+            : null;
         publish(this.database, events);
         this.database.exec("COMMIT");
       } catch (error) {
@@ -4803,6 +4850,7 @@ export function createUsageFactStoreClass(QueryOwner) {
         union,
         this.historyEventEvidence?.(),
         this.quotaSourceFor.bind(this),
+        this.repositoryAliases(),
       );
       const homes = union.homes ?? [];
       return {
@@ -5089,6 +5137,7 @@ export function createUsageFactStoreClass(QueryOwner) {
           database,
           databaseFile: file,
           homes: current.homes,
+          worktreeSnapshot: current.repositoryWorktreeSnapshot(),
           warnings: current.warnings,
           generatedAt: current.generatedAt,
           quotaSourceEvidence: current.quotaSourceEvidence,
@@ -5221,6 +5270,7 @@ export function createUsageFactStoreClass(QueryOwner) {
         const editionContext = this.editionReadContext?.();
         const context = {
           homes: structuredClone(this.homes),
+          worktreeSnapshot: this.repositoryWorktreeSnapshot(),
           warnings: [...this.warnings],
           generatedAt: this.generatedAt,
           quotaSourceEvidence: this.quotaSourceEvidence,
@@ -5773,6 +5823,7 @@ export function createUsageFactStoreClass(QueryOwner) {
         union,
         this.historyEventEvidence?.(),
         this.quotaSourceFor.bind(this),
+        this.repositoryAliases(),
       );
       const homes = union.homes ?? [];
       const report = {

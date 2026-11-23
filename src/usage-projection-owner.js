@@ -175,12 +175,13 @@ export class UsageProjectionOwner extends UsageQueries {
   }
   publishedUsageEvents() {
     this.assertSourceRepairsComplete();
+    const aliases = this.repositoryAliases();
     return this.database
       .prepare(
         `SELECT e.*,sf.kind AS source_kind FROM events e JOIN source_files sf ON sf.path=e.source_path ORDER BY e.timestamp_ms,e.id`,
       )
       .all()
-      .map((row) => publishedUsageEventFromRow(row, row.source_kind, null, this.quotaSourceFor?.bind(this)));
+      .map((row) => publishedUsageEventFromRow(row, row.source_kind, null, this.quotaSourceFor?.bind(this), aliases));
   }
   publishedUsageSessions() {
     return publishedUsageSessionsFromEvents(this.publishedUsageEvents(), this.publishedUsageHomes());

@@ -290,11 +290,16 @@ test("production share dialog preserves the PNG, layout, snapshot and skin acros
   assert.equal(await page.locator("#shareDialog [data-platform], #shareDialog #systemShare").count(), 0);
   assert.equal(await page.locator("#shareShowCost").isChecked(), false);
   assert.equal(baseline.fee, null);
+  const copyHint = page.locator("#shareCopyHint");
+  assert.ok(await copyHint.isHidden());
   await page.locator("#copyShareImage").click();
+  await copyHint.waitFor({ state: "visible", timeout: 5000 });
+  assert.equal(await copyHint.getAttribute("role"), "status");
+  assert.equal(await copyHint.textContent(), "图片已复制");
   await page.waitForFunction(() => window.copiedShareImage);
   assert.deepEqual(await page.evaluate(() => window.copiedShareImage), { type: "image/png", sha256: baseline.sha256 });
-  assert.equal(await page.locator("#shareStatus").textContent(), "");
   assert.deepEqual(await geometry(page), bounds);
+  await copyHint.waitFor({ state: "hidden", timeout: 5000 });
 
   for (const [id, excluded] of [
     ["shareMetricFirst", "output"],
@@ -421,12 +426,16 @@ test("production share dialog preserves the PNG, layout, snapshot and skin acros
   assert.equal((await imageReady(page)).fee, `API estimate¥${expectedCny}`);
   await page.locator("#shareDialog").screenshot({ path: fileURLToPath(new URL("classic-light-en.png", screenshots)) });
   await checkOriginalHint(page, "Press Esc to exit", fileURLToPath(new URL("original-hint-en.png", screenshots)));
+  await page.locator("#copyShareImage").click();
+  await copyHint.waitFor({ state: "visible", timeout: 5000 });
+  assert.equal(await copyHint.textContent(), "Image copied");
   await closeShare(page);
   const expectedUsd = await appState.evaluate((state) => {
     state.costScaleTarget = "USD";
     return (state.summary.costEstimate.totalUsd + state.summary.costEstimate.totalCny / state.usdToCnyRate).toFixed(0);
   });
   await openShare(page);
+  assert.ok(await copyHint.isHidden(), "Reopening clears the previous copy notification");
   await page.locator("#shareShowCost").check();
   assert.equal((await imageReady(page)).fee, `API estimate$${expectedUsd}`);
   await closeShare(page);

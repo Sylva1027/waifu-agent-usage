@@ -1634,7 +1634,7 @@ function rawWindowIntervals(startMs, endMs, runs) {
   return intervals;
 }
 
-function queryRepositoryWindowRows(db, { startMs, endMs, excludeHomes }) {
+function queryRepositoryWindowRows(db, { startMs, endMs, excludeHomes, aliases }) {
   const runs = usageRollupDayRuns(db, startMs, endMs);
   if (runs.length > 0) {
     if (!hasCurrentRollupFormat(db)) {
@@ -1679,26 +1679,27 @@ function queryRepositoryWindowRows(db, { startMs, endMs, excludeHomes }) {
   }
 
   const sums = MODEL_DETAIL_FIELDS.map(([column]) => `COALESCE(SUM(${column}), 0) AS ${column}`).join(", ");
+  const repo = aliases?.sql("parts.repository_key", "parts.repository_path", "parts.repository_kind");
   return db
     .prepare(`
       WITH parts AS (
         ${parts.join("\nUNION ALL\n")}
       )
       SELECT
-        repository_key AS key,
-        MIN(repository_path) AS name,
-        MIN(repository_kind) AS kind,
+        ${repo?.key ?? "parts.repository_key"} AS key,
+        MIN(${repo?.path ?? "parts.repository_path"}) AS name,
+        MIN(${repo?.kind ?? "parts.repository_kind"}) AS kind,
         COUNT(DISTINCT NULLIF(cwd, '')) AS path_count,
         ${sums}
       FROM parts
-      GROUP BY repository_key
+      GROUP BY key
       ORDER BY total DESC, name ASC
     `)
     .all(...params)
     .map(repositoryRollupRow);
 }
 
-export function queryUsageRollupRepositoriesWindow(db, { startMs, endMs, excludeHomes = [] }) {
+export function queryUsageRollupRepositoriesWindow(db, { startMs, endMs, excludeHomes = [], aliases = null }) {
   if (!Number.isSafeInteger(startMs) || !Number.isSafeInteger(endMs)) {
     throw new TypeError("startMs and endMs must be safe integers");
   }
@@ -1710,7 +1711,7 @@ export function queryUsageRollupRepositoriesWindow(db, { startMs, endMs, exclude
   }
   return withReadSnapshot(db, () => {
     if (startMs === endMs) return [];
-    return queryRepositoryWindowRows(db, { startMs, endMs, excludeHomes });
+    return queryRepositoryWindowRows(db, { startMs, endMs, excludeHomes, aliases });
   });
 }
 
