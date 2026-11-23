@@ -3,6 +3,7 @@ import { readdir, realpath, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { createRepositoryResolver } from "./repository-identity.js";
+import { createSourceRepositoryResolver } from "./repository-aliases.js";
 import { readRolloutLines, plainRolloutPath } from "./codex-rollout.js";
 import {
   assertCodexJsonlCheckpoint,
@@ -2199,7 +2200,7 @@ export async function buildUsageReport(options = {}, { createEventDecorator = nu
   const warnings = [];
   const homes =
     options.homes || (await discoverUsageSources({ ...options, onWarning: (warning) => warnings.push(warning) }));
-  const repositoryResolver = createRepositoryResolver();
+  const repositoryResolver = createSourceRepositoryResolver(homes);
   const sessions = [];
   const events = [];
   const rateLimitObservations = [];
@@ -2366,7 +2367,7 @@ export async function buildUsageIndex(options = {}, { createEventDecorator = nul
   const warnings = [];
   const homes =
     options.homes || (await discoverUsageSources({ ...options, onWarning: (warning) => warnings.push(warning) }));
-  const repositoryResolver = createRepositoryResolver();
+  const repositoryResolver = createSourceRepositoryResolver(homes);
   const events = [];
   const rateLimitObservations = [];
   const quotaSourceObservations = [];

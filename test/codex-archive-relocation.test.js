@@ -3,9 +3,11 @@ import { listenOnFetchPort } from "../test-support/fetch-port.mjs";
 import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import { zstdCompressSync } from "node:zlib";
 import { UsageStore } from "../src/usage-store.js";
+import { normalizeDirectoryPath } from "../src/repository-identity.js";
 import { UsageSourceProof } from "../src/usage-source-proof.js";
 import { createUsageExecutor } from "../src/usage-executor.js";
 import { createUsageServer } from "../src/server.js";
@@ -18,9 +20,9 @@ const usage = (total) => ({
   output_tokens: 0,
   reasoning_output_tokens: 0,
 });
-function text(totals) {
+function text(totals, cwd = "/work") {
   return `${[
-    { type: "session_meta", payload: { id: "archive-relocation", cwd: "/work", source: "cli" } },
+    { type: "session_meta", payload: { id: "archive-relocation", cwd, source: "cli" } },
     { type: "turn_context", payload: { model: "gpt-5.1-codex" } },
     ...totals.map((total, i) => ({
       type: "event_msg",
@@ -39,14 +41,15 @@ function text(totals) {
     .join("\n")}\n`;
 }
 
-async function fixture(t) {
+async function fixture(t, { worktree = false } = {}) {
   const root = await mkdtemp(path.join(os.tmpdir(), "codex-archive-relocation-"));
   const home = path.join(root, ".codex");
   const oldPath = path.join(home, "sessions", "2026", "11", "03", name);
   const archive = path.join(home, "archived_sessions");
   await mkdir(path.dirname(oldPath), { recursive: true });
   await mkdir(archive, { recursive: true });
-  await writeFile(oldPath, text([100, 200]));
+  const cwd = worktree ? path.join(root, "feature") : "/work";
+  await writeFile(oldPath, text([100, 200], cwd));
   const store = new UsageStore({
     homeDir: root,
     env: {},
@@ -56,7 +59,11 @@ async function fixture(t) {
   const proof = new UsageSourceProof();
   proof.provider = async () => null;
   store.sourceProof = proof;
-  store.repositoryResolver = (cwd) => ({ key: `directory:${cwd}`, path: cwd, kind: "directory" });
+  store.repositoryResolver = (cwd) => ({
+    key: `directory:${normalizeDirectoryPath(cwd)}`,
+    path: cwd,
+    kind: "directory",
+  });
   t.after(async () => {
     store.close();
     await rm(root, { recursive: true, force: true });
@@ -66,6 +73,7 @@ async function fixture(t) {
   const source = store.database.prepare("SELECT * FROM source_files WHERE path=?").get(oldPath);
   return {
     store,
+    cwd,
     oldPath,
     archive,
     file: async (filePath) => ({
@@ -106,6 +114,36 @@ for (const compressed of [false, true]) {
     assert.equal(store.summarize({ preset: "all" }).totals.total, 250);
   });
 }
+
+test("an archive move preserves worktree usage when Codex supplies its main checkout", async (t) => {
+  const { store, oldPath, archive, cwd } = await fixture(t, { worktree: true });
+  const home = path.dirname(archive),
+    main = path.join(path.dirname(home), "main");
+  const state = new DatabaseSync(path.join(home, "state_5.sqlite"));
+  try {
+    state.exec("CREATE TABLE thread_attachments(attachment_type TEXT, payload TEXT)");
+    state
+      .prepare("INSERT INTO thread_attachments VALUES('archived_worktree',?)")
+      .run(JSON.stringify({ worktree: { hostId: "local", root: cwd, sourceGitRoot: main } }));
+  } finally {
+    state.close();
+  }
+  const next = path.join(archive, name);
+  await writeFile(next, text([100, 200, 250], cwd));
+  await rm(oldPath);
+  await store.sync({ forceFull: true });
+  const summary = store.summarize({ preset: "all" });
+  assert.deepEqual(
+    summary.repositories.map((row) => [row.name, row.total.total]),
+    [[main, 250]],
+  );
+  assert.equal(store.database.prepare("SELECT COUNT(*) n FROM events WHERE source_path=?").get(next).n, 3);
+  assert.equal(
+    store.database.prepare("SELECT COUNT(*) n FROM rate_limit_observations WHERE source_path=?").get(next).n,
+    3,
+  );
+  assert.equal(store.database.prepare("SELECT COUNT(*) n FROM source_files WHERE path=?").get(oldPath).n, 0);
+});
 
 test("archive relocation repairs duplicates committed by an earlier failed sync", async (t) => {
   const { store, oldPath, archive, file } = await fixture(t);

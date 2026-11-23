@@ -25,6 +25,8 @@ import { createHash } from "node:crypto";
 import { readStoredAllSummary } from "./usage-all-summary-store.js";
 import { currentLocalRollupZoneIdentity } from "./usage-sql.js";
 import { createFusedSummaryGroups } from "./usage-summary-groups.js";
+import { createRepositoryAliases } from "./repository-aliases.js";
+import { CODEX_WORKTREE_ROOTS_META } from "./codex-worktree-roots.js";
 import {
   queryUsageRollupModelsWindow,
   queryUsageRollupRepositoriesWindow,
@@ -51,6 +53,7 @@ export class UsageQueries {
     database,
     databaseFile = null,
     homes = [],
+    worktreeSnapshot = undefined,
     generatedAt = "",
     warnings = [],
     quotaSourceEvidence = null,
@@ -64,6 +67,7 @@ export class UsageQueries {
     this.database = database;
     this.databaseFile = databaseFile;
     this.homes = structuredClone(homes);
+    this.worktreeSnapshot = worktreeSnapshot;
     this.generatedAt = generatedAt;
     this.warnings = [...warnings];
     this.quotaSourceEvidence = quotaSourceEvidence;
@@ -75,6 +79,30 @@ export class UsageQueries {
     this.historyPersistentRead = historyPersistentRead;
     this.publishedHistoryProjection = publishedHistoryProjection;
     this.writeTransactionDepth = 0;
+  }
+
+  repositoryWorktreeSnapshot() {
+    return (
+      this.worktreeSnapshot ??
+      this.database.prepare("SELECT value FROM store_meta WHERE key=?").get(CODEX_WORKTREE_ROOTS_META)?.value
+    );
+  }
+
+  repositoryAliases() {
+    const cache = this.repositoryAliasCache;
+    if (cache?.homes === this.homes && cache.database === this.database && cache.generatedAt === this.generatedAt)
+      return cache.aliases;
+    const homes = this.homes.length
+      ? this.homes
+      : this.database.prepare("SELECT DISTINCT home_path AS path, kind FROM source_files").all();
+    const snapshot = this.repositoryWorktreeSnapshot();
+    const aliases = createRepositoryAliases(
+      homes,
+      this.database,
+      snapshot === undefined ? undefined : new Map(JSON.parse(snapshot)),
+    );
+    this.repositoryAliasCache = { homes: this.homes, database: this.database, generatedAt: this.generatedAt, aliases };
+    return aliases;
   }
 
   /** @param {any} filters @param {any} options @param {any} [range] @returns {any} */
@@ -555,12 +583,17 @@ export class UsageQueries {
   repositoriesRange(range, excludeHomes = []) {
     const scope = scopeFilterSql(excludeHomes);
     const where = eventRangeScope(range, scope);
+    const repo = this.repositoryAliases().sql(
+      "events.repository_key",
+      "events.repository_path",
+      "events.repository_kind",
+    );
     const rows = this.database
       .prepare(`
         SELECT
-          repository_key AS key,
-          MIN(repository_path) AS name,
-          MAX(repository_kind) AS kind,
+          ${repo.key} AS key,
+          MIN(${repo.path}) AS name,
+          MAX(${repo.kind}) AS kind,
           COUNT(DISTINCT NULLIF(cwd, '')) AS path_count,
           COUNT(*) AS count,
           COUNT(DISTINCT json_array(home_id,session_id)) AS sessions,
@@ -572,7 +605,7 @@ export class UsageQueries {
           COALESCE(SUM(reasoning), 0) AS reasoning
         FROM events
         WHERE ${where.sql}
-        GROUP BY repository_key
+        GROUP BY key
         ORDER BY total DESC, name ASC
       `)
       .all(...where.params);
@@ -594,15 +627,20 @@ export class UsageQueries {
   }
 
   historyRepositorySessionOrder(where, firsts = null) {
+    const { key } = this.repositoryAliases().sql(
+      "events.repository_key",
+      "events.repository_path",
+      "events.repository_kind",
+    );
     if (this.historyDiskRead) {
       const sessions = new Map();
       const sql = this.historyPersistentRead
         ? `SELECT repository_key,session_id FROM (
-        SELECT repository_key,home_id,session_id,timestamp_ms,history_ordinal,
-          ROW_NUMBER() OVER(PARTITION BY repository_key,home_id,session_id ORDER BY timestamp_ms,history_ordinal) AS position
+        SELECT ${key} AS repository_key,home_id,session_id,timestamp_ms,history_ordinal,
+          ROW_NUMBER() OVER(PARTITION BY ${key},home_id,session_id ORDER BY timestamp_ms,history_ordinal) AS position
         FROM events WHERE ${where.sql}) WHERE position=1 ORDER BY repository_key,timestamp_ms,history_ordinal`
-        : `SELECT repository_key,session_id,MIN(id) AS first_id
-          FROM events WHERE ${where.sql} GROUP BY repository_key,home_id,session_id ORDER BY repository_key,first_id`;
+        : `SELECT ${key} AS repository_key,session_id,MIN(id) AS first_id
+          FROM events WHERE ${where.sql} GROUP BY 1,home_id,session_id ORDER BY 1,first_id`;
       for (const row of this.database.prepare(sql).iterate(...where.params)) {
         const values = sessions.get(row.repository_key) ?? [];
         values.push(row.session_id);
@@ -612,13 +650,13 @@ export class UsageQueries {
     }
     firsts ??= this.database
       .prepare(`
-      SELECT repository_key, home_id, session_id, MIN(timestamp_ms) AS first_ms FROM events
-      WHERE ${where.sql} GROUP BY repository_key, home_id, session_id ORDER BY repository_key, first_ms
+      SELECT ${key} AS repository_key, home_id, session_id, MIN(timestamp_ms) AS first_ms FROM events
+      WHERE ${where.sql} GROUP BY 1, home_id, session_id ORDER BY 1, first_ms
     `)
       .all(...where.params);
     const tieRows = this.database.prepare(`
-      SELECT * FROM ${this.historyDiskRead ? "events" : "(SELECT * FROM history_hot.events UNION ALL SELECT * FROM main.events)"}
-      WHERE repository_key = ? AND timestamp_ms = ? AND ${where.sql}
+      SELECT * FROM (SELECT * FROM history_hot.events UNION ALL SELECT * FROM main.events) AS events
+      WHERE ${key} = ? AND timestamp_ms = ? AND ${where.sql}
     `);
     const orderedSessions = new Map();
     for (let first = 0; first < firsts.length; ) {
@@ -658,19 +696,16 @@ export class UsageQueries {
       !this.verifiedHistorySqlRead &&
       Boolean(this.database.prepare("SELECT 1 FROM store_meta WHERE key=?").get(HISTORY_ARCHIVE_EVENT_AUTHORITY_META));
     const modelDimension = groupColumn === "model" && nameColumn === "model" && !includeKind;
-    const dimensionKey = modelDimension ? "usage_model_group(model)" : groupColumn;
-    const dimensionName = modelDimension ? dimensionKey : nameColumn;
+    const repositoryDimension = groupColumn === "repository_key" && nameColumn === "repository_path" && includeKind;
+    const aliases = repositoryDimension ? this.repositoryAliases() : null;
+    const repo = aliases?.sql("events.repository_key", "events.repository_path", "events.repository_kind");
+    const dimensionKey = modelDimension ? "usage_model_group(model)" : (repo?.key ?? groupColumn);
+    const dimensionName = modelDimension ? dimensionKey : (repo?.path ?? nameColumn);
     const dimensions = dimensionKey
-      ? `${dimensionKey} AS dimension_key, ${includeKind ? `MIN(${nameColumn}) AS dimension_name, MIN(repository_kind) AS dimension_kind, COUNT(DISTINCT NULLIF(cwd, '')) AS path_count` : `${dimensionName} AS dimension_name`},`
+      ? `${dimensionKey} AS dimension_key, ${includeKind ? `MIN(${dimensionName}) AS dimension_name, MIN(${repo?.kind ?? "repository_kind"}) AS dimension_kind, COUNT(DISTINCT NULLIF(cwd, '')) AS path_count` : `${dimensionName} AS dimension_name`},`
       : "";
     const fields = PERIOD_DETAIL_FIELDS;
-    if (
-      groupColumn === "repository_key" &&
-      nameColumn === "repository_path" &&
-      includeKind &&
-      !hotAuthority &&
-      !this.verifiedHistorySqlRead
-    ) {
+    if (repositoryDimension && !hotAuthority && !this.verifiedHistorySqlRead) {
       this.database.exec("SAVEPOINT period_repository_rollup");
       try {
         const bounds = this.eventBounds(excludeHomes);
@@ -679,7 +714,7 @@ export class UsageQueries {
           const endMs = Number(bounds.maximum) + 1;
           const complete = periodRollupWindow(minimum, endMs, minimum, endMs - 1);
           const repositories = new Map(
-            queryUsageRollupRepositoriesWindow(this.database, { ...complete, excludeHomes }).map((row) => [
+            queryUsageRollupRepositoriesWindow(this.database, { ...complete, excludeHomes, aliases }).map((row) => [
               row.key,
               {
                 key: row.key,
@@ -707,6 +742,7 @@ export class UsageQueries {
             for (const row of queryUsageRollupRepositoriesWindow(this.database, {
               ...window,
               excludeHomes,
+              aliases,
             })) {
               const entry = repositories.get(row.key);
               entry.periods[period] = Object.fromEntries(fields.map(([field]) => [field, Number(row[field] || 0)]));

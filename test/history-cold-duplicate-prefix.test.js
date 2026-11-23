@@ -1,8 +1,18 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  appendFileSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmdirSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import { zstdCompressSync } from "node:zlib";
 
@@ -199,7 +209,7 @@ async function rollbackEvidence(store, sourcePath, candidateFile, segmentId) {
   };
 }
 
-async function createFixture() {
+async function createFixture({ gitCheckout = false } = {}) {
   const root = mkdtempSync(path.join(os.tmpdir(), "history-cold-duplicate-prefix-"));
   const dshHome = path.join(root, ".dsh");
   const projectPath = path.join(root, "project");
@@ -207,7 +217,7 @@ async function createFixture() {
   const candidateFile = path.join(root, "cold-prefix.sqlite");
   const databaseFile = path.join(root, "archived.sqlite");
   const options = { homeDir: root, env: {}, importDirs: [] };
-  mkdirSync(projectPath, { recursive: true });
+  mkdirSync(gitCheckout ? path.join(projectPath, ".git") : projectPath, { recursive: true });
   mkdirSync(path.dirname(sourcePath), { recursive: true });
   writeDshFixture(sourcePath, projectPath);
 
@@ -340,6 +350,70 @@ test("unchanged duplicate cold identities preserve the prefix and publish one ho
     );
   } finally {
     closeFixture(fixture, reopened);
+  }
+});
+
+test("regrouping an archived worktree preserves duplicate cold facts while importing the hot tail", async () => {
+  const fixture = await createFixture({ gitCheckout: true });
+  try {
+    const checkout = path.join(fixture.root, "project");
+    const main = path.join(fixture.root, "main");
+    const gitdir = path.join(main, ".git", "worktrees", "project");
+    mkdirSync(gitdir, { recursive: true });
+    writeFileSync(path.join(gitdir, "commondir"), "../..\n");
+    rmdirSync(path.join(checkout, ".git"));
+    writeFileSync(path.join(checkout, ".git"), `gitdir: ${gitdir}\n`);
+    fixture.archived.close();
+    fixture.archived = new UsageStore({ ...fixture.options, databaseFile: fixture.databaseFile });
+    appendHotMessage(fixture.sourcePath);
+    const result = await fixture.archived.sync({ options: fixture.options });
+    assert.equal(result.updatedFileCount, 1, fixture.archived.warnings.join("\n"));
+    assert.deepEqual(
+      (await fixture.archived.readHistoryArchiveEvents(fixture.segmentId)).map(eventPayload),
+      fixture.coldRows,
+    );
+    assert.equal(fileDigest(fixture.candidateFile), fixture.candidateDigest);
+    assert.equal(fixture.archived.readMetaRaw("history_archive_event_revisions"), undefined);
+    const summary = await fixture.archived.summarizeHistory({ preset: "all" });
+    assert.deepEqual(
+      summary.repositories.map((row) => [row.name, row.total.total]),
+      [[realpathSync.native(main), 255]],
+    );
+  } finally {
+    closeFixture(fixture);
+  }
+});
+
+test("a newly discovered archived-worktree attachment applies during the same cold reparse", async () => {
+  const fixture = await createFixture();
+  try {
+    const checkout = path.join(fixture.root, "project");
+    const main = path.join(fixture.root, "main");
+    const home = path.join(fixture.root, ".codex");
+    mkdirSync(home, { recursive: true });
+    mkdirSync(path.join(main, ".git"), { recursive: true });
+    const state = new DatabaseSync(path.join(home, "state_5.sqlite"));
+    try {
+      state.exec("CREATE TABLE thread_attachments(attachment_type TEXT, payload TEXT)");
+      state
+        .prepare("INSERT INTO thread_attachments VALUES('archived_worktree',?)")
+        .run(JSON.stringify({ worktree: { hostId: "local", root: checkout, sourceGitRoot: main } }));
+    } finally {
+      state.close();
+    }
+    assert.equal(fixture.archived.repositoryAliases().resolve(fixture.coldRows[0].repository_key), null);
+    appendHotMessage(fixture.sourcePath);
+    const result = await fixture.archived.sync({ options: fixture.options });
+    assert.equal(result.updatedFileCount, 1, fixture.archived.warnings.join("\n"));
+    assert.equal(fixture.archived.readMetaRaw("history_archive_event_revisions"), undefined);
+    assert.equal(fileDigest(fixture.candidateFile), fixture.candidateDigest);
+    const summary = await fixture.archived.summarizeHistory({ preset: "all" });
+    assert.deepEqual(
+      summary.repositories.map((row) => [row.name, row.total.total]),
+      [[main, 255]],
+    );
+  } finally {
+    closeFixture(fixture);
   }
 });
 
