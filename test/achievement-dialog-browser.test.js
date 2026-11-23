@@ -45,7 +45,11 @@ async function setup(t, options = {}) {
     headless: true,
     args: options.graphics ? ["--enable-unsafe-swiftshader", "--use-gl=angle", "--use-angle=swiftshader"] : [],
   });
-  const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" });
+  const page = await browser.newPage({
+    viewport: { width: 1440, height: 1000 },
+    reducedMotion: "reduce",
+    hasTouch: options.hasTouch ?? false,
+  });
   await page.addInitScript((key) => {
     localStorage.setItem("codexUsageAutoRefresh", "off");
     localStorage.setItem("codexUsageLocale", "zh-CN");
@@ -136,7 +140,7 @@ test("production modal uses real API progress and dates; material preview is rea
 });
 
 test("only the displayed earned tier loads and draws the 3D badge; redraws, fallback and closing preserve the original", async (t) => {
-  const { fixture, page, errors, requests } = await setup(t, { graphics: true });
+  const { fixture, page, errors, requests } = await setup(t, { graphics: true, hasTouch: true });
   const bundle = "/waifu-achievement-badge.js";
   const canvas = page.locator("#achievementDetail .badge-canvas");
   const image = page.locator(".detail-panel > img.badge");
@@ -198,6 +202,11 @@ test("only the displayed earned tier loads and draws the 3D badge; redraws, fall
   assert.ok(await retained.evaluate((node) => node === document.querySelector(".detail-panel > canvas")));
   assert.equal(await image.evaluate((node) => getComputedStyle(node).opacity), "0");
   const badgeBox = await image.boundingBox();
+  assert.equal(
+    await page.evaluate(() => matchMedia("(hover: hover) and (pointer: fine)").matches),
+    false,
+    "The primary input is touch while a separate mouse drives the badge",
+  );
   for (const [edge, x, y, axis, sign] of [
     ["left", 0.1, 0.5, 2, 1],
     ["right", 0.9, 0.5, 2, -1],
@@ -247,6 +256,11 @@ test("only the displayed earned tier loads and draws the 3D badge; redraws, fall
   await page.locator("#achievementDetail").dispatchEvent("pointerleave");
   await page.waitForTimeout(250);
   const idle = await page.evaluate(() => window.badgeFrames.length);
+  await image.dispatchEvent("pointermove", {
+    pointerType: "touch",
+    clientX: badgeBox.x + badgeBox.width * 0.9,
+    clientY: badgeBox.y + badgeBox.height * 0.5,
+  });
   await page.waitForTimeout(250);
   assert.equal(await page.evaluate(() => window.badgeFrames.length), idle);
   await canvas.evaluate((node) => node.getContext("webgl2").getExtension("WEBGL_lose_context").loseContext());

@@ -21,7 +21,6 @@ const settleMs = 420;
 
 export function mountAchievementBadge({ image, canvas, host, grade, onReady, onUnavailable }) {
   const motion = matchMedia("(prefers-reduced-motion: reduce)");
-  const finePointer = matchMedia("(hover: hover) and (pointer: fine)");
   let renderer;
   let resize;
   let scene;
@@ -141,7 +140,7 @@ export function mountAchievementBadge({ image, canvas, host, grade, onReady, onU
   }
 
   function onMove(event) {
-    if (event.pointerType !== "mouse" || !finePointer.matches) return;
+    if (event.pointerType !== "mouse") return;
     const { x, y, width, height } = canvas.getBoundingClientRect();
     if (!width || !height) return;
     const px = (event.clientX - x) / width;

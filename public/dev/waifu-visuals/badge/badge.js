@@ -12,7 +12,6 @@ const canvas = byId("badgeCanvas");
 const play = byId("play");
 const stats = byId("stats");
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
-const finePointer = matchMedia("(hover: hover) and (pointer: fine)");
 const stages = { idle: "静止", playing: "播放中", complete: "已完成", unavailable: "WebGL 不可用" };
 let scene,
   requested = 0,
@@ -142,7 +141,7 @@ interactive.addEventListener("pointermove", (event) => {
     unavailable ||
     !tilt.checked ||
     document.hidden ||
-    !finePointer.matches ||
+    event.pointerType !== "mouse" ||
     reducedMotion.matches ||
     scene.preview.getStats().state === "playing"
   )
