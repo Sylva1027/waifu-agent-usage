@@ -29,7 +29,7 @@ function tokenRow(total, time = Date.now() - 1) {
     },
   };
 }
-async function fixture(t, { lite = false, ...extra } = {}) {
+async function fixture(t, { lite = false, historyTotal = 999, ...extra } = {}) {
   const homeDir = await mkdtemp(path.join(tmpdir(), "achievement-api-"));
   const sessionFile = path.join(homeDir, ".codex", "sessions", "2026", "11", "17", "rollout.jsonl");
   const importStoreFile = path.join(homeDir, "imports.json");
@@ -40,7 +40,7 @@ async function fixture(t, { lite = false, ...extra } = {}) {
       timestamp: new Date(Date.now() - 100000).toISOString(),
       type: "session_meta",
       payload: { id: "achievement-api-session", source: "cli", originator: "codex-tui", cwd: homeDir },
-    }) + line(tokenRow(999, Date.now() - 100000)),
+    }) + line(tokenRow(historyTotal, Date.now() - 100000)),
   );
   await writeFile(
     importStoreFile,
@@ -110,18 +110,23 @@ async function fixture(t, { lite = false, ...extra } = {}) {
 }
 const row = (snapshot, id) => snapshot.rows.find((item) => item.id === id);
 
-test("Waifu startup establishes T0 before opening a window and only publishes post-T0 use", async (t) => {
-  const f = await fixture(t);
+test("first Waifu startup indexes historical logs and grants a single award batch before opening a window", async (t) => {
+  const f = await fixture(t, { historyTotal: 210_000_000_000 });
   const initial = await f.wait((snapshot) => snapshot.state === "ready" && !snapshot.refreshing);
   assert.equal(initial.rows.length, 42);
-  assert.equal(row(initial, "A01").observedValue, "0");
-  assert.equal(row(initial, "A31").highestEarned, null);
+  assert.equal(row(initial, "A01").observedValue, "210000000000");
+  assert.equal(row(initial, "A01").highestEarned, "silver");
+  assert.equal(row(initial, "A01").earnedAt.bronze, row(initial, "A01").earnedAt.silver);
+  assert.equal(row(initial, "A31").highestEarned, "stone");
+  assert.equal(initial.awardRevision, 1);
+  assert.equal(initial.seenAwardRevision, 0);
+  assert.ok(initial.awards.every((award) => award.awardRevision === initial.awardRevision));
   assert.ok(existsSync(path.join(f.homeDir, "achievements.sqlite")));
-  await appendFile(f.sessionFile, line(tokenRow(10_000_000_999)));
+  await appendFile(f.sessionFile, line(tokenRow(5_100_000_000_000)));
   const response = await f.request("/api/summary?preset=all");
   assert.equal(response.status, 200);
   const updated = await f.wait(
-    (snapshot) => snapshot.state === "ready" && row(snapshot, "A32").highestEarned === "stone",
+    (snapshot) => snapshot.state === "ready" && row(snapshot, "A01").highestEarned === "gold",
   );
   if (process.env.S08D_CAPTURE_API === "1")
     await writeFile(
@@ -141,16 +146,27 @@ test("Waifu startup establishes T0 before opening a window and only publishes po
         2,
       ) + "\n",
     );
-  assert.equal(row(updated, "A01").observedValue, "10000000000");
-  assert.equal(row(updated, "A31").highestEarned, "stone");
+  assert.equal(row(updated, "A01").observedValue, "5100000000000");
+  assert.equal(row(updated, "A01").earnedAt.silver, row(initial, "A01").earnedAt.silver);
+  assert.equal(updated.awardRevision, initial.awardRevision + 1);
   const received = await f.request("/api/achievements?preset=today&exclude=all");
-  assert.equal(row(received.body, "A01").observedValue, "10000000000");
+  assert.equal(row(received.body, "A01").observedValue, "5100000000000");
   for (let i = 0; i < 5; i++) assert.equal((await f.request()).body.progressRevision, updated.progressRevision);
+  assert.equal(
+    (
+      await f.request("/api/achievements/seen", {
+        profileId: updated.profileId,
+        seenThroughRevision: updated.awardRevision,
+      })
+    ).status,
+    200,
+  );
   await f.restart();
   const restarted = await f.wait((snapshot) => snapshot.state === "ready" && !snapshot.refreshing);
   assert.equal(restarted.profileId, initial.profileId);
   assert.equal(restarted.enabledAt, initial.enabledAt);
-  assert.deepEqual(row(restarted, "A32").earnedAt, row(updated, "A32").earnedAt);
+  assert.deepEqual(restarted.awards, updated.awards);
+  assert.equal(restarted.seenAwardRevision, updated.awardRevision);
 });
 
 test("real summary receipts and applied skins record once, survive restart, and preserve unseen updates", async (t) => {

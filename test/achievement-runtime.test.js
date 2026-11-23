@@ -10,7 +10,7 @@ import { createHistoryArchiveCandidate, prepareHistoryArchiveCommit } from "../s
 import { streamAchievementHermesEvents as streamHermesDbEvents } from "../src/achievement-hermes-source.js";
 import { DAY, T0, observed, runtimeFixture, seedRuntimePerformance } from "./fixtures/achievement-runtime-fixture.js";
 
-test("start establishes T0 without reading history; first update publishes all 42 rows and repeated reads do no work", async (t) => {
+test("first update includes history and progress; repeated reads and unchanged updates do no work", async (t) => {
   const f = await runtimeFixture(t);
   f.insert({ timestamp_ms: T0 - 1, total: 9999 });
   f.insert({ timestamp_ms: T0, total: 10 });
@@ -19,13 +19,17 @@ test("start establishes T0 without reading history; first update publishes all 4
   assert.equal(f.runtime.readSnapshot(), null);
   const start = await f.runtime.start();
   assert.equal(start.state, "preparing");
+  assert.equal(start.enabledAt, new Date(T0).toISOString());
   assert.equal(start.rows, null);
+  assert.equal(f.runtime.needsHistoryBackfill, true);
   assert.equal(f.runtime.diagnostics.processedRows, 0);
   assert.equal(f.runtime.databaseFile, f.options.databaseFile);
   f.setNow(T0 + 1000);
   const first = await f.runtime.update();
   assert.equal(first.rows.length, 42);
-  assert.equal(observed(first, "A01"), "10");
+  assert.equal(observed(first, "A01"), "10009");
+  assert.equal(first.rows.find(({ id }) => id === "A31").highestEarned, "stone");
+  assert.equal(f.runtime.needsHistoryBackfill, false);
   assert.equal(f.runtime.diagnostics.mode, "rebuild");
   assert.equal(f.runtime.diagnostics.processedRows, 3);
   for (let i = 0; i < 10; i++) assert.deepEqual(f.runtime.readSnapshot(), first);
@@ -38,8 +42,50 @@ test("start establishes T0 without reading history; first update publishes all 4
   assert.equal(f.runtime.diagnostics.processedRows, 0);
   f.store.withSqlHistoryReader = calls;
   f.setNow(T0 + 1001);
-  assert.equal(observed(await f.runtime.update(), "A01"), "30");
+  assert.equal(observed(await f.runtime.update(), "A01"), "10029");
   assert.equal(f.runtime.diagnostics.reason, "deferred-cutoff");
+});
+
+test("an old profile earns missing historical tiers while keeping its identity, dates and seen revision", async (t) => {
+  const f = await runtimeFixture(t);
+  f.insert({ timestamp_ms: T0 - DAY + 1, total: 150_000_000_000 });
+  await f.runtime.start();
+  f.insert({ timestamp_ms: T0 + 1, total: 50_000_000_000 });
+  f.runtime.archive.recordOperation({ kind: "share", key: "before-activation", occurredAt: T0 - 1, payload: {} });
+  f.runtime.archive.recordOperation({ kind: "share", key: "after-activation", occurredAt: T0 + 1, payload: {} });
+  f.setNow(T0 + 10);
+  const prepared = await f.runtime.foundation.prepare();
+  const legacy = evaluateAchievements({ ...prepared, usageStart: T0, inputKey: "old-evaluation" });
+  const original = f.runtime.archive.commitBatch(legacy);
+  assert.equal(original.rows.find(({ id }) => id === "A01").highestEarned, "bronze");
+  assert.equal(observed(original, "A13"), "1");
+  f.runtime.archive.markSeen(original.awardRevision);
+
+  f.setNow(T0 + 20);
+  await f.reopen().start();
+  assert.equal(f.runtime.needsHistoryBackfill, true);
+  const backfilled = await f.runtime.update();
+  const before = original.rows.find(({ id }) => id === "A01");
+  const after = backfilled.rows.find(({ id }) => id === "A01");
+  assert.equal(backfilled.profileId, original.profileId);
+  assert.equal(backfilled.enabledAt, original.enabledAt);
+  assert.equal(after.highestEarned, "silver");
+  assert.equal(after.earnedAt.bronze, before.earnedAt.bronze);
+  assert.equal(after.earnedAt.silver, new Date(T0 + 20).toISOString());
+  assert.equal(observed(backfilled, "A13"), "2");
+  assert.equal(observed(backfilled, "A43"), "1");
+  assert.equal(backfilled.awardRevision, original.awardRevision + 1);
+  assert.equal(backfilled.seenAwardRevision, original.awardRevision);
+
+  await f.reopen().start();
+  assert.equal(f.runtime.needsHistoryBackfill, false);
+  assert.deepEqual(await f.runtime.update(), backfilled);
+  f.insert({ timestamp_ms: T0 + 21, total: 300 });
+  f.setNow(T0 + 22);
+  const incremented = await f.runtime.update();
+  assert.equal(observed(incremented, "A01"), "200000000300");
+  assert.equal(incremented.awardRevision, backfilled.awardRevision);
+  assert.equal(f.runtime.diagnostics.mode, "append");
 });
 
 test("proven hot append reads only new rows and evaluates aggregates, preserving exact totals and record count", async (t) => {
@@ -151,12 +197,12 @@ test("operation changes settle without adapting usage and replay remains idempot
 test("cold migration, canonical cold revision and hot append agree with independent full evaluation through reopen", async (t) => {
   const f = await runtimeFixture(t);
   await f.runtime.start();
-  f.insert({ timestamp_ms: T0 + 100, total: 10 });
+  f.insert({ timestamp_ms: T0 - DAY + 100, total: 10 });
   f.insert({ timestamp_ms: T0 + 2 * DAY, total: 20 });
   f.setNow(T0 + 3 * DAY);
   const hot = await f.runtime.update();
   const file = path.join(f.root, "archive.sqlite");
-  await createHistoryArchiveCandidate(f.store.database, file, { startMs: T0, endMs: T0 + DAY });
+  await createHistoryArchiveCandidate(f.store.database, file, { startMs: T0 - DAY, endMs: T0 });
   await f.store.commitHistoryArchiveEvents(await prepareHistoryArchiveCommit(f.store.database, file));
   const cold = await f.runtime.update();
   assert.equal(observed(cold, "A01"), "30");
@@ -273,7 +319,7 @@ test("native identities in a cold segment cannot be replayed by a new hot tail a
   assert.deepEqual(f.runtime.readSnapshot(), before);
 });
 
-test("Hermes start captures ledger-only T0 baseline, later positive deltas and missing raw evidence survive restart", async (t) => {
+test("Hermes start retains historical ledger totals and later deltas through loss of raw evidence", async (t) => {
   const f = await runtimeFixture(t);
   const ledgerFile = path.join(f.root, "state.db");
   const ledger = new DatabaseSync(ledgerFile);
@@ -313,7 +359,7 @@ test("Hermes start captures ledger-only T0 baseline, later positive deltas and m
   event = await capture();
   f.store.database.prepare("UPDATE events SET total=150,timestamp_ms=?").run(event.timestampMs);
   f.setNow(T0 + 2000);
-  assert.equal(observed(await f.runtime.update(), "A01"), "50");
+  assert.equal(observed(await f.runtime.update(), "A01"), "150");
   f.store.database.prepare("UPDATE source_files SET size=2 WHERE path=?").run(ledgerFile);
   const before = f.runtime.readSnapshot();
   const evidenceUpdated = await f.runtime.update();
@@ -324,12 +370,12 @@ test("Hermes start captures ledger-only T0 baseline, later positive deltas and m
   event = await capture();
   f.store.database.prepare("UPDATE events SET total=180,timestamp_ms=?").run(event.timestampMs);
   f.setNow(T0 + 4000);
-  assert.equal(observed(await f.runtime.update(), "A01"), "80");
+  assert.equal(observed(await f.runtime.update(), "A01"), "180");
   assert.equal(f.runtime.diagnostics.reason, "revision-or-deletion");
   f.cleanup.pop()();
   await rm(ledgerFile);
   await f.reopen().start();
-  assert.equal(observed(await f.runtime.update(), "A01"), "80");
+  assert.equal(observed(await f.runtime.update(), "A01"), "180");
   assert.equal(f.runtime.diagnostics.evidenceWarnings.length, 1);
 });
 
@@ -387,7 +433,7 @@ test("confirmed Hermes homes establish a pre-sync baseline without source_files 
     source_event_id: event.sourceEventId,
   });
   f.setNow(T0 + 2000);
-  assert.equal(observed(await f.runtime.update(), "A01"), "50");
+  assert.equal(observed(await f.runtime.update(), "A01"), "150");
 });
 
 test("confirmed Hermes ledgers already advanced after T0 use a conservative observation baseline", async (t) => {

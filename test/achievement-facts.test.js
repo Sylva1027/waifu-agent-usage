@@ -107,6 +107,15 @@ test("T0/cutoff are half-open; normalized total is not increased by cache/reason
   assert.deepEqual(fact.coverage, { start: fact.occurredAt, end: fact.occurredAt });
 });
 
+test("historical usage eligibility uses the usage range without moving the profile activation", async (t) => {
+  const { db, insert } = await fixture(t);
+  for (const timestamp_ms of [T0 - DAY - 1, T0 - DAY, T0 + 1, T0 + DAY]) insert({ timestamp_ms });
+  const result = readAchievementFacts(db, options({ usageStart: T0 - DAY, cutoff: T0 + DAY }));
+  assert.deepEqual(result.facts.map(({ occurredAt }) => occurredAt).sort(), [T0 - DAY, T0 + 1]);
+  assert.equal(result.excluded.beforeEnabledAt, 1);
+  assert.equal(result.excluded.atOrAfterCutoff, 1);
+});
+
 test("legitimate identical payloads remain a multiset; physical and pricing changes are immaterial", async (t) => {
   const { db, insert } = await fixture(t);
   insert();
@@ -226,6 +235,65 @@ test("late cumulative discovery establishes a non-awarding watermark, then credi
   const replay = hermesRead(db, row, evidence(row, { observedAt: T0 + 6000 }), next);
   assert.deepEqual(replay.facts, next.facts);
   assert.equal(replay.inputKey, next.inputKey);
+});
+
+test("historical Hermes credit retains the earlier ledger interval when the ledger advances before evaluation", async (t) => {
+  const { db, insert } = await fixture(t, "hermes");
+  const row = insert({ source_event_id: "hermes:scoped", timestamp_ms: T0 - 1000 });
+  const start = T0 - DAY;
+  const historicalEnd = row.timestamp_ms;
+  const baseline = hermesRead(db, row, evidence(row, { start, observedAt: T0 }));
+  assert.equal(baseline.sourceCheckpoints[0].credited, "0");
+
+  row.total = 150;
+  row.timestamp_ms = T0 + 1000;
+  db.prepare("UPDATE events SET total=?,timestamp_ms=?").run(row.total, row.timestamp_ms);
+  const history = { usageStart: 0 };
+  const upgraded = hermesRead(db, row, evidence(row, { start }), baseline, history);
+  assert.equal(upgraded.sourceCheckpoints[0].enabledAt, T0);
+  assert.equal(upgraded.sourceCheckpoints[0].credited, "150");
+  assert.deepEqual(upgraded.facts.map(({ totalTokens, coverage }) => [totalTokens, coverage]).sort(), [
+    ["100", { start, end: historicalEnd }],
+    ["50", { start: T0, end: row.timestamp_ms }],
+  ]);
+  const archivedReplay = hermesRead(db, row, undefined, upgraded, history);
+  assert.deepEqual(archivedReplay.facts, upgraded.facts);
+  assert.equal(archivedReplay.inputKey, upgraded.inputKey);
+});
+
+test("historical Hermes archive replay adds only the uncredited balance with known coverage", async (t) => {
+  const { db, insert } = await fixture(t, "hermes");
+  for (const [sourceEventId, start] of [
+    ["hermes:covered", T0 - DAY],
+    ["hermes:unknown", null],
+  ]) {
+    const row = insert({ source_event_id: sourceEventId });
+    const baseline = hermesRead(db, row, evidence(row, { start, observedAt: T0 + 2000 }));
+    row.total = 150;
+    row.timestamp_ms = T0 + 4000;
+    db.prepare("UPDATE events SET total=?,timestamp_ms=? WHERE source_event_id=?").run(
+      row.total,
+      row.timestamp_ms,
+      sourceEventId,
+    );
+    const legacy = hermesRead(db, row, evidence(row, { start }), baseline);
+    assert.equal(legacy.facts.length, 1);
+    const [delta] = legacy.facts;
+    const history = { usageStart: 0 };
+    const upgraded = hermesRead(db, row, undefined, legacy, history);
+    assert.deepEqual(
+      upgraded.facts.find(({ factKey }) => factKey === delta.factKey),
+      delta,
+    );
+    assert.equal(upgraded.sourceCheckpoints[0].credited, start === null ? "50" : "150");
+    assert.equal(upgraded.facts.length, start === null ? 1 : 2);
+    if (start !== null)
+      assert.deepEqual(upgraded.facts.find(({ totalTokens }) => totalTokens === "100").coverage, {
+        start,
+        end: row.timestamp_ms,
+      });
+    assert.deepEqual(hermesRead(db, row, undefined, upgraded, history).facts, upgraded.facts);
+  }
 });
 
 test("fully post-T0 cumulative coverage is counted and saved segments survive prepare/restart", async (t) => {

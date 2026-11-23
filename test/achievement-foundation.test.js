@@ -78,8 +78,8 @@ test("explicit preparation uses complete facts, stable inputs, owned archive and
   f.insert();
   assert.equal(existsSync(path.join(f.root, "achievements.sqlite")), false);
   const first = await f.prepare();
-  assert.equal(sum(first), 200n);
-  assert.equal(first.facts.length, 2);
+  assert.equal(sum(first), 300n);
+  assert.equal(first.facts.length, 3);
   assert.equal(first.profile.enabledAt, new Date(T0).toISOString());
   assert.equal(f.foundation.archive.readSnapshot().state, "preparing");
   assert.equal(f.foundation.archive.readSnapshot().rows, null);
@@ -97,13 +97,13 @@ test("explicit preparation uses complete facts, stable inputs, owned archive and
 
 test("complete hot/cold input preserves identity and applies cold revision overlays through restart", async (t) => {
   const f = await fixture(t);
-  f.insert();
+  f.insert({ timestamp_ms: T0 - 1 });
   f.insert();
   f.insert({ timestamp_ms: T0 + 2 * DAY });
   const before = await f.prepare();
   assert.equal(sum(before), 300n);
   const candidate = path.join(f.root, "archive.sqlite");
-  await createHistoryArchiveCandidate(f.store.database, candidate, { startMs: T0, endMs: T0 + DAY });
+  await createHistoryArchiveCandidate(f.store.database, candidate, { startMs: T0 - DAY, endMs: T0 + DAY });
   await f.store.commitHistoryArchiveEvents(await prepareHistoryArchiveCommit(f.store.database, candidate));
   assert.equal(f.store.database.prepare("SELECT COUNT(*) n FROM events").get().n, 1);
   const cold = await f.prepare();
@@ -155,7 +155,7 @@ test("common repository evidence survives the original worktree directory disapp
   assert.equal(reopened.inputKey, first.inputKey);
 });
 
-test("Hermes cumulative baseline and proven segments persist without publishing fake progress", async (t) => {
+test("Hermes credits complete historical coverage and preserves later segments through restart", async (t) => {
   const f = await fixture(t);
   const ledgerFile = path.join(f.root, "state.db");
   const ledger = new DatabaseSync(ledgerFile);
@@ -187,14 +187,17 @@ test("Hermes cumulative baseline and proven segments persist without publishing 
     channel: "Hermes",
   });
   const baseline = await f.prepare({ cutoff: T0 + 2000 });
-  assert.equal(sum(baseline), 0n);
+  assert.equal(sum(baseline), 100n);
+  assert.deepEqual(baseline.facts[0].coverage, { start: T0 - DAY, end: T0 + 1000 });
   ledger.prepare("UPDATE sessions SET input_tokens=150,last_activity_at=?").run((T0 + 4000) / 1000);
   event = await capture();
   f.store.database.prepare("UPDATE events SET total=150,input=150,timestamp_ms=?").run(event.timestampMs);
   const after = await f.prepare({ cutoff: T0 + 5000 });
-  assert.equal(sum(after), 50n);
-  assert.equal(after.facts[0].precision, "interval");
-  assert.deepEqual(after.facts[0].coverage, { start: T0 + 2000, end: T0 + 4000 });
+  assert.equal(sum(after), 150n);
+  assert.equal(after.facts.length, 2);
+  const delta = after.facts.find(({ totalTokens }) => totalTokens === "50");
+  assert.equal(delta.precision, "interval");
+  assert.deepEqual(delta.coverage, { start: T0 + 2000, end: T0 + 4000 });
   f.foundation.close();
   const reopened = await f.prepare({ cutoff: T0 + 6000 });
   assert.deepEqual(reopened.facts, after.facts);

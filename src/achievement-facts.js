@@ -61,13 +61,25 @@ function coverageOf(evidence) {
  * Evidence: {sourceEventId, homeId, sourcePath, totalTokens, timestampMs, coverage:{start,end},
  * precision:'interval'|'day'|'instant', cumulative?, observedAt}. Coverage end is inclusive.
  * Checkpoints retain total/credited as decimal strings, coverage, creditedCoverage, segments and capture times.
+ * enabledAt binds checkpoints to the profile; usageStart is the earliest eligible usage time.
  * Each segment is a complete current fact; replay never returns only the newest increment.
  */
 export function readAchievementFacts(database, options) {
-  const { enabledAt, cutoff, stamp, identity, classifyFree, evidenceBySourceEvent, checkpoints } = options;
+  const {
+    enabledAt,
+    usageStart = enabledAt,
+    cutoff,
+    stamp,
+    identity,
+    classifyFree,
+    evidenceBySourceEvent,
+    checkpoints,
+  } = options;
   time(enabledAt, "enabledAt");
+  time(usageStart, "usageStart");
   time(cutoff, "cutoff");
   if (
+    usageStart > enabledAt ||
     cutoff < enabledAt ||
     !stamp ||
     typeof stamp !== "object" ||
@@ -139,7 +151,7 @@ export function readAchievementFacts(database, options) {
     }
     // Keep canonical content, including excluded cumulative rows, so evidence repairs invalidate the input.
     content.push([payloadKey, ordinal]);
-    if (timestampMs < enabledAt && sourceKind !== "hermes") {
+    if (timestampMs < usageStart && sourceKind !== "hermes") {
       excluded.beforeEnabledAt++;
       continue;
     }
@@ -169,7 +181,7 @@ export function readAchievementFacts(database, options) {
     };
     const previous = get(checkpoints, sourceEventId);
     let evidence = get(evidenceBySourceEvent, sourceEventId);
-    // Archived sources may be unavailable; an exact checkpoint match still proves the saved segments.
+    // Archived sources may be unavailable; an exact checkpoint match still proves the saved snapshot.
     if (
       !evidence &&
       sourceKind === "hermes" &&
@@ -227,10 +239,21 @@ export function readAchievementFacts(database, options) {
       )
         throw new Error("Achievement checkpoint source/profile mismatch");
       credited = 0n;
-      let creditedCoverage = null;
       segments = [];
+      const creditHistoricalRemainder = (snapshotTotal, bounds) => {
+        if (usageStart === enabledAt || snapshotTotal <= credited || bounds.start === null || bounds.start < usageStart)
+          return false;
+        segments.push({
+          key: hash([scope, sourceEventId, "history", snapshotTotal, bounds]),
+          totalTokens: (snapshotTotal - credited).toString(),
+          coverage: bounds,
+        });
+        credited = snapshotTotal;
+        return true;
+      };
       if (previous) {
         const previousTotal = tokens(previous.total);
+        const previousCoverage = coverageOf(previous);
         credited = tokens(previous.credited);
         time(previous.timestampMs, "checkpoint timestamp");
         time(previous.observedAt, "checkpoint observation");
@@ -243,7 +266,7 @@ export function readAchievementFacts(database, options) {
             typeof segment.key !== "string" ||
             !segment.key ||
             segmentCoverage.start === null ||
-            segmentCoverage.start < enabledAt ||
+            segmentCoverage.start < usageStart ||
             segmentCoverage.end > previous.timestampMs
           )
             throw new Error("Invalid achievement checkpoint segment");
@@ -253,53 +276,46 @@ export function readAchievementFacts(database, options) {
           throw new Error("Achievement checkpoint credited/segments mismatch");
         if (new Set(segments.map((segment) => segment.key)).size !== segments.length)
           throw new Error("Duplicate achievement checkpoint segment");
-        if (segments.length)
-          creditedCoverage = segments.reduce(
-            (bounds, segment) => ({
-              start: Math.min(bounds.start, segment.coverage.start),
-              end: Math.max(bounds.end, segment.coverage.end),
-            }),
-            segments[0].coverage,
-          );
         if (
           total < previousTotal ||
           timestampMs < previous.timestampMs ||
           (total !== previousTotal && timestampMs === previous.timestampMs) ||
           evidence.observedAt < previous.observedAt ||
-          coverage.start !== coverageOf(previous).start
+          previousCoverage.end !== previous.timestampMs ||
+          coverage.start !== previousCoverage.start
         ) {
           excluded.resetOrRevision++;
           credited = 0n;
-          creditedCoverage = null;
           segments = [];
-          if (coverage.start !== null && coverage.start >= enabledAt && total > 0n) {
-            // A corrected complete post-T0 ledger replaces its old value; it is not a fresh delta.
+          if (coverage.start !== null && coverage.start >= usageStart && total > 0n) {
+            // A corrected ledger with eligible full coverage replaces its old value.
             credited = total;
-            creditedCoverage = coverage;
             segments.push({
               key: hash([scope, sourceEventId, "revised", total, coverage]),
               totalTokens: total.toString(),
               coverage,
             });
           }
-        } else if (total > previousTotal) {
-          if (
-            previous.observedAt >= enabledAt &&
-            timestampMs >= previous.observedAt &&
-            evidence.observedAt > previous.observedAt
-          ) {
-            credited += total - previousTotal;
-            creditedCoverage = { start: creditedCoverage?.start ?? previous.observedAt, end: coverage.end };
-            segments.push({
-              key: hash([scope, sourceEventId, previousTotal, total, previous.observedAt, coverage.end]),
-              totalTokens: (total - previousTotal).toString(),
-              coverage: { start: previous.observedAt, end: coverage.end },
-            });
-          } else excluded.unprovenCoverage++;
+        } else {
+          // Keep the narrower historical snapshot and any already proven deltas for calendar achievements.
+          creditHistoricalRemainder(previousTotal, previousCoverage);
+          if (total > previousTotal) {
+            if (
+              previous.observedAt >= usageStart &&
+              timestampMs >= previous.observedAt &&
+              evidence.observedAt > previous.observedAt
+            ) {
+              credited += total - previousTotal;
+              segments.push({
+                key: hash([scope, sourceEventId, previousTotal, total, previous.observedAt, coverage.end]),
+                totalTokens: (total - previousTotal).toString(),
+                coverage: { start: previous.observedAt, end: coverage.end },
+              });
+            } else if (!creditHistoricalRemainder(total, coverage)) excluded.unprovenCoverage++;
+          }
         }
-      } else if (coverage.start !== null && coverage.start >= enabledAt) {
+      } else if (coverage.start !== null && coverage.start >= usageStart) {
         credited = total;
-        creditedCoverage = coverage;
         if (total > 0n)
           segments.push({
             key: hash([scope, sourceEventId, 0n, total, coverage]),
@@ -307,6 +323,15 @@ export function readAchievementFacts(database, options) {
             coverage,
           });
       } else excluded.baseline++;
+      const creditedCoverage = segments.length
+        ? segments.reduce(
+            (bounds, segment) => ({
+              start: Math.min(bounds.start, segment.coverage.start),
+              end: Math.max(bounds.end, segment.coverage.end),
+            }),
+            segments[0].coverage,
+          )
+        : null;
       const checkpoint = {
         key: sourceEventId,
         sourceEventId,
@@ -326,7 +351,7 @@ export function readAchievementFacts(database, options) {
       coverage = creditedCoverage;
       if (credited === 0n) continue;
     }
-    if (!coverage || coverage.start === null || coverage.start < enabledAt || coverage.end >= cutoff) {
+    if (!coverage || coverage.start === null || coverage.start < usageStart || coverage.end >= cutoff) {
       excluded.unprovenCoverage++;
       continue;
     }
@@ -390,6 +415,7 @@ export function readAchievementFacts(database, options) {
   const inputKey = hash([
     "achievement-facts-v1",
     enabledAt,
+    usageStart,
     versions,
     content,
     facts,

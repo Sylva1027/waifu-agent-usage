@@ -43,7 +43,7 @@ History commands can create verifiable usage backups or complete bundles, but so
 
 Stop the current instance, then start the other edition using the same data location.
 
-Lite preserves existing usage, source configuration, price files, browser skin preferences, and achievement profiles. It does not advance achievements. On return to Waifu, the original profile identity, starting point, earned dates, and read state continue; usage facts that can still be established are caught up, but share or character actions are not invented for the Lite period.
+Lite preserves existing usage, source configuration, price files, browser skin preferences, and achievement profiles. Achievement evaluation pauses while you use Lite. On return to Waifu, the original profile identity, activation time, earned dates and read state carry forward. Verifiable usage from the Lite period counts toward achievements. Share and character achievements use actions recorded in the profile.
 
 Both dashboards use the server machine's local timezone; the old UTC selection no longer affects dates. Lite uses a fixed dark theme. Waifu resumes its light/dark and character preferences. Raw timestamps and an achievement profile's fixed calendar retain their original values.
 

@@ -298,6 +298,7 @@ test("cold v2 bundle validates, restores the same profile and keeps ordinary imp
     assert.equal(runtime.prepare("SELECT COUNT(*) n FROM events").get().n, 2);
     const facts = readAchievementFacts(runtime, {
       enabledAt: T0,
+      usageStart: 0,
       cutoff: T0 + 50,
       stamp: { version: "restored" },
       identity: () => ({
@@ -309,11 +310,19 @@ test("cold v2 bundle validates, restores the same profile and keeps ordinary imp
       }),
       classifyFree: () => ({ freeClass: "unknown", freeEvidenceKey: null }),
     });
-    assert.equal(facts.excluded.beforeEnabledAt, 1);
-    assert.equal(facts.facts.length, 1);
-    assert.equal(facts.facts[0].totalTokens, "20");
+    assert.equal(facts.excluded.beforeEnabledAt, 0);
+    assert.deepEqual(
+      facts.facts.map(({ occurredAt, totalTokens }) => [occurredAt, totalTokens]).sort(([a], [b]) => a - b),
+      [
+        [T0 - 1000, "20"],
+        [T0 + 10, "20"],
+      ],
+    );
     const coldFile = runtime.prepare("SELECT database_path FROM archive_segments").get().database_path;
-    assert.equal(String(coldFile).startsWith(fullDir), true);
+    const relativeColdFile = path.relative(fullDir, String(coldFile));
+    assert.ok(
+      relativeColdFile && !path.isAbsolute(relativeColdFile) && !relativeColdFile.split(path.sep).includes(".."),
+    );
     const cold = new DatabaseSync(coldFile, { readOnly: true });
     try {
       assert.equal(cold.prepare("SELECT COUNT(*) n FROM events").get().n, 1);

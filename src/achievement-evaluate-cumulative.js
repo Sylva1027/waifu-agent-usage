@@ -24,7 +24,7 @@ function maximumQualified(groups, minimum) {
   return maximum(Array.from(groups.values(), (totals) => qualifiedCount(totals, minimum)));
 }
 
-/** Consumes main's validated, deduplicated, post-T0 facts with canonical identities. */
+/** Consumes validated, deduplicated usage facts with canonical identities. */
 export function evaluateCumulativeAchievements({ facts }) {
   let total = 0n;
   let free = 0n;

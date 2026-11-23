@@ -11,6 +11,7 @@ import { createCommonRepositoryResolver } from "./repository-identity.js";
 
 const digest = (value) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 const catalogHash = digest(ACHIEVEMENT_CATALOG);
+export const ACHIEVEMENT_USAGE_START = 0;
 
 export function achievementDatabaseFile(usageDatabaseFile) {
   if (!usageDatabaseFile || usageDatabaseFile === ":memory:")
@@ -189,6 +190,7 @@ export class AchievementFoundation {
       const stamp = reader.historyProjectionInput || { facts: Number(revision?.revision || 0) };
       const input = readAchievementFacts(reader.database, {
         enabledAt: Date.parse(profile.enabledAt),
+        usageStart: ACHIEVEMENT_USAGE_START,
         cutoff,
         stamp,
         identity,
@@ -278,6 +280,7 @@ export class AchievementFoundation {
     const operations = archive.readOperations();
     const inputKey = digest({
       facts,
+      usageStart: ACHIEVEMENT_USAGE_START,
       identity: ACHIEVEMENT_IDENTITY_VERSION,
       aliases: Object.entries(aliases).sort(([a], [b]) => a.localeCompare(b)),
       policies: [...policyMap.keys()].sort(),
@@ -290,6 +293,7 @@ export class AchievementFoundation {
       facts,
       inputKey,
       profile,
+      usageStart: ACHIEVEMENT_USAGE_START,
       cutoff,
       operations,
       evidenceWarnings,
