@@ -131,7 +131,7 @@ export function createFusedMetadataObservations() {
     },
   };
 }
-export function createFusedSummaryRepositories(periodRanges) {
+export function createFusedSummaryRepositories(periodRanges, aliases = null) {
   const groups = new Map();
   const windows = Object.entries(periodRanges).map(([key, range]) => [
     key,
@@ -141,12 +141,15 @@ export function createFusedSummaryRepositories(periodRanges) {
   let safe = true;
   return {
     add(event) {
-      const key = event.repositoryKey;
+      const alias = aliases?.resolve(event.repositoryKey);
+      const key = alias?.key ?? event.repositoryKey;
+      const name = alias?.path ?? event.repositoryPath;
+      const kind = alias?.kind ?? event.repositoryKind;
       const group = groups.get(key) || {
         key,
-        name: event.repositoryPath,
-        kind: event.repositoryKind,
-        minimumKind: event.repositoryKind,
+        name,
+        kind,
+        minimumKind: kind,
         paths: new Set(),
         firsts: new Map(),
         count: 0,
@@ -154,9 +157,9 @@ export function createFusedSummaryRepositories(periodRanges) {
         periods: Object.fromEntries(COMPARISON_PERIOD_KEYS.map((key) => [key, emptyPeriodMetrics()])),
         total: { total: 0, input: 0, cached: 0, output: 0, reasoning: 0 },
       };
-      if (compareSqliteText(event.repositoryPath, group.name) < 0) group.name = event.repositoryPath;
-      if (compareSqliteText(event.repositoryKind, group.kind) > 0) group.kind = event.repositoryKind;
-      if (compareSqliteText(event.repositoryKind, group.minimumKind) < 0) group.minimumKind = event.repositoryKind;
+      if (compareSqliteText(name, group.name) < 0) group.name = name;
+      if (compareSqliteText(kind, group.kind) > 0) group.kind = kind;
+      if (compareSqliteText(kind, group.minimumKind) < 0) group.minimumKind = kind;
       if (event.cwd) group.paths.add(event.cwd);
       const member = sessionIdentity(event.homeId, event.sessionId);
       const first = group.firsts.get(member);
@@ -877,8 +880,13 @@ export class WaifuUsageQueries extends UsageQueries {
       const name = usageHarness(row.channel, kinds.get(String(row.home_id)));
       if (name && name !== "Unknown") harnesses.set(name, (harnesses.get(name) || 0) + row.total);
     }
+    const repo = this.repositoryAliases().sql(
+      "events.repository_key",
+      "events.repository_path",
+      "events.repository_kind",
+    );
     const row = query(`SELECT MIN(timestamp_ms) AS first,MAX(timestamp_ms) AS last,
-      COUNT(DISTINCT CASE WHEN repository_kind!='unknown' AND repository_key NOT LIKE 'unknown:%' THEN NULLIF(repository_key,'') END) AS repositoryCount,
+      COUNT(DISTINCT CASE WHEN repository_kind!='unknown' AND repository_key NOT LIKE 'unknown:%' THEN NULLIF(${repo.key},'') END) AS repositoryCount,
       TOTAL(CASE WHEN (detail_mask & 7)=7 THEN MAX(input-cached,0) ELSE 0 END) AS uncached,
       TOTAL(CASE WHEN (detail_mask & 7)=7 THEN cached ELSE 0 END) AS cached,
       TOTAL(CASE WHEN (detail_mask & 7)=7 THEN output ELSE 0 END) AS output,
@@ -919,8 +927,15 @@ export class WaifuUsageQueries extends UsageQueries {
          ORDER BY e.timestamp_ms, e.id`,
       )
       .all();
+    const aliases = this.repositoryAliases();
     return rows.map((row) =>
-      publishedUsageEventFromRow(row, row.source_kind, this.serviceTierEvidence, this.quotaSourceFor.bind(this)),
+      publishedUsageEventFromRow(
+        row,
+        row.source_kind,
+        this.serviceTierEvidence,
+        this.quotaSourceFor.bind(this),
+        aliases,
+      ),
     );
   }
 
@@ -1455,6 +1470,7 @@ export class WaifuUsageQueries extends UsageQueries {
                   resolveDateRange({ preset: key, now: asOf, calendarZone: range.calendarZone }, boundaryEvents),
                 ]),
               ),
+              this.repositoryAliases(),
             )
           : null;
       const observationAccumulator =

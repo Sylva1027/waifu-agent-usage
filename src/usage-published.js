@@ -1,7 +1,8 @@
 import { usageFromRow } from "./usage-sql.js";
-export function publishedUsageEventFromRow(row, sourceKind, serviceTierEvidence, resolveQuotaSource) {
+export function publishedUsageEventFromRow(row, sourceKind, serviceTierEvidence, resolveQuotaSource, aliases = null) {
   const timestampMs = Number(row.timestamp_ms);
   const sessionId = String(row.session_id);
+  const repository = aliases?.resolve(row.repository_key);
   return {
     timestamp: new Date(timestampMs).toISOString(),
     sessionId,
@@ -15,9 +16,9 @@ export function publishedUsageEventFromRow(row, sourceKind, serviceTierEvidence,
       ? { quotaSource: resolveQuotaSource?.(String(row.home_id), sessionId, timestampMs) || "unknown" }
       : {}),
     cwd: String(row.cwd),
-    repositoryKey: String(row.repository_key),
-    repositoryPath: String(row.repository_path),
-    repositoryKind: String(row.repository_kind),
+    repositoryKey: repository?.key ?? String(row.repository_key),
+    repositoryPath: repository?.path ?? String(row.repository_path),
+    repositoryKind: repository?.kind ?? String(row.repository_kind),
     detailMask: Number(row.detail_mask || 0),
     reconciliationGap: Number(row.reconciliation_gap || 0),
     cacheWriteTokens: Number(row.cache_write_tokens || 0),

@@ -1,4 +1,5 @@
-import { readFile, realpath, stat } from "node:fs/promises";
+import { readFileSync, realpathSync, statSync } from "node:fs";
+import { realpath, stat } from "node:fs/promises";
 import path from "node:path";
 
 export function normalizeDirectoryPath(value, platform = process.platform) {
@@ -15,7 +16,7 @@ export function normalizeDirectoryPath(value, platform = process.platform) {
   return windowsStyle ? withoutTrailingSeparator.toLowerCase() : withoutTrailingSeparator;
 }
 
-function pathApiFor(value, platform) {
+export function pathApiFor(value, platform = process.platform) {
   return /^[a-zA-Z]:[\\/]/.test(value) || /^\\\\/.test(value) || (platform === "win32" && !value.startsWith("/"))
     ? path.win32
     : path.posix;
@@ -31,7 +32,7 @@ function makeIdentity(kind, directory, cwd, platform) {
   };
 }
 
-export function createRepositoryResolver({ platform = process.platform } = {}) {
+function createResolver(platform, resolveGit) {
   const cache = new Map();
 
   async function resolveUncached(cwd) {
@@ -53,14 +54,14 @@ export function createRepositoryResolver({ platform = process.platform } = {}) {
     while (candidate) {
       if (canResolveOnHost) {
         try {
-          await stat(pathApi.join(candidate, ".git"));
+          const entry = await stat(pathApi.join(candidate, ".git"));
           let root = candidate;
           try {
             root = await realpath(candidate);
           } catch {
             // The lexical root remains usable for historical or inaccessible paths.
           }
-          return makeIdentity("git", root, cwd, platform);
+          return resolveGit(makeIdentity("git", root, cwd, platform), entry.isDirectory());
         } catch {
           // A .git entry can be either a directory or a worktree pointer file.
         }
@@ -90,40 +91,61 @@ export function createRepositoryResolver({ platform = process.platform } = {}) {
 
 export const COMMON_REPOSITORY_IDENTITY_VERSION = "git-common-v1";
 
-/** Add proven worktree membership without changing the dashboard's existing repository key. */
-export function createCommonRepositoryResolver({ platform = process.platform } = {}) {
-  const resolve = createRepositoryResolver({ platform });
-  return async (cwd) => {
-    const repository = await resolve(cwd);
-    if (repository.kind !== "git" || platform !== process.platform) return { ...repository, commonKey: null };
-    try {
-      const entry = path.join(repository.path, ".git");
-      const info = await stat(entry);
-      let gitDirectory = entry;
-      if (!info.isDirectory()) {
-        const pointer = (await readFile(entry, "utf8")).trim().match(/^gitdir:\s*(.+)$/i);
-        if (!pointer) return { ...repository, commonKey: null };
-        gitDirectory = path.resolve(repository.path, pointer[1]);
-      }
-      gitDirectory = await realpath(gitDirectory);
-      let commonDirectory = gitDirectory;
-      try {
-        const relative = (await readFile(path.join(gitDirectory, "commondir"), "utf8")).trim();
-        if (!relative) return { ...repository, commonKey: null };
-        commonDirectory = path.resolve(gitDirectory, relative);
-      } catch (error) {
-        if (error.code !== "ENOENT") throw error;
-      }
-      commonDirectory = await realpath(commonDirectory);
-      if (!(await stat(commonDirectory)).isDirectory()) return { ...repository, commonKey: null };
-      return {
-        ...repository,
-        commonKey: `git-common:${normalizeDirectoryPath(commonDirectory, platform)}`,
-        evidence: { version: COMMON_REPOSITORY_IDENTITY_VERSION, gitDirectory, commonDirectory },
-      };
-    } catch {
-      // Historical paths may be gone; the achievement archive can retain earlier proven aliases.
-      return { ...repository, commonKey: null };
+function commonGitEvidence(root, isDirectory) {
+  try {
+    const entry = path.join(root, ".git");
+    let gitDirectory = entry;
+    if (!isDirectory) {
+      const pointer = readFileSync(entry, "utf8")
+        .trim()
+        .match(/^gitdir:\s*(.+)$/i);
+      if (!pointer) return null;
+      gitDirectory = path.resolve(root, pointer[1]);
     }
-  };
+    gitDirectory = realpathSync.native(gitDirectory);
+    let commonDirectory = gitDirectory;
+    try {
+      const relative = readFileSync(path.join(gitDirectory, "commondir"), "utf8").trim();
+      if (!relative) return null;
+      commonDirectory = path.resolve(gitDirectory, relative);
+    } catch (error) {
+      if (error.code !== "ENOENT") throw error;
+    }
+    commonDirectory = realpathSync.native(commonDirectory);
+    if (!statSync(commonDirectory).isDirectory()) return null;
+    return { version: COMMON_REPOSITORY_IDENTITY_VERSION, gitDirectory, commonDirectory };
+  } catch {
+    return null;
+  }
+}
+
+export function linkedWorktreeMain(root) {
+  const evidence = commonGitEvidence(root, false);
+  // A submodule or separate Git directory doesn't identify its main checkout by its parent.
+  return evidence &&
+    evidence.gitDirectory !== evidence.commonDirectory &&
+    path.basename(evidence.commonDirectory) === ".git"
+    ? path.dirname(evidence.commonDirectory)
+    : null;
+}
+
+export function createRepositoryResolver({ platform = process.platform } = {}) {
+  return createResolver(platform, (checkout, isDirectory) => {
+    const main = isDirectory ? null : linkedWorktreeMain(checkout.path);
+    return main ? makeIdentity("git", main, checkout.path, platform) : checkout;
+  });
+}
+
+/** Achievement alias records keep their original checkout keys. */
+export function createCommonRepositoryResolver({ platform = process.platform } = {}) {
+  const resolve = createResolver(platform, (checkout, isDirectory) => {
+    const evidence = commonGitEvidence(checkout.path, isDirectory);
+    if (!evidence) return checkout;
+    return {
+      ...checkout,
+      commonKey: `git-common:${normalizeDirectoryPath(evidence.commonDirectory, platform)}`,
+      evidence,
+    };
+  });
+  return async (cwd) => ({ commonKey: null, ...(await resolve(cwd)) });
 }
