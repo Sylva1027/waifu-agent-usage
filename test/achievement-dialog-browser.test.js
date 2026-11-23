@@ -199,10 +199,10 @@ test("only the displayed earned tier loads and draws the 3D badge; redraws, fall
   assert.equal(await image.evaluate((node) => getComputedStyle(node).opacity), "0");
   const badgeBox = await image.boundingBox();
   for (const [edge, x, y, axis, sign] of [
-    ["left", 0.1, 0.5, 2, -1],
-    ["right", 0.9, 0.5, 2, 1],
-    ["top", 0.5, 0.1, 6, 1],
-    ["bottom", 0.5, 0.9, 6, -1],
+    ["left", 0.1, 0.5, 2, 1],
+    ["right", 0.9, 0.5, 2, -1],
+    ["top", 0.5, 0.1, 6, -1],
+    ["bottom", 0.5, 0.9, 6, 1],
   ]) {
     await page.mouse.move(badgeBox.x + badgeBox.width * x, badgeBox.y + badgeBox.height * y);
     // In the actual vertex shader's model-view matrix, entries 2 and 6 are the
@@ -219,7 +219,7 @@ test("only the displayed earned tier loads and draws the 3D badge; redraws, fall
         { timeout: 4000 },
       )
       .catch((cause) => {
-        throw new Error(`Hovering the ${edge} edge must bring it closer to the viewer`, { cause });
+        throw new Error(`Hovering the ${edge} edge must tilt it away from the viewer`, { cause });
       });
   }
   const frameTimes = await image.evaluate(async (node) => {
