@@ -55,7 +55,7 @@ function appendRestored(usage, source, at, total) {
     .run(source, at, total, total);
 }
 
-test("legacy usage-only restore establishes a new T0 and excludes existing history before granting new usage", async (t) => {
+test("legacy usage-only restore initializes a new profile and awards restored history", async (t) => {
   const f = await runtimeFixture(t);
   f.insert({ timestamp_ms: T0 - 100, total: 50_000_000_000, input: 50_000_000_000, output: 0 });
   assert.equal(existsSync(f.options.databaseFile), false);
@@ -73,14 +73,17 @@ test("legacy usage-only restore establishes a new T0 and excludes existing histo
   f.setNow(T0 + 100);
   const initial = await restored.runtime.update();
   assert.equal(initial.rows.length, 42);
-  assert.equal(observed(initial, "A01"), "0");
-  assert.equal(initial.awards.length, 0);
+  assert.equal(observed(initial, "A01"), "50000000000");
+  const initialRow = initial.rows.find(({ id }) => id === "A01");
+  assert.equal(initialRow.highestEarned, "bronze");
+  assert.equal(initialRow.earnedAt.bronze, new Date(T0 + 100).toISOString());
+  assert.equal(observed(initial, "A46"), "0");
   appendRestored(restored.usage, f.sourcePath, T0 + 101, 50_000_000_000);
   f.setNow(T0 + 200);
   const earned = await restored.runtime.update();
-  assert.equal(observed(earned, "A01"), "50000000000");
+  assert.equal(observed(earned, "A01"), "100000000000");
   assert.equal(earned.rows.find(({ id }) => id === "A01").highestEarned, "bronze");
-  assert.equal(earned.rows.find(({ id }) => id === "A01").earnedAt.bronze, new Date(T0 + 200).toISOString());
+  assert.equal(earned.rows.find(({ id }) => id === "A01").earnedAt.bronze, initialRow.earnedAt.bronze);
   assert.equal(earned.profileId, profile.profileId);
   assert.equal(existsSync(f.options.databaseFile), false, "restoration does not initialize the source profile");
 });

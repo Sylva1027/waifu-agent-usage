@@ -666,7 +666,7 @@ export function createUsageServer(options = {}, definition) {
   function loadUsageStore(options = {}) {
     if (syncPromise) return syncPromise;
     return runActivity("sync", "checking", () => acquireUsageStore(options)).then((status) => {
-      features?.scheduleAchievementUpdate();
+      features?.onUsageAcquired();
       return status;
     });
   }

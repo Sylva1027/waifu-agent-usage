@@ -123,6 +123,30 @@ test("only post-T0 successful operation receipts count and crossing aggregates a
   assert.equal(row(result, "A43").observedValue, "2");
 });
 
+test("a historical usage start applies to cumulative and calendar metrics while operations start at activation", () => {
+  const historicalAt = T0 - DAY;
+  const operations = [historicalAt, T0].map((occurredAt, index) => ({
+    kind: "share",
+    key: `snapshot-${index}`,
+    occurredAt,
+    payload: {},
+  }));
+  const result = evaluateAchievements(
+    input(
+      [
+        fact("historical", "10000000", {
+          occurredAt: historicalAt,
+          coverage: { start: historicalAt, end: historicalAt },
+        }),
+      ],
+      { usageStart: 0, operations },
+    ),
+  );
+  assert.equal(row(result, "A01").observedValue, "10000000");
+  assert.equal(row(result, "A13").observedValue, "1");
+  assert.equal(row(result, "A43").observedValue, "1");
+});
+
 test("cross-level dates are assigned once; progress-only updates and later gold preserve prior dates", (t) => {
   let clock = T0 + DAY;
   const store = archive(t, { clock: () => clock });

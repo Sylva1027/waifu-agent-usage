@@ -1,12 +1,14 @@
 import { createHash } from "node:crypto";
 import path from "node:path";
 import { closedAchievementPeriods } from "./achievement-calendar.js";
-import { AchievementFoundation, achievementDatabaseFile } from "./achievement-foundation.js";
+import { ACHIEVEMENT_USAGE_START, AchievementFoundation, achievementDatabaseFile } from "./achievement-foundation.js";
 import { AchievementAggregates } from "./achievement-incremental.js";
 import { ACHIEVEMENT_IDENTITY_VERSION } from "./achievement-identity.js";
 import { streamAchievementHermesEvents as streamHermesDbEvents } from "./achievement-hermes-source.js";
 
 const digest = (value) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
+// Distinguish completed historical evaluations from older profiles using the existing durable key.
+const HISTORY_INPUT_PREFIX = "achievement-history-v1:";
 
 // All metadata is bounded by sources/segments, never by the number of usage events.
 function captureInput(store) {
@@ -61,6 +63,10 @@ export class AchievementRuntime {
 
   get databaseFile() {
     return this.foundation.databaseFile || achievementDatabaseFile(this.usageStore.databaseFile);
+  }
+
+  get needsHistoryBackfill() {
+    return !this.archive?.readProfile().inputKey?.startsWith(HISTORY_INPUT_PREFIX);
   }
 
   start() {
@@ -180,7 +186,7 @@ export class AchievementRuntime {
       this.policies,
     ]);
     const key = digest([
-      "achievement-runtime-1",
+      HISTORY_INPUT_PREFIX,
       before,
       configuration,
       operations,
@@ -274,7 +280,13 @@ export class AchievementRuntime {
       diagnostics.calendarBuckets = aggregates.calendar.size;
       diagnostics.evaluatedBuckets = aggregates.cumulative.size + aggregates.calendar.size;
       const result = aggregates.evaluate(
-        { profile, cutoff, operations, inputKey: completedKey || digest([key, visibility]) },
+        {
+          profile,
+          cutoff,
+          operations,
+          usageStart: ACHIEVEMENT_USAGE_START,
+          inputKey: HISTORY_INPUT_PREFIX + (completedKey || digest([key, visibility])),
+        },
         this.readSnapshot().awards,
       );
       const snapshot = this.archive.commitBatch({ ...result, expectedProgressRevision: profile.progressRevision });
