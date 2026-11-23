@@ -194,9 +194,13 @@ test("only the displayed earned tier loads and draws the 3D badge; redraws, fall
     [660, 72],
   ]) {
     await page.setViewportSize({ width: 1440, height });
-    const original = await image.boundingBox();
+    // The resize handler can reposition the dialog between browser calls.
+    const { original, overlay } = await image.evaluate((badge) => ({
+      original: badge.getBoundingClientRect().toJSON(),
+      overlay: badge.parentElement.querySelector(".badge-canvas").getBoundingClientRect().toJSON(),
+    }));
     assert.equal(original.width, size);
-    assert.deepEqual(await canvas.boundingBox(), original);
+    assert.deepEqual(overlay, original);
   }
   await page.locator('[data-preview-grade="silver"]').click();
   assert.ok(await retained.evaluate((node) => node === document.querySelector(".detail-panel > canvas")));
