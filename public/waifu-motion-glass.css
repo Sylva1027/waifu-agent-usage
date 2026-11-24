@@ -1,0 +1,159 @@
+/* The existing controls keep their hit areas and focus rings; only their artwork moves. */
+.topbar-actions [data-motion-content] {
+  pointer-events: none;
+  transform-origin: center;
+}
+
+.language-toggle > [data-motion-content] {
+  translate: 0 -1px;
+  transform: none;
+}
+
+[data-glass-surface],
+[data-motion-indicator] {
+  display: none;
+  pointer-events: none;
+}
+
+#timelineModes {
+  position: relative;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  #timelineModes[data-motion-ready] > [data-motion-indicator] {
+    display: block;
+    position: absolute;
+    inset-block: 7px;
+    left: 0;
+    border: 1px solid transparent;
+    border-block-color: var(--ceramic-rim) var(--ceramic-shade);
+    border-radius: 10px;
+    background: linear-gradient(145deg, var(--ceramic-top), var(--ceramic-bottom));
+    box-shadow:
+      0 2px 2px var(--ceramic-shade),
+      var(--neo-raised-small);
+  }
+
+  #timelineModes[data-motion-ready] > button[aria-pressed="true"] {
+    border-color: transparent;
+    background: transparent;
+    box-shadow: none;
+  }
+}
+
+/* Classic surfaces transmit the static page colour. Only the skin button samples its backdrop. */
+:root[data-skin="classic"] {
+  --bg: #e0eaf0;
+  --ink: #162f40;
+  --muted: #415967;
+  --blue: #00687b;
+  --record: var(--blue);
+  --chart-text: var(--muted);
+  --neo-surface: #e8f0f4;
+  --ceramic-top: #f6fbfd;
+  --ceramic-bottom: #d8e7ee;
+  --ceramic-well: #dce8ee;
+  --ceramic-rim: #ffffffe0;
+  --ceramic-shade: #58718733;
+  --neo-edge: #718d9e55;
+  --neo-raised: inset 0 1px 0 var(--ceramic-rim), 0 4px 14px #29495c12;
+  --neo-raised-small: inset 0 1px 0 var(--ceramic-rim), 0 2px 5px #29495c1a;
+  --neo-inset: inset 0 1px 3px var(--ceramic-shade), 0 1px 0 var(--ceramic-rim);
+  --neo-inset-small: inset 0 1px 2px var(--ceramic-shade);
+  --glass-surface: linear-gradient(135deg, #ffffffc9, #edf7fac2 52%, #dceaf1ad);
+  --glass-halo: #a4dce3;
+  --glass-ambient: #c2cce6;
+  --glass-stripe: #54879938;
+}
+
+:root[data-skin="classic"][data-theme="dark"] {
+  --bg: #111e2a;
+  --ink: #eff8fb;
+  --muted: #b2c8d4;
+  --blue: #8ee4ec;
+  --neo-surface: #243a48;
+  --ceramic-top: #344c5a;
+  --ceramic-bottom: #203642;
+  --ceramic-well: #192d39;
+  --ceramic-rim: #d5f4ff36;
+  --ceramic-shade: #050d1575;
+  --neo-edge: #b0d9e938;
+  --neo-raised: inset 0 1px 0 var(--ceramic-rim), 0 4px 14px #050c1640;
+  --neo-raised-small: inset 0 1px 0 var(--ceramic-rim), 0 2px 5px #050c164d;
+  --glass-surface: linear-gradient(135deg, #304856e8, #203440d9 58%, #203643ba);
+  --glass-halo: #27525b;
+  --glass-ambient: #33405b;
+  --glass-stripe: #bfdce73b;
+}
+
+:root[data-skin="classic"] body {
+  background:
+    radial-gradient(ellipse 62rem 28rem at 93% 0, var(--glass-halo), transparent),
+    radial-gradient(ellipse 58rem 38rem at 0 27rem, var(--glass-ambient), transparent), var(--bg);
+}
+
+:root[data-skin="classic"] :is(.shell .panel, .shell .metric, .shell .comparison-item, .toolbar > .control-group) {
+  background: var(--glass-surface);
+}
+
+:root[data-skin="classic"] .topbar {
+  background:
+    radial-gradient(
+      ellipse 156px 116px at 70% calc(100% - 130px),
+      transparent 87%,
+      var(--glass-stripe) 89%,
+      transparent 91% 103%,
+      var(--glass-stripe) 104%,
+      transparent 106%
+    )
+    right bottom / 21rem 100% no-repeat,
+    var(--glass-surface);
+}
+
+@media (max-width: 480px) {
+  :root[data-skin="classic"] .topbar {
+    background-position-x: left;
+  }
+}
+
+:root[data-skin="classic"] .topbar h1 {
+  color: var(--ink);
+  text-shadow: none;
+}
+
+:root[data-skin="classic"] #skinToggle {
+  position: relative;
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+:root[data-skin="classic"] #skinToggle:not(:disabled):active {
+  transform: none;
+}
+
+:root[data-skin="classic"] #skinToggle > [data-glass-surface] {
+  display: block;
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+:root[data-skin="classic"] [data-glass-surface]:not(.lg-host) {
+  border: 1px solid var(--neo-edge);
+  background: var(--glass-surface);
+  box-shadow: var(--neo-raised-small);
+  -webkit-backdrop-filter: blur(5px);
+  backdrop-filter: blur(5px);
+}
+
+:root[data-skin="classic"] #skinToggle > [data-motion-content] {
+  position: relative;
+  z-index: 1;
+}
+
+@media (forced-colors: active) {
+  #timelineModes[data-motion-ready] > button[aria-pressed="true"] {
+    border-color: Highlight;
+  }
+}

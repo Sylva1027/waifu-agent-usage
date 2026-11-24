@@ -19,7 +19,7 @@ export function createAchievementDialog({
   button.setAttribute("aria-expanded", "false");
   button.dataset.i18nSkip = "";
   button.innerHTML =
-    '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path class="clipboard-board" d="M9 4H6.5A1.5 1.5 0 0 0 5 5.5v14A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5v-14A1.5 1.5 0 0 0 17.5 4H15"/><rect x="9" y="2.5" width="6" height="4" rx="1.2"/></svg>';
+    '<svg data-motion-content viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path class="clipboard-board" d="M9 4H6.5A1.5 1.5 0 0 0 5 5.5v14A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5v-14A1.5 1.5 0 0 0 17.5 4H15"/><rect x="9" y="2.5" width="6" height="4" rx="1.2"/></svg>';
   const dashboardShare = document.querySelector("#shareToggle");
   dashboardShare.before(button);
   const dialog = document.createElement("dialog");

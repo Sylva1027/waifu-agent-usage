@@ -23,6 +23,7 @@ export {
 };
 
 import { createDashboardRuntime } from "./dashboard-runtime.js";
+import { setupMotionGlass } from "./waifu-motion.js";
 import { createSourceManager, homeRowsFromMetadata } from "./source-view.js";
 export { renderSourceOptionsHtml, renderHomesHtml } from "./source-view.js";
 import {
@@ -93,6 +94,7 @@ let quotaNoticeTimer = null;
 let achievementDialog = null;
 let achievementUnread = null;
 let achievementNotice = null;
+let motionGlass;
 function refreshAchievements() {
   void achievementUnread?.refresh().catch(() => {});
 }
@@ -1167,6 +1169,7 @@ function updateTimelineModeButtons() {
     button.classList.toggle("active", selected);
     button.setAttribute("aria-pressed", String(selected));
   }
+  motionGlass?.select(state.timelineMode);
 }
 
 export function renderTimelineLegendHtml(summary, mode, channelColors, modelColors) {
@@ -2796,6 +2799,8 @@ function setupFrameSpotlight(root) {
   function surfaceAt(node) {
     if (!node || !root.contains(node)) return null;
     if (node.closest(".date-picker-popover")) return null;
+    if (document.documentElement.dataset.skin === "classic" && node.closest("#skinToggle")) return null;
+    if (node.closest("#timelineModes[data-motion-ready]")) return null;
     for (let current = node; current && current !== root; current = current.parentElement) {
       if (current.matches(recesses)) return null;
       if (current.matches(surfaces)) {
@@ -2943,13 +2948,17 @@ function setupFrameSpotlight(root) {
     if (
       records.every(
         (record) =>
-          record.type === "attributes" &&
-          record.attributeName === "style" &&
-          record.target === active &&
-          active.getAttribute("style") === lastStyle,
+          record.target.closest?.(
+            "[data-motion-content], [data-motion-indicator], [data-glass-surface], .lg-cover, .lg-tick",
+          ) ||
+          (record.type === "attributes" &&
+            record.attributeName === "style" &&
+            record.target === active &&
+            active.getAttribute("style") === lastStyle),
       )
     )
       return;
+    if (records.some((record) => record.type === "childList")) motionGlass?.refreshTargets();
     if (active && !active.isConnected) clear();
     invalidate();
   });
@@ -2993,7 +3002,10 @@ async function bootDashboard() {
         // skin changed) must be followed by one re-render. Opacity and character
         // visibility recolour nothing, and re-rendering per slider tick would be
         // wasteful.
-        if (!meta || meta.previousSkinId !== preference.skinId) render();
+        if (!meta || meta.previousSkinId !== preference.skinId) {
+          motionGlass?.updateGlass();
+          render();
+        }
         if (!paletteStudioPreview && meta?.previousSkinId !== preference.skinId)
           void import("./achievement-events.js")
             .then((events) => events.recordAchievementSkin(preference.skinId))
@@ -3002,6 +3014,7 @@ async function bootDashboard() {
     });
     state.skinRuntime.restore();
     state.skinRuntime.apply();
+    motionGlass = setupMotionGlass();
     if (!paletteStudioPreview)
       void import("./achievement-events.js")
         .then((events) => events.recordAchievementSkin(state.skinRuntime.getPreference().skinId))
