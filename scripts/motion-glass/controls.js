@@ -50,8 +50,9 @@ export function mountControls(onOptics) {
     release();
     let value = values.get(button);
     if (!value) {
-      value = springValue(0, spring);
       const content = button.querySelectorAll("[data-motion-content]");
+      if (!content.length) return;
+      value = springValue(0, spring);
       value.on("change", (amount) => {
         for (const item of content) item.style.scale = amount === 0 ? "" : String(1 - amount * 0.095);
         if (button === glassButton) onOptics(amount, value.getVelocity());
@@ -64,36 +65,37 @@ export function mountControls(onOptics) {
     value.set(1);
   }
   const activationKey = (event) => event.key === "Enter" || event.key === " ";
-  for (const button of document.querySelectorAll(".topbar-actions button")) {
-    button.addEventListener(
-      "pointerdown",
-      (event) => {
-        if (event.isPrimary && event.button === 0) press(button, event.pointerId);
-      },
-      options,
-    );
-    button.addEventListener(
-      "keydown",
-      (event) => {
-        if (!event.repeat && activationKey(event)) press(button, null);
-      },
-      options,
-    );
-    button.addEventListener(
-      "keyup",
-      (event) => {
-        if (activationKey(event) && down === button && pointerId === null) release();
-      },
-      options,
-    );
-    button.addEventListener(
-      "blur",
-      () => {
-        if (down === button) release();
-      },
-      options,
-    );
-  }
+  const toolbar = document.querySelector(".topbar-actions");
+  toolbar.addEventListener(
+    "pointerdown",
+    (event) => {
+      const button = event.target.closest("button");
+      if (button && event.isPrimary && event.button === 0) press(button, event.pointerId);
+    },
+    options,
+  );
+  toolbar.addEventListener(
+    "keydown",
+    (event) => {
+      const button = event.target.closest("button");
+      if (button && !event.repeat && activationKey(event)) press(button, null);
+    },
+    options,
+  );
+  toolbar.addEventListener(
+    "keyup",
+    (event) => {
+      if (down && down.contains(event.target) && activationKey(event) && pointerId === null) release();
+    },
+    options,
+  );
+  toolbar.addEventListener(
+    "focusout",
+    (event) => {
+      if (down?.contains(event.target)) release();
+    },
+    options,
+  );
   const endPointer = (event) => {
     if (event.pointerId === pointerId) release();
   };
@@ -105,7 +107,7 @@ export function mountControls(onOptics) {
     select,
     syncOptics() {
       const value = values.get(glassButton);
-      if (value) onOptics(value.get(), value.getVelocity());
+      onOptics(value?.get() ?? 0, value?.getVelocity() ?? 0);
     },
     destroy() {
       events.abort();
