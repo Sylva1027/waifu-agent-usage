@@ -281,6 +281,11 @@ const treatmentCatalog = {
     label: "风过星帘",
     materials: { relief: "浅浮雕折射", flat: "来稿直叠" },
   },
+  kimi: {
+    scene: "nocturne",
+    label: "折页小夜曲",
+    materials: { relief: "浅浮雕折射", flat: "来稿直叠" },
+  },
   qwen: {
     scene: "fan",
     label: "折扇流光",
@@ -397,7 +402,7 @@ function fitQwenFrame(card, id) {
   frame.append(optics, image);
 }
 function portraitSource(id, mode) {
-  if (id === "glm" || id === "claude" || id === "gemini") {
+  if (id === "glm" || id === "claude" || id === "gemini" || id === "kimi") {
     const file = document.body.dataset.material === "flat" ? "source.png" : `relief-${mode}.webp`;
     return `./art/${id}/${file}`;
   }

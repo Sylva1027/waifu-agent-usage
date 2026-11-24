@@ -4,7 +4,7 @@
 
 - [成就徽章](http://127.0.0.1:4178/dev/waifu-visuals/badge/) 保留开发对比，默认抛光倒角和 12 FPS。正式 Waifu 仅在已解锁等级的成就详情显示立体徽章与鼠标倾斜。
 - [通知粒子](http://127.0.0.1:4178/dev/waifu-visuals/notice/) 可用固定的 12 FPS 模拟正式通知使用的双弧流光，也可对比开发候选星簇绽放。
-- [成就分享卡](http://127.0.0.1:4178/dev/waifu-visuals/achievement-share/) 支持切换成就、中英文、深浅配色和全屏预览。角色背景包括 Qwen「折扇流光」、DeepSeek「洄游潮光」、ChatGPT「鳞间珠光」、Claude「夹页花信」、GLM「靛蓝织谱」和 Gemini「风过星帘」。
+- [成就分享卡](http://127.0.0.1:4178/dev/waifu-visuals/achievement-share/) 支持切换成就、中英文、深浅配色和全屏预览。角色背景包括 Qwen「折扇流光」、DeepSeek「洄游潮光」、ChatGPT「鳞间珠光」、Claude「夹页花信」、GLM「靛蓝织谱」、Gemini「风过星帘」和 Kimi「折页小夜曲」。
 
 先选效果再回放，计数显示回放期间的真实绘制帧，包含开场和结束帧。每个效果有固定轨迹，粒子使用固定随机种子。浏览器实际帧间隔受刷新率和设备负载影响。
 
