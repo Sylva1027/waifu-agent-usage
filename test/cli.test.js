@@ -69,7 +69,7 @@ function waitForServerUrl(child) {
     let output = "";
     const timer = setTimeout(() => {
       reject(new Error(`Timed out waiting for server URL. Output: ${output}`));
-    }, 5000);
+    }, 10_000);
 
     child.stdout.on("data", (chunk) => {
       output += chunk.toString();

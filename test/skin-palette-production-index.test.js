@@ -22,6 +22,7 @@ import {
   hashRoleInputs,
   sha256Canonical,
   SKIN_IDS,
+  VARIANTS,
 } from "../scripts/skin-palette/contracts.mjs";
 import { PALETTE_TOKEN_KEYS } from "../public/skins.js";
 import { buildFixedMatrixFixtureBindings } from "../scripts/skin-palette/capture.mjs";
@@ -47,7 +48,7 @@ function makeBoundFixture() {
   const policyHash = "a".repeat(64);
   const derivationHash = "b".repeat(64);
   const candidates = SKIN_IDS.flatMap((skinId) =>
-    ["a", "b", "c"].map((variant) => {
+    VARIANTS.map((variant) => {
       const profileSnapshot = { fixtureSkin: skinId };
       const candidate = {
         schemaVersion: 1,
@@ -173,8 +174,8 @@ function deepFreeze(value) {
   return value;
 }
 
-test("merges one, two, and ten shards in registered skin order", () => {
-  for (const count of [1, 2, 10]) {
+test("merges one, two, and all shards in registered skin order", () => {
+  for (const count of [1, 2, SKIN_IDS.length]) {
     const input = SKIN_IDS.slice(0, count)
       .map((skinId) => shard(skinId))
       .reverse();
@@ -522,7 +523,7 @@ test("binds each shard through the production reader and rejects changed evidenc
     const selections = makeBoundSelection(verifiedModel);
     const candidate = candidates.find((item) => item.skinId === SKIN_IDS[0] && item.variant === "a");
     const alternateCandidate = candidates.find((item) => item.skinId === SKIN_IDS[0] && item.variant === "b");
-    assert.equal(candidates.length, 30);
+    assert.equal(candidates.length, SKIN_IDS.length * VARIANTS.length);
     assert.equal(Object.keys(selections.choices).length, SKIN_IDS.length);
 
     const candidatesPath = path.join(runDir, "candidates.json");

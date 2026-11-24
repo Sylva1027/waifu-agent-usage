@@ -148,8 +148,11 @@ test("the achievement share button exports the displayed earned medal and return
   assert.equal(await share.locator("svg").innerHTML(), await page.locator("#shareToggle svg").innerHTML());
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 1000 });
-    const control = await status.boundingBox();
-    const action = await share.boundingBox();
+    // Read both controls in the same layout after resizing the modal.
+    const { control, action } = await status.evaluate((filter) => ({
+      control: filter.getBoundingClientRect().toJSON(),
+      action: document.querySelector("#achievementShareToggle").getBoundingClientRect().toJSON(),
+    }));
     assert.ok(action.x >= control.x + control.width);
     assert.equal(action.height, control.height);
     assert.equal(action.y, control.y);

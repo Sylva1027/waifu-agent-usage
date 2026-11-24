@@ -394,8 +394,10 @@ test("a delayed real GET cannot roll back a newer event or acknowledge an unseen
   const stale = await gate.entered;
   assert.equal(stale.awardRevision, initial.awardRevision);
   const newer = await fixture.addGold();
+  assert.ok(newer.awardRevision > stale.awardRevision);
   await eventAt(page, newer);
   await page.keyboard.press("Escape");
+  await page.locator("#achievementDialog").waitFor({ state: "hidden" });
   await gate.release();
   await notice(page, true);
   assert.equal((await fixture.snapshot()).seenAwardRevision, initial.awardRevision);

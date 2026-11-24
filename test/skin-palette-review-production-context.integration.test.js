@@ -10,7 +10,7 @@ import {
   readProductionGeneratedAssets,
   verifyProductionSourceContext,
 } from "../scripts/skin-palette/review-production.mjs";
-import { SKIN_IDS, sha256Canonical } from "../scripts/skin-palette/contracts.mjs";
+import { SKIN_IDS, SOURCE_ASSET_COUNT, sha256Canonical } from "../scripts/skin-palette/contracts.mjs";
 import { SOURCE_FILES } from "../scripts/skin-palette/capture.mjs";
 import { createSelectionExport } from "../scripts/skin-palette/review-selection.mjs";
 import { REPO_ROOT } from "../scripts/skin-palette/review-evidence.mjs";
@@ -49,7 +49,7 @@ function assertCleanPass(result, label) {
   assert.deepEqual(result.gaps, [], `${label} gaps`);
 }
 
-test("D9f-2 runs the real ten-skin source-context branch and records expected synthetic source drift", async (t) => {
+test("D9f-2 runs the full source-context branch and records expected synthetic source drift", async (t) => {
   if (!existsSync(path.join(REPO_ROOT, "lineart assets"))) {
     t.skip(
       "authoring source images are not in this tree (release archive); the default-root readers stay in the authoring repository",
@@ -177,8 +177,8 @@ test("D9f-2 runs the real ten-skin source-context branch and records expected sy
     assert.equal(Object.keys(currentSources.sourceBytes).length, SOURCE_FILES.length);
     assert.equal(Object.keys(currentSources.sourceHashes).length, SOURCE_FILES.length);
     assert.deepEqual(Object.keys(currentSources.sourceHashes), SOURCE_FILES);
-    assert.equal(Object.keys(currentAssets.sourceAssetHashes).length, 40);
-    assert.equal(Object.keys(currentAssets.publicAssetHashes).length, 40);
+    assert.equal(Object.keys(currentAssets.sourceAssetHashes).length, SOURCE_ASSET_COUNT);
+    assert.equal(Object.keys(currentAssets.publicAssetHashes).length, SOURCE_ASSET_COUNT);
 
     const sourcePreimages = Object.fromEntries(
       HISTORICAL_SOURCE_FILES.map((file) => [file, { path: `source-before/${file}`, sha256: historicalHashes[file] }]),
