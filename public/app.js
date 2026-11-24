@@ -3014,16 +3014,19 @@ async function bootDashboard() {
     });
     state.skinRuntime.restore();
     state.skinRuntime.apply();
-    motionGlass = setupMotionGlass();
     if (!paletteStudioPreview)
       void import("./achievement-events.js")
         .then((events) => events.recordAchievementSkin(state.skinRuntime.getPreference().skinId))
         .catch(() => {});
+    function reflectPickerOpen(open) {
+      $("#skinToggle").setAttribute("aria-expanded", String(open));
+      motionGlass?.updateGlass();
+    }
     state.skinPicker = createSkinPicker({
       runtime: state.skinRuntime,
       translate: (key) => localizeText(key, getLocale()),
-      onOpen: () => $("#skinToggle").setAttribute("aria-expanded", "true"),
-      onClose: () => $("#skinToggle").setAttribute("aria-expanded", "false"),
+      onOpen: () => reflectPickerOpen(true),
+      onClose: () => reflectPickerOpen(false),
     });
     state.skinPicker.bind();
     installSkinTestHook(state.skinRuntime, state.skinPicker);
@@ -3395,6 +3398,7 @@ async function bootDashboard() {
   });
 
   setTheme(preferredTheme(), { persist: false });
+  if (state.skinRuntime) motionGlass = setupMotionGlass();
   state.excludedHomes = readExcludedHomes();
   initializeAutoRefresh();
   updateRecentControls();

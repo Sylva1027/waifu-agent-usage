@@ -13229,7 +13229,9 @@ function createStableFullPageNodePage({
     body,
     querySelectorAll(selector) {
       if (selector === "input,textarea,[contenteditable]") return [guardInput];
-      return selector === "*" ? allElements : [];
+      // This fixture contains layout elements only; none is inside a glass filter's resource SVG.
+      if (selector === "*" || selector === "*:not(svg.lg-defs[aria-hidden='true'] *)") return allElements;
+      throw new Error(`Unsupported stable page fixture selector: ${selector}`);
     },
   };
   const visualViewport = {

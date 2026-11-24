@@ -686,9 +686,12 @@ export function createLiquidGlass(host: HTMLElement, options: LiquidGlassOptions
   let baseScale = 0;
   let refractionMultiplier = 1;
   let highlightBoost = 0;
+  // A unit of SVG scale moves a sampled pixel by at most half a CSS pixel per axis.
+  // Round the change, preserving the original resting position at every size.
+  const opticalScale = () => baseScale + Math.round(baseScale * (refractionMultiplier - 1));
   const setRefractionFilter = (filter: SVGFilterElement, displacement: SVGFEDisplacementMapElement) => {
     activeDisplacement = displacement;
-    setAttr(displacement, "scale", baseScale * refractionMultiplier);
+    setAttr(displacement, "scale", opticalScale());
     setPane(`url(#${filter.id})${frost}`);
   };
 
@@ -1085,7 +1088,7 @@ export function createLiquidGlass(host: HTMLElement, options: LiquidGlassOptions
       if (!visible) return;
       if (multiplier !== refractionMultiplier) {
         refractionMultiplier = multiplier;
-        setAttr(activeDisplacement, "scale", baseScale * multiplier);
+        setAttr(activeDisplacement, "scale", opticalScale());
       }
       if (highlight !== highlightBoost) {
         highlightBoost = highlight;

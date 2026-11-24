@@ -20,6 +20,7 @@ export function setupMotionGlass() {
   let surface;
   let indicator;
   let inView = false;
+  let materialVisible = false;
   let pageHidden = false;
   let controls;
   let glass;
@@ -41,7 +42,7 @@ export function setupMotionGlass() {
         .then(({ mountControls }) => {
           if (wantsMotion())
             controls = mountControls((value, velocity) => {
-              if (inView) glass?.setOptics(value, velocity);
+              if (materialVisible) glass?.setOptics(value, velocity);
             });
         })
         .catch(() => {})
@@ -51,16 +52,17 @@ export function setupMotionGlass() {
     }
   }
   function updateGlass() {
+    materialVisible = inView && surface?.parentElement?.getAttribute("aria-expanded") !== "true";
     if (!wantsGlass()) {
       glass?.destroy();
       glass = undefined;
     } else if (glass) {
-      glass.setVisible(inView);
-      if (inView) {
+      glass.setVisible(materialVisible);
+      if (materialVisible) {
         if (controls) controls.syncOptics();
         else glass.setOptics(0, 0);
       }
-    } else if (inView && !glassLoading) {
+    } else if (materialVisible && !glassLoading) {
       glassLoading = true;
       styles ??= loadGlassStyles().catch((error) => {
         styles = undefined;
@@ -68,7 +70,7 @@ export function setupMotionGlass() {
       });
       Promise.all([import("./waifu-liquid-glass.js"), styles])
         .then(([{ mountGlass }]) => {
-          if (wantsGlass() && inView) {
+          if (wantsGlass() && materialVisible) {
             glass = mountGlass(surface);
             controls?.syncOptics();
           }

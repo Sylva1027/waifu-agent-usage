@@ -1,20 +1,33 @@
 // Run from the repository root: node scripts/motion-glass/benchmark.mjs [pre-Motion-Glass git revision]
+// Interleaved B/C compositor traces only: node scripts/motion-glass/benchmark.mjs --compare-traces
+// Both accept --output=relative/path to keep previous captures; paths resolve from the working directory.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdir, open, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { parseArgs } from "node:util";
 import { build } from "esbuild";
 import { resolveBrowserRuntime } from "../skin-palette/capture.mjs";
 import { createUsageServer } from "../../src/server.js";
 import { listenOnFetchPort } from "../../test-support/fetch-port.mjs";
 import { createPaletteFixture, createPaletteServerOptions } from "../../test-support/skin-palette-fixture.mjs";
 
-const baseline = process.argv[2] ?? "270f906438f35b45527fe8133e75cc0964bd8d32";
-const output = resolve("output/playwright/motion-glass-benchmark");
+const { values, positionals } = parseArgs({
+  options: { "compare-traces": { type: "boolean" }, output: { type: "string" } },
+  allowPositionals: true,
+});
+const compareTraces = values["compare-traces"];
+const baseline = compareTraces ? null : (positionals[0] ?? "270f906438f35b45527fe8133e75cc0964bd8d32");
+const output = resolve(
+  values.output ??
+    (compareTraces
+      ? "output/playwright/motion-glass-benchmark/comparison"
+      : "output/playwright/motion-glass-benchmark"),
+);
 const samples = [];
 const traces = [];
 const referenceFiles = new Map(
-  ["index.html", "app.js", "styles.css"].map((name) => [
+  (compareTraces ? [] : ["index.html", "app.js", "achievement-dialog.js", "styles.css"]).map((name) => [
     name,
     execFileSync("git", ["show", `${baseline}:public/${name}`], { maxBuffer: 4 * 1024 * 1024 }),
   ]),
@@ -23,7 +36,7 @@ const runtime = await resolveBrowserRuntime();
 assert.ok(runtime, "Set AGENT_USAGE_PLAYWRIGHT_MODULE and AGENT_USAGE_EDGE_PATH to a local Chromium runtime.");
 await mkdir(output, { recursive: true });
 const variants = {};
-for (const mode of ["A", "B"]) {
+for (const mode of compareTraces ? ["B"] : ["A", "B"]) {
   // Freeze only the two optical outputs; mount, sizing, material and the production spring remain the same.
   const result = await build({
     entryPoints: ["scripts/motion-glass/glass.ts"],
@@ -80,11 +93,11 @@ try {
   const openPage = async (mode, idleProbe = false) => {
     const page = await browser.newPage({ viewport: environment.viewport, deviceScaleFactor: environment.dpr });
     if (mode === "baseline") {
-      await page.route(/\/(?:index\.html|app\.js|styles\.css)?(?:\?|$)/, (route) => {
+      await page.route(/\/(?:index\.html|app\.js|achievement-dialog\.js|styles\.css)?(?:\?|$)/, (route) => {
         const name = new URL(route.request().url()).pathname.slice(1) || "index.html";
         const body = referenceFiles.get(name);
         if (!body) return route.continue();
-        const contentType = { "app.js": "text/javascript", "styles.css": "text/css", "index.html": "text/html" }[name];
+        const contentType = name.endsWith(".js") ? "text/javascript" : name === "styles.css" ? "text/css" : "text/html";
         return route.fulfill({ body, contentType: `${contentType}; charset=utf-8` });
       });
     } else if (mode !== "C") {
@@ -181,11 +194,13 @@ try {
       return { intervals, longTasks, longFrames, distinctScales: scales.size, distinctHighlights: highlights.size };
     });
 
-  const orders = [
-    ["baseline", "none", "A", "B", "C"],
-    ["B", "C", "baseline", "none", "A"],
-    ["A", "B", "C", "none", "baseline"],
-  ];
+  const orders = compareTraces
+    ? []
+    : [
+        ["baseline", "none", "A", "B", "C"],
+        ["B", "C", "baseline", "none", "A"],
+        ["A", "B", "C", "none", "baseline"],
+      ];
   for (const [round, order] of orders.entries())
     for (const mode of order) {
       const page = await openPage(mode);
@@ -210,73 +225,116 @@ try {
     }
 
   // Trace separate runs so Chrome tracing never affects the untraced comparisons.
-  for (const mode of ["baseline", "none", "A", "B", "C"]) {
-    const page = await openPage(mode);
-    const cdp = await page.context().newCDPSession(page);
-    try {
-      await cdp.send("Tracing.start", {
-        categories: "devtools.timeline,cc,viz,gpu,benchmark",
-        transferMode: "ReturnAsStream",
-      });
-      await trajectory(page);
-      const done = new Promise((resolve) => cdp.once("Tracing.tracingComplete", resolve));
-      await cdp.send("Tracing.end");
-      const { stream } = await done;
-      const name = `trace-${mode}.json`,
-        file = await open(resolve(output, name), "w");
+  const traceOrders = compareTraces
+    ? [
+        ["B", "C"],
+        ["C", "B"],
+        ["B", "C"],
+      ]
+    : [["baseline", "none", "A", "B", "C"]];
+  for (const [round, order] of traceOrders.entries())
+    for (const mode of order) {
+      const page = await openPage(mode);
+      const cdp = await page.context().newCDPSession(page);
       try {
-        let chunk;
-        do {
-          chunk = await cdp.send("IO.read", { handle: stream });
-          await file.writeFile(chunk.base64Encoded ? Buffer.from(chunk.data, "base64") : chunk.data);
-        } while (!chunk.eof);
+        await cdp.send("Tracing.start", {
+          categories: "devtools.timeline,cc,viz,gpu,benchmark",
+          transferMode: "ReturnAsStream",
+        });
+        const sample = await trajectory(page);
+        assert.equal(sample.distinctScales > 1, mode === "C", `${mode} traced refraction path`);
+        assert.equal(sample.distinctHighlights > 1, ["B", "C"].includes(mode), `${mode} traced highlight path`);
+        const done = new Promise((resolve) => cdp.once("Tracing.tracingComplete", resolve));
+        await cdp.send("Tracing.end");
+        const { stream } = await done;
+        const name = compareTraces ? `trace-${round + 1}-${mode}.json` : `trace-${mode}.json`,
+          file = await open(resolve(output, name), "w");
+        try {
+          let chunk;
+          do {
+            chunk = await cdp.send("IO.read", { handle: stream });
+            await file.writeFile(chunk.base64Encoded ? Buffer.from(chunk.data, "base64") : chunk.data);
+          } while (!chunk.eof);
+        } finally {
+          await file.close();
+          await cdp.send("IO.close", { handle: stream });
+        }
+        traces.push(name);
       } finally {
-        await file.close();
-        await cdp.send("IO.close", { handle: stream });
+        await page.close();
       }
-      traces.push(name);
-    } finally {
-      await page.close();
     }
-  }
 
-  const page = await openPage("C", true);
-  await page.evaluate(() => {
-    window.motionAuditRAF.enabled = true;
-  });
-  await trajectory(page);
-  await page.waitForTimeout(1200);
-  const idle = await page.evaluate(async () => {
-    const counts = window.motionAuditRAF;
-    const positiveControl = counts.feature;
-    counts.feature = counts.all = 0;
-    let mutations = 0;
-    const observer = new MutationObserver((records) => {
-      mutations += records.length;
+  async function measureIdle() {
+    const page = await openPage("C", true);
+    await page.evaluate(() => {
+      window.motionAuditRAF.enabled = true;
     });
-    for (const node of document.querySelectorAll("#skinToggle, [data-motion-indicator], .lg-cover, .lg-tick"))
-      observer.observe(node, { subtree: true, childList: true, attributes: true });
-    const start = performance.now();
-    await new Promise((resolve) => setTimeout(resolve, 60_000));
-    observer.disconnect();
-    counts.enabled = false;
-    return {
-      durationMs: performance.now() - start,
-      featureRafRequests: counts.feature,
-      pageRafRequests: counts.all,
-      mutations,
-      positiveControl,
-    };
-  });
-  await page.close();
+    await trajectory(page);
+    await page.waitForTimeout(1200);
+    const idle = await page.evaluate(async () => {
+      const counts = window.motionAuditRAF;
+      const positiveControl = counts.feature;
+      counts.feature = counts.all = 0;
+      let mutations = 0;
+      const observer = new MutationObserver((records) => {
+        mutations += records.length;
+      });
+      for (const node of document.querySelectorAll("#skinToggle, [data-motion-indicator], .lg-cover, .lg-tick"))
+        observer.observe(node, { subtree: true, childList: true, attributes: true });
+      const start = performance.now();
+      await new Promise((resolve) => setTimeout(resolve, 60_000));
+      observer.disconnect();
+      counts.enabled = false;
+      return {
+        durationMs: performance.now() - start,
+        featureRafRequests: counts.feature,
+        pageRafRequests: counts.all,
+        mutations,
+        positiveControl,
+      };
+    });
+    await page.close();
+    return idle;
+  }
+  const idle = compareTraces ? null : await measureIdle();
+  const frameReports = {};
+  // Parse only after timing/trace capture, one file at a time to keep the measurements isolated.
+  for (const name of traces) {
+    const statesByFrame = new Map();
+    let paintCount = 0;
+    let paintMicros = 0;
+    const { traceEvents } = JSON.parse(await readFile(resolve(output, name), "utf8"));
+    for (const event of traceEvents) {
+      if (event.name === "Paint" && event.ph === "X") {
+        paintCount++;
+        paintMicros += event.dur;
+      }
+      const report = event.args?.frame_reporter;
+      if (event.name !== "PipelineReporter" || !report) continue;
+      const key = `${report.frame_source}/${report.frame_sequence}`;
+      if (!statesByFrame.has(key)) statesByFrame.set(key, new Set());
+      statesByFrame.get(key).add(report.state.replace(/^STATE_/, ""));
+    }
+    assert.ok(statesByFrame.size > 0, `${name} contains no PipelineReporter frame sequences`);
+    // Distinct sets are disjoint. A partial and a later full report can describe the same frame sequence.
+    const stateSets = {};
+    for (const states of statesByFrame.values()) {
+      const key = [...states].sort().join("+");
+      stateSets[key] = (stateSets[key] ?? 0) + 1;
+    }
+    frameReports[name] = { sequences: statesByFrame.size, stateSets, paintCount, paintMs: paintMicros / 1000 };
+  }
   await writeFile(
     resolve(output, "results.json"),
-    JSON.stringify({ baseline, environment, orders, samples, traces, idle }, null, 2),
+    JSON.stringify({ baseline, environment, orders, samples, traces, traceOrders, frameReports, idle }, null, 2),
   );
-  console.log(JSON.stringify({ environment, idle, traces, output }));
-  assert.ok(idle.positiveControl > 0, "Idle rAF attribution must first detect real spring requests.");
-  assert.equal(idle.featureRafRequests, 0);
-  assert.equal(idle.mutations, 0);
+  console.log(JSON.stringify({ environment, idle, frameReports, output }));
+  if (idle) {
+    assert.ok(idle.positiveControl > 0, "Idle rAF attribution must first detect real spring requests.");
+    assert.equal(idle.featureRafRequests, 0);
+    assert.equal(idle.mutations, 0);
+  }
 } finally {
   await browser?.close();
   if (server.listening) await server.close();

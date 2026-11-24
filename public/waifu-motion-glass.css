@@ -63,7 +63,8 @@
   --glass-surface: linear-gradient(135deg, #ffffffc9, #edf7fac2 52%, #dceaf1ad);
   --glass-halo: #a4dce3;
   --glass-ambient: #c2cce6;
-  --glass-stripe: #54879938;
+  --glass-ribbon: #4c91a28f;
+  --glass-ribbon-light: #e6ffffe0;
 }
 
 :root[data-skin="classic"][data-theme="dark"] {
@@ -83,7 +84,8 @@
   --glass-surface: linear-gradient(135deg, #304856e8, #203440d9 58%, #203643ba);
   --glass-halo: #27525b;
   --glass-ambient: #33405b;
-  --glass-stripe: #bfdce73b;
+  --glass-ribbon: #57b7c17a;
+  --glass-ribbon-light: #bbdfffb8;
 }
 
 :root[data-skin="classic"] body {
@@ -97,23 +99,7 @@
 }
 
 :root[data-skin="classic"] .topbar {
-  background:
-    radial-gradient(
-      ellipse 156px 116px at 70% calc(100% - 130px),
-      transparent 87%,
-      var(--glass-stripe) 89%,
-      transparent 91% 103%,
-      var(--glass-stripe) 104%,
-      transparent 106%
-    )
-    right bottom / 21rem 100% no-repeat,
-    var(--glass-surface);
-}
-
-@media (max-width: 480px) {
-  :root[data-skin="classic"] .topbar {
-    background-position-x: left;
-  }
+  background: var(--glass-surface);
 }
 
 :root[data-skin="classic"] .topbar h1 {
@@ -126,6 +112,24 @@
   background: transparent;
   border-color: transparent;
   box-shadow: none;
+}
+
+/* A small arc behind the lens follows the real button when the toolbar wraps. */
+:root[data-skin="classic"] #skinToggle::before {
+  content: "";
+  position: absolute;
+  inset: -7px -14px;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 72px 42px at 13% -12%,
+    transparent 74%,
+    var(--glass-ribbon) 78%,
+    var(--glass-ribbon-light) 81%,
+    transparent 85% 94%,
+    var(--glass-ribbon-light) 96%,
+    transparent 99%
+  );
+  mask-image: linear-gradient(to right, transparent, black 18% 76%, transparent);
 }
 
 :root[data-skin="classic"] #skinToggle:not(:disabled):active {

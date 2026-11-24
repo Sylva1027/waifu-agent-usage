@@ -65,8 +65,42 @@ test("Waifu motion follows native input and classic glass owns the active filter
               Number(document.querySelector(".lg-cover").style.getPropertyValue("--lg-press-highlight")) > 0,
             { id, scale },
           );
+          // Install at the real click so a few early release frames cannot slip past the assertion.
+          await button.evaluate((node, id) => {
+            window.dialogOpticalWrites = new Promise((done) =>
+              node.addEventListener(
+                "click",
+                () => {
+                  const displacement = document.getElementById(id).querySelector("feDisplacementMap");
+                  const cover = node.querySelector(".lg-cover");
+                  let writes = 0;
+                  let highlight = cover.style.getPropertyValue("--lg-press-highlight");
+                  const observer = new MutationObserver((records) => {
+                    writes += records.filter((record) => record.target === displacement).length;
+                    const current = cover.style.getPropertyValue("--lg-press-highlight");
+                    if (current !== highlight) {
+                      writes++;
+                      highlight = current;
+                    }
+                  });
+                  observer.observe(displacement, { attributes: true, attributeFilter: ["scale"] });
+                  observer.observe(cover, { attributes: true, attributeFilter: ["style"] });
+                  setTimeout(() => {
+                    observer.disconnect();
+                    done(writes);
+                  }, 500);
+                },
+                { once: true },
+              ),
+            );
+          }, id);
           await page.keyboard.up("Space");
           await page.waitForSelector("#skinDialog:not([hidden])");
+          assert.equal(
+            await page.evaluate(() => window.dialogOpticalWrites),
+            0,
+            "covered glass must pause release optics",
+          );
           await page.keyboard.press("Escape");
           await page.waitForFunction(
             ({ id, scale }) =>

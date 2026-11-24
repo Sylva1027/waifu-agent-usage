@@ -23,7 +23,8 @@ export function mountGlass(host: HTMLElement): Glass {
     setOptics(press: number, velocity: number) {
       const depth = Math.max(-0.15, Math.min(1.15, press));
       const speed = Math.min(1, Math.abs(velocity) / 12);
-      material.setOptics(1 + 0.26 * depth + 0.08 * speed, 0.2 * depth + 0.1 * speed);
+      const highlight = Math.round((0.2 * depth + 0.1 * speed) * 255) / 255;
+      material.setOptics(1 + 0.26 * depth + 0.08 * speed, highlight);
     },
     destroy() {
       if (mounted.get(host) !== glass) return;
