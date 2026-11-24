@@ -1080,18 +1080,25 @@ body[data-preview-skin="qwen"][data-texture="fan"][data-material="refraction"] .
 .card[data-skin="glm"][data-mode="dark"] .room {
   background: center / 100% 100% no-repeat url("./art/glm/background-dark.webp");
 }
+.card[data-skin="gemini"][data-mode="light"] .room {
+  background: center / 100% 100% no-repeat url("./art/gemini/background-light.webp");
+}
+.card[data-skin="gemini"][data-mode="dark"] .room {
+  background: center / 100% 100% no-repeat url("./art/gemini/background-dark.webp");
+}
 .card[data-skin="claude"] :is(.table, .light, .figure-glass, .ink-density) {
   display: none;
 }
 .card[data-skin="claude"] .character,
-.card[data-skin="glm"] .character {
+.card[data-skin="glm"] .character,
+.card[data-skin="gemini"] .character {
   opacity: 1;
   filter: none;
   mix-blend-mode: normal;
 }
-.card[data-skin="glm"] :is(.table, .light, .figure-glass, .ink-density),
-.card[data-skin="glm"] .room::before,
-.card[data-skin="glm"] .room::after {
+.card:is([data-skin="glm"], [data-skin="gemini"]) :is(.table, .light, .figure-glass, .ink-density),
+.card:is([data-skin="glm"], [data-skin="gemini"]) .room::before,
+.card:is([data-skin="glm"], [data-skin="gemini"]) .room::after {
   display: none;
 }
 .card[data-skin="glm"] .character {

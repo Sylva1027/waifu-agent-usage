@@ -276,6 +276,11 @@ const treatmentCatalog = {
     label: "靛蓝织谱",
     materials: { relief: "浅浮雕折射", flat: "来稿直叠" },
   },
+  gemini: {
+    scene: "curtain",
+    label: "风过星帘",
+    materials: { relief: "浅浮雕折射", flat: "来稿直叠" },
+  },
   qwen: {
     scene: "fan",
     label: "折扇流光",
@@ -391,20 +396,10 @@ function fitQwenFrame(card, id) {
   image.replaceWith(frame);
   frame.append(optics, image);
 }
-const claudeGlass = {
-  flat: "./art/claude/source.png",
-  light: "./art/claude/relief-light.webp",
-  dark: "./art/claude/relief-dark.webp",
-};
-const glmGlass = {
-  flat: "./art/glm/source.png",
-  light: "./art/glm/relief-light.webp",
-  dark: "./art/glm/relief-dark.webp",
-};
 function portraitSource(id, mode) {
-  if (id === "glm" || id === "claude") {
-    const layers = id === "glm" ? glmGlass : claudeGlass;
-    return layers[document.body.dataset.material === "flat" ? "flat" : mode];
+  if (id === "glm" || id === "claude" || id === "gemini") {
+    const file = document.body.dataset.material === "flat" ? "source.png" : `relief-${mode}.webp`;
+    return `./art/${id}/${file}`;
   }
   if (id === "qwen") return qwenGlassPortrait;
   const active =
