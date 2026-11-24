@@ -182,6 +182,7 @@ function sizeViewer() {
   const width = Math.min(stage.clientWidth, (stage.clientHeight * 4) / 5);
   copy.style.width = width + "px";
   copy.style.borderRadius = width * viewerCornerRatio + "px";
+  alignAttribution(copy.querySelector(".detail-attribution"));
 }
 function leaveNativeViewer() {
   if (document.fullscreenElement === viewer) return document.exitFullscreen().catch(() => {});
@@ -284,6 +285,11 @@ const treatmentCatalog = {
   kimi: {
     scene: "nocturne",
     label: "折页小夜曲",
+    materials: { relief: "浅浮雕折射", flat: "来稿直叠" },
+  },
+  grok: {
+    scene: "gambit",
+    label: "王女越界",
     materials: { relief: "浅浮雕折射", flat: "来稿直叠" },
   },
   qwen: {
@@ -402,7 +408,7 @@ function fitQwenFrame(card, id) {
   frame.append(optics, image);
 }
 function portraitSource(id, mode) {
-  if (id === "glm" || id === "claude" || id === "gemini" || id === "kimi") {
+  if (id === "glm" || id === "claude" || id === "gemini" || id === "kimi" || id === "grok") {
     const file = document.body.dataset.material === "flat" ? "source.png" : `relief-${mode}.webp`;
     return `./art/${id}/${file}`;
   }
@@ -495,6 +501,13 @@ const storySteps = [
   [4.05, 3.1],
   [3.8, 3.05],
 ];
+function alignAttribution(credit) {
+  if (!credit) return;
+  credit.style.removeProperty("translate");
+  const line = credit.parentElement.getBoundingClientRect();
+  const ink = credit.getBoundingClientRect();
+  if (Math.abs(ink.left - line.left) < 1) credit.style.translate = `${line.right - ink.right}px`;
+}
 function fitCard(card) {
   if (!card.clientWidth) return;
   const title = card.querySelector(".heading h2"),
@@ -507,11 +520,14 @@ function fitCard(card) {
   }
   const style = getComputedStyle(bar);
   const available = bar.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
+  const credit = copy.querySelector(".detail-attribution");
+  credit?.style.removeProperty("translate");
   for (const [fact, detail] of storySteps) {
     copy.style.setProperty("--fact-size", fact + "cqw");
     copy.style.setProperty("--detail-size", detail + "cqw");
     if (copy.offsetHeight <= available + 0.5 && copy.scrollWidth <= copy.clientWidth + 1) break;
   }
+  alignAttribution(credit);
 }
 function setCopy(card, e, lang, level = e.grade === "silver" ? 1 : 0) {
   const copy = e[lang];
@@ -527,7 +543,15 @@ function setCopy(card, e, lang, level = e.grade === "silver" ? 1 : 0) {
     note.textContent = condition.qualifier;
     fact.append(document.createTextNode(" "), note);
   }
-  card.querySelector(".detail").textContent = copy.detail;
+  const detail = card.querySelector(".detail");
+  const byline = /^([\s\S]*[ \t\n])([—–-][ \t]+\S[^\r\n]*)$/u.exec(copy.detail);
+  detail.textContent = copy.detail;
+  if (byline) {
+    const credit = document.createElement("span");
+    credit.className = "detail-attribution";
+    credit.textContent = byline[2];
+    detail.replaceChildren(byline[1], credit);
+  }
   card.querySelector(".medal").alt = lang === "zh" ? copy.title + "纪念币" : copy.title + " medal";
   fitCard(card);
 }
@@ -578,7 +602,10 @@ const observer = new ResizeObserver((entries) => {
   for (const entry of entries) fitCard(entry.target);
 });
 for (const card of cards) observer.observe(card);
-document.fonts.ready.then(() => cards.forEach(fitCard));
+document.fonts.ready.then(() => {
+  cards.forEach(fitCard);
+  sizeViewer();
+});
 function openExample() {
   const [route, settings] = location.hash.slice(1).split("?");
   const [id, skin, view] = (route || "A14/chatgpt/pair").split("/");

@@ -373,6 +373,13 @@ aside .note {
   color: color-mix(in srgb, var(--muted) 83%, var(--bg));
   white-space: pre-line;
 }
+.detail:has(.detail-attribution) {
+  text-wrap: wrap;
+}
+.detail-attribution {
+  display: inline-block;
+  white-space: nowrap;
+}
 .fact:has(.qualifier) {
   display: flex;
   align-items: baseline;
@@ -1092,13 +1099,25 @@ body[data-preview-skin="qwen"][data-texture="fan"][data-material="refraction"] .
 .card[data-skin="kimi"][data-mode="dark"] .room {
   background: center / 100% 100% no-repeat url("./art/kimi/background-dark.webp");
 }
+.card[data-skin="grok"][data-mode="light"] .room {
+  background: center / 100% 100% no-repeat url("./art/grok/background-light.webp");
+}
+.card[data-skin="grok"][data-mode="dark"] .room {
+  background: center / 100% 100% no-repeat url("./art/grok/background-dark.webp");
+}
+.card[data-skin="grok"] :is(.table, .light, .figure-glass, .ink-density),
+.card[data-skin="grok"] .room::before,
+.card[data-skin="grok"] .room::after {
+  display: none;
+}
 .card[data-skin="claude"] :is(.table, .light, .figure-glass, .ink-density) {
   display: none;
 }
 .card[data-skin="claude"] .character,
 .card[data-skin="glm"] .character,
 .card[data-skin="gemini"] .character,
-.card[data-skin="kimi"] .character {
+.card[data-skin="kimi"] .character,
+.card[data-skin="grok"] .character {
   opacity: 1;
   filter: none;
   mix-blend-mode: normal;
