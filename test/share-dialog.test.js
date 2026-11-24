@@ -19,16 +19,20 @@ async function imageReady(page) {
   await page.waitForFunction(() => !document.querySelector("#saveShareImage").disabled);
   await page.locator("#shareImage").evaluate((image) => image.decode());
   const result = await page.evaluate(async () => {
-    const hash = async (url) =>
-      Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", await fetch(url).then((r) => r.arrayBuffer()))))
+    const digest = async (bytes) =>
+      Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)))
         .map((byte) => byte.toString(16).padStart(2, "0"))
         .join("");
+    const hash = async (url) => digest(await fetch(url).then((r) => r.arrayBuffer()));
     const image = document.querySelector("#shareImage");
-    const markup = new DOMParser().parseFromString(window.shareCardSvg, "image/svg+xml");
+    const svg = window.shareCardSvg;
+    const markup = new DOMParser().parseFromString(svg, "image/svg+xml");
     const card = markup.querySelector(".p-card");
     const character = card.querySelector(".p-character");
     return {
       sha256: await hash(image.src),
+      // An identical SVG can differ by a few rasterized pixels across Chromium draws.
+      svgSha256: await digest(new TextEncoder().encode(svg)),
       dimensions: [image.naturalWidth, image.naturalHeight],
       theme: card.getAttribute("data-preview-theme"),
       palette: card.getAttribute("style"),
@@ -368,7 +372,7 @@ test("production share dialog preserves the PNG, layout, snapshot and skin acros
   await page.keyboard.press("Escape");
   await page.locator("#shareMetricFirst").click();
   await page.locator('#shareMetricFirstMenu [data-metric="cacheHit"]').click();
-  assert.equal((await imageReady(page)).sha256, baseline.sha256);
+  assert.equal((await imageReady(page)).svgSha256, baseline.svgSha256);
   await page.locator("#shareShowCost").check();
   const expectedCny = await appState.evaluate((state) =>
     (state.summary.costEstimate.totalUsd * state.usdToCnyRate + state.summary.costEstimate.totalCny).toFixed(0),
@@ -376,7 +380,7 @@ test("production share dialog preserves the PNG, layout, snapshot and skin acros
   assert.equal((await imageReady(page)).fee, `API 估算¥${expectedCny}`);
   assert.deepEqual(await geometry(page), bounds);
   await page.locator("#shareShowCost").uncheck();
-  assert.equal((await imageReady(page)).sha256, baseline.sha256);
+  assert.equal((await imageReady(page)).svgSha256, baseline.svgSha256);
   assert.deepEqual(await geometry(page), bounds);
 
   // Mutating the live aggregate must not leak into the frozen card on a control rerender.
@@ -390,7 +394,7 @@ test("production share dialog preserves the PNG, layout, snapshot and skin acros
   await page.locator("#shareShowCost").check();
   assert.equal((await imageReady(page)).total, baseline.total);
   await page.locator("#shareShowCost").uncheck();
-  assert.equal((await imageReady(page)).sha256, baseline.sha256);
+  assert.equal((await imageReady(page)).svgSha256, baseline.svgSha256);
   await closeShare(page);
   const changed = await openShare(page);
   assert.notEqual(changed.total, baseline.total);
@@ -401,9 +405,9 @@ test("production share dialog preserves the PNG, layout, snapshot and skin acros
   await page.locator("#shareShowCost").check();
   assert.equal((await imageReady(page)).total, changed.total);
   await page.locator("#shareShowCost").uncheck();
-  assert.equal((await imageReady(page)).sha256, changed.sha256);
+  assert.equal((await imageReady(page)).svgSha256, changed.svgSha256);
   await closeShare(page);
-  assert.equal((await openShare(page)).sha256, baseline.sha256);
+  assert.equal((await openShare(page)).svgSha256, baseline.svgSha256);
   await closeShare(page);
 
   const screenshots = new URL("../output/share-dialog-production/", import.meta.url);

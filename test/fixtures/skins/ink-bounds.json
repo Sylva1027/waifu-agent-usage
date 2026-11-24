@@ -98,34 +98,6 @@
     "inkTopFraction": 0.010174
   },
   {
-    "file": "Mimo-dark-lineart.png",
-    "inkHeightFraction": 0.979818,
-    "inkCenterXFraction": 0.502441,
-    "inkWidthFraction": 0.567383,
-    "inkTopFraction": 0.007812
-  },
-  {
-    "file": "Mimo-side-dark-lineart.png",
-    "inkHeightFraction": 0.988281,
-    "inkCenterXFraction": 0.596191,
-    "inkWidthFraction": 0.688477,
-    "inkTopFraction": 0.005859
-  },
-  {
-    "file": "Muse-dark-lineart.png",
-    "inkHeightFraction": 0.992839,
-    "inkCenterXFraction": 0.505859,
-    "inkWidthFraction": 0.912109,
-    "inkTopFraction": 0.003906
-  },
-  {
-    "file": "Muse-side-dark-lineart.png",
-    "inkHeightFraction": 0.988932,
-    "inkCenterXFraction": 0.574707,
-    "inkWidthFraction": 0.756836,
-    "inkTopFraction": 0.005859
-  },
-  {
     "file": "Qwen-dark-lineart.png",
     "inkHeightFraction": 0.985646,
     "inkCenterXFraction": 0.503188,
@@ -236,34 +208,6 @@
     "inkCenterXFraction": 0.503719,
     "inkWidthFraction": 0.990436,
     "inkTopFraction": 0.010174
-  },
-  {
-    "file": "Mimo-lineart.png",
-    "inkHeightFraction": 0.979818,
-    "inkCenterXFraction": 0.502441,
-    "inkWidthFraction": 0.567383,
-    "inkTopFraction": 0.007812
-  },
-  {
-    "file": "Mimo-side-lineart.png",
-    "inkHeightFraction": 0.988281,
-    "inkCenterXFraction": 0.596191,
-    "inkWidthFraction": 0.688477,
-    "inkTopFraction": 0.005859
-  },
-  {
-    "file": "Muse-lineart.png",
-    "inkHeightFraction": 0.992839,
-    "inkCenterXFraction": 0.505859,
-    "inkWidthFraction": 0.912109,
-    "inkTopFraction": 0.003906
-  },
-  {
-    "file": "Muse-side-lineart.png",
-    "inkHeightFraction": 0.988932,
-    "inkCenterXFraction": 0.574707,
-    "inkWidthFraction": 0.756836,
-    "inkTopFraction": 0.005859
   },
   {
     "file": "Qwen-lineart.png",

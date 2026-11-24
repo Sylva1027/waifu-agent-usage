@@ -28,6 +28,8 @@ import { createLiteBoundaryProbe } from "../test-support/lite-boundary-probe.mjs
 
 const T0 = Date.parse("2026-11-16T23:30:00Z");
 const hash = (value) => createHash("sha256").update(value).digest("hex");
+const OLD_RULES = "R7-production-1";
+const OLD_HASH = "75e83543b974ff9245c0222a01ffab5a50e4c9cb6276054a12ed16518ea30b4c";
 
 function fixture(t, { version = 2, state = "ready" } = {}) {
   const root = mkdtempSync(path.join(tmpdir(), "achievement-backup-format-"));
@@ -115,6 +117,17 @@ test("small format descriptor matches every production ID/tier, rule version and
 });
 
 for (const version of [1, 2]) {
+  test(`skin-retirement upgrade continues to verify the exact old rules pair in schema ${version}`, async (t) => {
+    const f = fixture(t, { version });
+    f.mutate((db) =>
+      db.prepare("UPDATE achievement_profile SET rulesVersion = ?, catalogHash = ?").run(OLD_RULES, OLD_HASH),
+    );
+    const bytes = readFileSync(f.file);
+    const record = f.record();
+    assert.deepEqual(await verifyAchievementBackup(f.root, record), await legacyVerify(f.root, record));
+    assert.deepEqual(readFileSync(f.file), bytes);
+  });
+
   for (const state of ["preparing", "ready", "cleared"]) {
     test(`schema ${version} ${state} validates without changing identity, dates, evidence, schema or bytes`, async (t) => {
       const f = fixture(t, { version, state });
@@ -180,6 +193,16 @@ const invalidState = [
   ["invalid timezone", "UPDATE achievement_profile SET timeZone = 'Invalid/Zone'", /time zone/i],
   ["empty rules", "UPDATE achievement_profile SET rulesVersion = ''", /rulesVersion/],
   ["unsupported rules", "UPDATE achievement_profile SET rulesVersion = 'future'", /rule directory/],
+  [
+    "mismatched old rule version and current digest",
+    `UPDATE achievement_profile SET rulesVersion = '${OLD_RULES}'`,
+    /rule directory/,
+  ],
+  [
+    "mismatched current rule version and old digest",
+    `UPDATE achievement_profile SET catalogHash = '${OLD_HASH}'`,
+    /rule directory/,
+  ],
   ["wrong catalog digest", "UPDATE achievement_profile SET catalogHash = 'forged'", /rule directory/],
   ["unsafe revision", "UPDATE achievement_profile SET progressRevision = 9007199254740992", /too large/],
   [

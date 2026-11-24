@@ -14,6 +14,11 @@ import {
   validateAchievementRows,
   validateAchievementAward,
 } from "./achievement-backup-format.js";
+import {
+  ACHIEVEMENT_FORMAT_CATALOG_HASH,
+  ACHIEVEMENT_FORMAT_RULES_VERSION,
+  supportsAchievementRuleDirectory,
+} from "./achievement-format-descriptor.js";
 
 const SCHEMA_VERSION = 2;
 const BASE_SCHEMA = `
@@ -215,7 +220,15 @@ export class AchievementStore {
     }
   }
 
-  commitBatch({ inputKey, evaluatedThrough, rows, awards = [], sourceCheckpoints = [], expectedProgressRevision }) {
+  commitBatch({
+    inputKey,
+    evaluatedThrough,
+    rows,
+    awards = [],
+    sourceCheckpoints = [],
+    expectedProgressRevision,
+    useCurrentRules = false,
+  }) {
     const database = this.#requireOpen();
     text(inputKey, "inputKey");
     const through = instant(evaluatedThrough, "evaluatedThrough");
@@ -226,7 +239,11 @@ export class AchievementStore {
     if (expectedProgressRevision !== undefined) revision(expectedProgressRevision, "expectedProgressRevision");
     this.#transaction(() => {
       const profile = this.readProfile();
-      if (profile.inputKey === inputKey) return;
+      if (useCurrentRules && !supportsAchievementRuleDirectory(profile))
+        throw new Error("Unsupported achievement rule directory");
+      const rulesVersion = useCurrentRules ? ACHIEVEMENT_FORMAT_RULES_VERSION : profile.rulesVersion;
+      const catalogHash = useCurrentRules ? ACHIEVEMENT_FORMAT_CATALOG_HASH : profile.catalogHash;
+      if (profile.inputKey === inputKey && profile.rulesVersion === rulesVersion) return;
       // Opaque input keys are not ordered; a caller must prove which revision it evaluated.
       if (
         (expectedProgressRevision === undefined && profile.progressRevision !== 0) ||
@@ -249,26 +266,16 @@ export class AchievementStore {
         for (const { id, tier, qualifiedAt = null, precision = null } of pending) {
           const qualified =
             qualifiedAt === null || precision === "day" ? qualifiedAt : instant(qualifiedAt, "qualifiedAt");
-          insert.run(
-            id,
-            tier,
-            earnedAt,
-            inputKey,
-            profile.rulesVersion,
-            profile.catalogHash,
-            awardRevision,
-            qualified,
-            precision,
-          );
+          insert.run(id, tier, earnedAt, inputKey, rulesVersion, catalogHash, awardRevision, qualified, precision);
         }
       }
       this.#fault?.("afterAwards");
       this.#writeCheckpoints(checkpoints);
       this.#fault?.("afterCheckpoints");
       database
-        .prepare(`UPDATE achievement_profile SET inputKey = ?, evaluatedThrough = ?,
+        .prepare(`UPDATE achievement_profile SET inputKey = ?, evaluatedThrough = ?, rulesVersion = ?, catalogHash = ?,
         progressRevision = progressRevision + 1, awardRevision = ? WHERE singleton = 1`)
-        .run(inputKey, through, awardRevision);
+        .run(inputKey, through, rulesVersion, catalogHash, awardRevision);
     });
     return this.readSnapshot();
   }

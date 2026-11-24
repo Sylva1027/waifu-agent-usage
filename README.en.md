@@ -66,7 +66,7 @@ Use PowerShell 7 to create a desktop shortcut for Waifu or Lite, then double-cli
 
 ![Cost estimate and model pricing settings](docs/images/pricing.png)
 
-**Characters and themes.** Choose from ten character skins with light and dark palettes, plus visibility and opacity controls. The interface supports English and Chinese.
+**Characters and themes.** Choose from eight character skins with light and dark palettes, plus visibility and opacity controls. The interface supports English and Chinese.
 
 ![Character skins and themes](docs/images/themes.png)
 
@@ -77,6 +77,13 @@ Use PowerShell 7 to create a desktop shortcut for Waifu or Lite, then double-cli
 **Achievement badges.** Mark your milestones with 42 achievements: follow your progress, collect badges, and look back at when you earned them. See the [achievement guide](docs/achievements.en.md).
 
 ![Achievements and badges](docs/images/achievements.png)
+
+Achievement share card previews
+
+<p align="center">
+  <a href="docs/images/achievement-share-deepseek-light.png"><img src="docs/images/achievement-share-deepseek-light.png" width="48%" alt="Freebie King silver badge on the Chinese DeepSeek light share card"></a>
+  <a href="docs/images/achievement-share-claude-dark-en.png"><img src="docs/images/achievement-share-claude-dark-en.png" width="48%" alt="Let's Sync Up gold badge on the English Claude dark share card"></a>
+</p>
 
 **Sources and history.** Scan local logs or import another directory, refresh automatically, or pause the current view. Back up, import, and restore history to keep your records over time and move them between machines.
 

@@ -79,3 +79,6 @@ Thumbs.db
 /scripts/validate-achievement-candidate.mjs
 /scripts/achievement-runtime-performance.mjs
 /scripts/windows-closeout-cleanup.ps1
+
+# Rebuild the Three.js asset for local visual demos.
+/public/dev/waifu-visuals/three.js

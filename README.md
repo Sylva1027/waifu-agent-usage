@@ -66,7 +66,7 @@ Waifu 和 Lite 都可以用 PowerShell 7 创建桌面快捷方式，之后双击
 
 ![费用估算与模型价格设置](docs/images/pricing.png)
 
-**角色与主题。** 十款角色皮肤搭配深浅配色，可调整角色显示与透明度，选择自己喜欢的看板风格。界面支持中英文。
+**角色与主题。** 八款角色皮肤搭配深浅配色，可调整角色显示与透明度，选择自己喜欢的看板风格。界面支持中英文。
 
 ![角色皮肤与主题选择](docs/images/themes.png)
 
@@ -77,6 +77,13 @@ Waifu 和 Lite 都可以用 PowerShell 7 创建桌面快捷方式，之后双击
 **成就徽章。** 42 项成就记录你的使用里程碑，查看进度、收集徽章，回顾每次达成的日期。详见[成就说明](docs/achievements.md)。
 
 ![成就与徽章](docs/images/achievements.png)
+
+成就分享卡预览
+
+<p align="center">
+  <a href="docs/images/achievement-share-deepseek-light.png"><img src="docs/images/achievement-share-deepseek-light.png" width="48%" alt="薅羊毛大王银牌，DeepSeek 浅色中文成就分享卡"></a>
+  <a href="docs/images/achievement-share-claude-dark-en.png"><img src="docs/images/achievement-share-claude-dark-en.png" width="48%" alt="Let's Sync Up 金牌，Claude 深色英文成就分享卡"></a>
+</p>
 
 **来源与历史。** 扫描本机日志或导入其他目录，自动刷新，也可暂停当前视图。支持历史备份、导入与恢复，方便长期保留和转移使用记录。
 

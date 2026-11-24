@@ -55,14 +55,14 @@
  *
  * 当前状态
  * ---------------------------------------------------------------------------
- * 十个角色的浅深两模式已由用户经配色工作台定稿并全部填入（2026-10-02，每套
+ * 角色的浅深两模式已由用户经配色工作台定稿并全部填入（2026-10-02，每套
  * 12 token，共 20/20 槽位）；classic（无皮肤）没有 palette 槽。`npm run
  * skins:palette` PASS；八条"次要文字"对比度告警（浅 2 / 深 6）记录在案，
  * 详见 docs/validation/2026-10-02-model-character-skins/README.md 第 12 节。
  * 整页接线已实施（skins.js paletteDeclarations → apply/bootstrap/离线快照），
  * 见同 README 第 13 节。
  * 2026-11-12：按用户要求交换 Kimi/Qwen 配色，并减弱六款深色皮肤的材质染色。
- * 2026-11-16：拉开 Qwen/Mimo/Muse 深色页面、面板与凹槽的明度，增强材质边缘。
+ * 2026-11-16：拉开 Qwen 深色页面、面板与凹槽的明度，增强材质边缘。
  */
 
 /**
@@ -91,7 +91,7 @@
  * 皮肤配色。
  *
  * 键名（skin id）必须与注册表一致，不要新增或改名：
- *   chatgpt claude glm gemini deepseek kimi qwen grok muse mimo  classic
+ *   chatgpt claude glm gemini deepseek kimi qwen grok  classic
  *
  * classic（无皮肤）没有 palette 槽，也不应该有：它本来就"不使用任何配色"。
  */
@@ -349,70 +349,6 @@ export const SKIN_PALETTES = {
       controlBorder: "#242423",
       controlText: "#F5EEE2",
       chartText: "#BDB6AB",
-    },
-  },
-
-  muse: {
-    // 源四色（深→浅）：#38343D #575d66 #4687EE #daeafb
-    light: {
-      pageBackground: "#EBF7FF",
-      panelBackground: "#FEFEFF",
-      panelBorder: "#E8F1F6",
-      panelHighlight: "#FEFEFF",
-      panelShadow: "#B4C4CE",
-      textPrimary: "#13171A",
-      textSecondary: "#373C40",
-      accent: "#1759BD",
-      controlBackground: "#FEFEFF",
-      controlBorder: "#E8F1F6",
-      controlText: "#13171A",
-      chartText: "#465158",
-    },
-    dark: {
-      pageBackground: "#0C0F11",
-      panelBackground: "#272B2E",
-      panelBorder: "#3E4549",
-      panelHighlight: "#464D51",
-      panelShadow: "#020405",
-      textPrimary: "#E4F1F9",
-      textSecondary: "#C4CED5",
-      accent: "#8CB9FF",
-      controlBackground: "#272B2E",
-      controlBorder: "#3E4549",
-      controlText: "#E4F1F9",
-      chartText: "#C4CED5",
-    },
-  },
-
-  mimo: {
-    // 源四色（深→浅）：#332B2A #828C9E #FF8D3F #fdf6f2
-    light: {
-      pageBackground: "#F6F0EF",
-      panelBackground: "#FEFBFA",
-      panelBorder: "#EEECEB",
-      panelHighlight: "#FFFEFE",
-      panelShadow: "#C0BDBB",
-      textPrimary: "#181413",
-      textSecondary: "#3B3939",
-      accent: "#9C3D00",
-      controlBackground: "#FEFBFA",
-      controlBorder: "#EEECEB",
-      controlText: "#181413",
-      chartText: "#534F4D",
-    },
-    dark: {
-      pageBackground: "#100F0E",
-      panelBackground: "#2C2A29",
-      panelBorder: "#45413F",
-      panelHighlight: "#4D4947",
-      panelShadow: "#030202",
-      textPrimary: "#F2EDEC",
-      textSecondary: "#CCC6C3",
-      accent: "#FF996C",
-      controlBackground: "#2C2A29",
-      controlBorder: "#45413F",
-      controlText: "#F2EDEC",
-      chartText: "#CCC6C3",
     },
   },
 };

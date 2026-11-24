@@ -148,8 +148,8 @@ const makeAssessment = (overrides = {}) => ({
   ...overrides,
 });
 
-test("契约常量：十套 ID 排除 classic、模式与变体固定", () => {
-  assert.equal(SKIN_IDS.length, 10);
+test("契约常量：八套 ID 排除 classic、模式与变体固定", () => {
+  assert.equal(SKIN_IDS.length, 8);
   assert.ok(!SKIN_IDS.includes("classic"));
   assert.deepEqual(MODES, ["light", "dark"]);
   assert.deepEqual(VARIANTS, ["a", "b", "c"]);
@@ -250,7 +250,7 @@ test("validateCandidate：profileHash / candidateHash / id 摘要错配被拒绝
   assert.ok(malformedId.errors.some((e) => e.path === "id" && e.code === "format"));
 });
 
-test("validateCandidateSet：完整十套 × a/b/c 通过", () => {
+test("validateCandidateSet：完整八套 × a/b/c 通过", () => {
   const result = validateCandidateSet(makeSet());
   assert.deepEqual(result.errors, [], result.errors.map((e) => `${e.path} ${e.message}`).join("; "));
   assert.equal(result.valid, true);
@@ -343,9 +343,9 @@ test("validateCandidateSet：rejected 记录形状生效，去重记录必须带
 test("validateSelections：合法通过；缺一套、未知皮肤拒绝", () => {
   assert.equal(validateSelections(makeSelections()).valid, true);
 
-  const missing = validateSelections(makeSelections({ dropSkin: "mimo" }));
+  const missing = validateSelections(makeSelections({ dropSkin: "grok" }));
   assert.equal(missing.valid, false);
-  assert.ok(missing.errors.some((e) => e.path === "choices.mimo" && e.code === "missing"));
+  assert.ok(missing.errors.some((e) => e.path === "choices.grok" && e.code === "missing"));
 
   const withUnknown = makeSelections();
   withUnknown.choices.foo = { candidateId: "chatgpt-a-000000000000", candidateHash: "a".repeat(64) };
@@ -423,9 +423,9 @@ test("validateProfiles：信封校验——未知皮肤与缺失皮肤", () => {
   const unknown = validateProfiles({ ...profiles, foo: makeProfile() });
   assert.ok(unknown.errors.some((e) => e.path === "foo" && e.code === "unknown"));
 
-  const { mimo: _mimo, ...rest } = profiles;
+  const { grok: _grok, ...rest } = profiles;
   const missing = validateProfiles(rest);
-  assert.ok(missing.errors.some((e) => e.path === "mimo" && e.code === "missing"));
+  assert.ok(missing.errors.some((e) => e.path === "grok" && e.code === "missing"));
 });
 
 test("validatePolicy：仓库 policy.json 通过；篡改阈值拒绝", () => {

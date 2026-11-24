@@ -1,10 +1,15 @@
 import { getLocale } from "./i18n.js";
 import { escapeHtml } from "./html-utils.js";
-import { achievementUi, categoryOrder, categoryEnglishLabels } from "./achievement-content.js";
+import { achievementCopy, achievementUi, categoryOrder, categoryEnglishLabels } from "./achievement-content.js";
 import { achievementRows, visibleAchievements, renderAchievementList } from "./achievement-list.js";
 import { renderAchievementDetail } from "./achievement-detail.js";
 
-export function createAchievementDialog({ readSnapshot, onSnapshot = () => {}, onRecentShown = () => {} } = {}) {
+export function createAchievementDialog({
+  readSnapshot,
+  onSnapshot = () => {},
+  onRecentShown = () => {},
+  onShare,
+} = {}) {
   const button = document.createElement("button");
   button.id = "achievementToggle";
   button.className = "theme-toggle achievement-toggle";
@@ -15,7 +20,8 @@ export function createAchievementDialog({ readSnapshot, onSnapshot = () => {}, o
   button.dataset.i18nSkip = "";
   button.innerHTML =
     '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path class="clipboard-board" d="M9 4H6.5A1.5 1.5 0 0 0 5 5.5v14A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5v-14A1.5 1.5 0 0 0 17.5 4H15"/><rect x="9" y="2.5" width="6" height="4" rx="1.2"/></svg>';
-  document.querySelector("#shareToggle").before(button);
+  const dashboardShare = document.querySelector("#shareToggle");
+  dashboardShare.before(button);
   const dialog = document.createElement("dialog");
   dialog.id = "achievementDialog";
   dialog.setAttribute("aria-labelledby", "achievementTitle");
@@ -27,6 +33,10 @@ export function createAchievementDialog({ readSnapshot, onSnapshot = () => {}, o
     <div class="split-layout" id="achievementPreview"><div class="list-column"><div class="achievement-list-frame"><div class="list-well" id="achievementList"></div></div></div><div id="achievementDetail"></div></div>`;
   document.body.append(dialog);
   const $ = (selector) => dialog.querySelector(selector);
+  const shareButton = dashboardShare.cloneNode(true);
+  shareButton.id = "achievementShareToggle";
+  shareButton.disabled = true;
+  $(".status-picker").after(shareButton);
   const state = { category: "近期获得", filter: "all", query: "", selectedId: null, previewGrade: null };
   let snapshot = null;
   let failed = false;
@@ -36,12 +46,70 @@ export function createAchievementDialog({ readSnapshot, onSnapshot = () => {}, o
   let renderVersion = 0;
   let recentIntent = 0;
   let shownIntent = -1;
+  const detail = $("#achievementDetail");
+  const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
+  let activeBadge = null;
+  let failedBadgeSource = null;
+  let shareSelection = null;
   const ui = () => achievementUi(getLocale());
   const menu = (open, focus = false) => {
     $("#achievementStatusMenu").hidden = !open;
     $("#achievementStatusFilter").setAttribute("aria-expanded", String(open));
     if (focus) (open ? $('[data-status][aria-selected="true"]') : $("#achievementStatusFilter")).focus();
   };
+
+  function removeBadge() {
+    const previous = activeBadge;
+    activeBadge = null;
+    previous?.canvas.remove();
+    previous?.mounted?.dispose();
+  }
+
+  function syncBadge() {
+    const image = detail.querySelector(".detail-panel > img.badge");
+    if (!dialog.open || document.hidden || reducedMotion.matches || !image || image.classList.contains("is-locked")) {
+      removeBadge();
+      return;
+    }
+    if (activeBadge?.image.src === image.src) {
+      // Snapshot and locale updates replace the rest of the panel. Keep the mounted texture and its canvas.
+      if (activeBadge.image !== image) image.replaceWith(activeBadge.canvas, activeBadge.image);
+      return;
+    }
+    removeBadge();
+    if (failedBadgeSource === image.src) return;
+    failedBadgeSource = null;
+    const canvas = document.createElement("canvas");
+    canvas.className = "badge-canvas";
+    canvas.setAttribute("aria-hidden", "true");
+    image.before(canvas);
+    const pending = { image, canvas, mounted: null };
+    activeBadge = pending;
+
+    function fallback() {
+      if (activeBadge !== pending) return;
+      failedBadgeSource = image.src;
+      removeBadge();
+    }
+
+    void import("./waifu-achievement-badge.js")
+      .then(({ mountAchievementBadge }) => {
+        if (activeBadge !== pending || !dialog.open || document.hidden || reducedMotion.matches) return;
+        const mounted = mountAchievementBadge({
+          image,
+          canvas,
+          host: detail,
+          grade: image.parentElement.dataset.badgeGrade,
+          onReady() {
+            if (activeBadge === pending && dialog.open) canvas.classList.add("is-ready");
+          },
+          onUnavailable: fallback,
+        });
+        if (activeBadge === pending) pending.mounted = mounted;
+        else mounted.dispose();
+      })
+      .catch(fallback);
+  }
 
   function fit() {
     if (!dialog.open) return;
@@ -71,6 +139,8 @@ export function createAchievementDialog({ readSnapshot, onSnapshot = () => {}, o
     button.title = copy.title;
     button.setAttribute("aria-label", copy.title);
     $("#achievementTitle").textContent = copy.title;
+    shareButton.title = locale === "zh-CN" ? "分享该成就" : "Share achievement";
+    shareButton.setAttribute("aria-label", shareButton.title);
     for (const id of ["achievementStatusFilter", "achievementStatusMenu"])
       $(`#${id}`).setAttribute("aria-label", copy.status);
     $("#achievementCategories").setAttribute("aria-label", copy.categories);
@@ -107,10 +177,18 @@ export function createAchievementDialog({ readSnapshot, onSnapshot = () => {}, o
     }
     list.scrollTop = scroll;
     const chosen = visible.find((row) => row.id === state.selectedId);
-    $("#achievementDetail").innerHTML = chosen
+    detail.innerHTML = chosen
       ? renderAchievementDetail(chosen, { locale, timeZone, previewGrade: state.previewGrade })
       : "";
+    const grade = detail.querySelector(".detail-panel")?.dataset.badgeGrade;
+    const earnedAt = chosen?.earnedAt?.[grade];
+    shareSelection =
+      earnedAt && !detail.querySelector(".badge.is-locked")
+        ? { id: chosen.id, title: achievementCopy(chosen, locale).name, grade, earnedAt, locale, timeZone }
+        : null;
+    shareButton.disabled = !shareSelection || !onShare;
     fit();
+    syncBadge();
     if (
       snapshot?.state === "ready" &&
       chosen &&
@@ -178,13 +256,20 @@ export function createAchievementDialog({ readSnapshot, onSnapshot = () => {}, o
     opener = document.activeElement;
     render();
     dialog.showModal();
+    syncBadge();
     button.setAttribute("aria-expanded", "true");
     fit();
     $("#achievementTitle").focus({ preventScroll: true });
     void refresh();
   }
   button.addEventListener("click", open);
+  shareButton.addEventListener("click", () => {
+    if (shareSelection) void onShare?.({ ...shareSelection, opener: shareButton });
+  });
   dialog.addEventListener("close", () => {
+    if (dialog.open) return;
+    removeBadge();
+    failedBadgeSource = null;
     clearTimeout(preparingRetry);
     menu(false);
     button.setAttribute("aria-expanded", "false");
@@ -255,6 +340,10 @@ export function createAchievementDialog({ readSnapshot, onSnapshot = () => {}, o
       menu(false, true);
     } else if (event.key === "Tab") menu(false);
   });
+  document.addEventListener("visibilitychange", syncBadge);
+  reducedMotion.addEventListener("change", syncBadge);
+  window.addEventListener("pagehide", removeBadge);
+  window.addEventListener("pageshow", syncBadge);
   window.addEventListener("resize", fit);
   window.addEventListener("focus", () => {
     if (dialog.open) {

@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>成就通知粒子 · Waifu Agent Usage</title>
+    <link rel="stylesheet" href="../../../styles.css" />
+    <link rel="stylesheet" href="../../../achievement-notice.css" />
+    <link rel="stylesheet" href="./notice.css" />
+    <script type="importmap">{"imports":{"three":"../three.js"}}</script>
+    <script type="module" src="./notice.js"></script>
+  </head>
+  <body class="notice-page">
+    <main class="notice-demo">
+      <header>
+        <a href="../../waifu-visuals-demo.html">返回视觉 Demo</a>
+        <h1>成就通知粒子</h1>
+      </header>
+      <section class="notice-preview" aria-label="成就通知预览">
+        <div class="notice-sample">
+          <div class="range-heading auto-refresh-heading">
+            <strong class="refresh-label">自动刷新</strong><span>上次：14:26:08</span>
+          </div>
+          <div class="auto-refresh-well">
+            <div class="auto-refresh-info"><span>等待新数据</span></div>
+            <span id="achievementNotice" class="achievement-notice">新成就</span>
+          </div>
+        </div>
+        <canvas aria-hidden="true" id="noticeCanvas"></canvas>
+      </section>
+      <form class="notice-controls">
+        <label>粒子样式
+          <select id="variant">
+            <option value="orbit">双弧流光</option>
+            <option value="bloom">星簇绽放</option>
+          </select>
+        </label>
+        <label>主题
+          <select id="theme">
+            <option value="light">浅色</option>
+            <option value="dark">深色</option>
+          </select>
+        </label>
+        <button id="simulateUnlock" type="submit">模拟解锁</button>
+      </form>
+      <p class="notice-readout" id="renderStats" role="status" data-state="idle">12 FPS · 就绪</p>
+    </main>
+  </body>
+</html>

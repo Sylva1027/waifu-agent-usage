@@ -54,11 +54,11 @@ const sha256 = (data) => createHash("sha256").update(data).digest("hex");
 
 test("no-skin is a first-class option, not just a fallback", () => {
   // User requirement (2026-10-02): users who want no skin at all need a choice
-  // that belongs to them, on equal footing with the ten characters.
+  // that belongs to them, on equal footing with the eight characters.
   const selectable = listSkinIds();
   assert.ok(selectable.includes(CLASSIC_SKIN_ID), "classic must be selectable, not merely a fallback");
   assert.equal(selectable[0], CLASSIC_SKIN_ID, "classic leads the picker");
-  assert.equal(selectable.length, 11, "ten characters plus the no-skin option");
+  assert.equal(selectable.length, 9, "eight characters plus the no-skin option");
 
   // Choosing it explicitly must survive normalisation instead of being rewritten.
   const chosen = normalizeSkinPreference({ version: 1, skinId: CLASSIC_SKIN_ID, showCharacters: false, opacity: 0.5 });
@@ -101,7 +101,7 @@ test("every selectable option is distinct and renderable by a generic picker", (
   }
 });
 
-test("registry exposes the eleven stable ids in order", () => {
+test("registry exposes the nine stable ids in order", () => {
   assert.deepEqual(listSkinIds(), [
     "classic",
     "chatgpt",
@@ -112,8 +112,6 @@ test("registry exposes the eleven stable ids in order", () => {
     "kimi",
     "qwen",
     "grok",
-    "muse",
-    "mimo",
   ]);
   for (const id of listSkinIds()) assert.ok(isKnownSkinId(id), `${id} should be known`);
   assert.ok(isKnownSkinId(CLASSIC_SKIN_ID));
@@ -164,12 +162,12 @@ test("classic ships no character art and never requires an image request", () =>
   assert.ok(!enumerateSkinAssets().some((asset) => asset.skinId === CLASSIC_SKIN_ID));
 });
 
-test("asset enumeration covers all forty URLs and is independent of the selection", () => {
+test("asset enumeration covers all thirty-two URLs and is independent of the selection", () => {
   const assets = enumerateSkinAssets();
-  assert.equal(assets.length, 40);
-  assert.equal(new Set(assets.map((asset) => asset.url)).size, 40, "URLs must be unique");
-  assert.equal(assets.filter((asset) => asset.mode === "light").length, 20);
-  assert.equal(assets.filter((asset) => asset.mode === "dark").length, 20);
+  assert.equal(assets.length, 32);
+  assert.equal(new Set(assets.map((asset) => asset.url)).size, 32, "URLs must be unique");
+  assert.equal(assets.filter((asset) => asset.mode === "light").length, 16);
+  assert.equal(assets.filter((asset) => asset.mode === "dark").length, 16);
   // Enumerating twice must be stable and must not depend on any current skin.
   assert.deepEqual(
     assets.map((asset) => asset.url),
@@ -179,7 +177,7 @@ test("asset enumeration covers all forty URLs and is independent of the selectio
 
 test("source asset descriptions match the committed file naming rules", () => {
   const sources = enumerateSourceAssets();
-  assert.equal(sources.length, 40);
+  assert.equal(sources.length, 32);
   for (const entry of sources) {
     assert.equal(
       entry.sourcePath,
@@ -282,8 +280,8 @@ test("normalisation rejects broken, unknown and wrong-version input", () => {
 });
 
 test("opacity zero is a legal value and is never replaced by the default", () => {
-  const zero = normalizeSkinPreference({ version: 1, skinId: "muse", showCharacters: true, opacity: 0 });
-  assert.equal(zero.opacity, 0, "opacity 0 must survive; `value || 0.5` would be wrong here");
+  const zero = normalizeSkinPreference({ version: 1, skinId: "grok", showCharacters: true, opacity: 0 });
+  assert.equal(zero.opacity, 0, "opacity 0 must survive");
   assert.equal(clampOpacity(0), 0);
   assert.equal(clampOpacity(1), 1);
   // Non-numeric and out-of-range values fall back or clamp.
@@ -318,7 +316,7 @@ test("registry results are not shared mutable state", () => {
   first.push({ evil: true });
   first[0].url = "/tampered";
   const second = enumerateSkinAssets();
-  assert.equal(second.length, 40);
+  assert.equal(second.length, 32);
   assert.notEqual(second[0].url, "/tampered");
   // Freezing the registry blocks accidental variant mutation.
   assert.ok(Object.isFrozen(SKINS[0]));
@@ -348,7 +346,7 @@ test("skins:check:sources binds every committed copy to its authoring PNG", (t) 
     encoding: "utf8",
   });
   assert.match(output, /check: PASS/);
-  assert.match(output, /check-sources: PASS \(40 sources bound to their public copies\)/);
+  assert.match(output, /check-sources: PASS \(32 sources bound to their public copies\)/);
 });
 
 test("a release tree without authoring PNGs can be checked but cannot regenerate assets", async () => {
@@ -366,6 +364,13 @@ test("a release tree without authoring PNGs can be checked but cannot regenerate
     const withSources = await verifySkinTree({ root: sandbox, requireSources: true });
     assert.equal(withSources.status, "pass");
     assert.equal(withSources.sourceBinding, "skipped", "absent PNGs must never read as verified");
+
+    const orphan = path.join(sandbox, "public/assets/skins/light/Muse-lineart.webp");
+    copyFileSync(path.join(sandbox, "public/assets/skins/light/ChatGPT-lineart.webp"), orphan);
+    const withOrphan = await verifySkinTree({ root: sandbox });
+    assert.equal(withOrphan.status, "fail");
+    assert.ok(withOrphan.problems.includes("unregistered public skin image: /assets/skins/light/Muse-lineart.webp"));
+    rmSync(orphan);
 
     const manifest = path.join(sandbox, "public", "skin-assets.json");
     const bootstrap = path.join(sandbox, "public", "skin-bootstrap.js");
@@ -425,7 +430,7 @@ test("source binding still rejects a changed or missing PNG in a sandbox", async
 test("committed public copies are real WebP files whose bytes match the manifest", () => {
   const manifest = JSON.parse(readFileSync(path.join(root, "public/skin-assets.json"), "utf8"));
   const entries = Object.entries(manifest.assets);
-  assert.equal(entries.length, 40);
+  assert.equal(entries.length, 32);
   for (const [url, entry] of entries) {
     const bytes = readFileSync(path.join(root, entry.publicPath));
     assert.equal(bytes.subarray(0, 4).toString("ascii"), "RIFF", `${url} must be a RIFF container`);
@@ -489,7 +494,7 @@ test("the colour input channel exists, is validated and stays separate from code
   const inputPath = path.join(root, "public/skin-palettes.js");
   const source = readFileSync(inputPath, "utf8");
   assert.match(source, /export const SKIN_PALETTES/, "the input file must export SKIN_PALETTES");
-  for (const id of ["chatgpt", "claude", "glm", "gemini", "deepseek", "kimi", "qwen", "grok", "muse", "mimo"]) {
+  for (const id of ["chatgpt", "claude", "glm", "gemini", "deepseek", "kimi", "qwen", "grok"]) {
     assert.match(source, new RegExp(`\\b${id}: \\{`), `the input file must have a slot for ${id}`);
   }
   assert.ok(
@@ -560,7 +565,7 @@ test("palette wiring derives root-cause variables only, with colour-only geometr
   assert.equal(paletteDeclarations("not-a-skin", "light"), null);
 });
 
-test("derivePaletteDeclarationsFromTokens: ten skins × two modes match the official API and generated bootstrap", () => {
+test("derivePaletteDeclarationsFromTokens: eight skins × two modes match the official API and generated bootstrap", () => {
   // The default bootstrap is generated from the current official registry; keep
   // the runtime API and first-paint declarations in lockstep.
   const bootstrapSource = readFileSync(path.join(root, "public/skin-bootstrap.js"), "utf8");
@@ -749,7 +754,7 @@ test("picker mini previews derive all nine colors from production tokens in both
     const cards = [...grid.innerHTML.matchAll(/data-skin-id="([a-z]+)"([\s\S]*?)(?=<button|$)/g)];
     assert.deepEqual(
       cards.map((card) => card[1]),
-      ["chatgpt", "claude", "glm", "gemini", "deepseek", "kimi", "qwen", "grok", "muse", "mimo"],
+      ["chatgpt", "claude", "glm", "gemini", "deepseek", "kimi", "qwen", "grok"],
     );
     for (const [, skinId, html] of cards) {
       const previews = [...html.matchAll(/class="skin-preview" style="([^"]+)"/g)];
@@ -947,8 +952,7 @@ test("skin-ui has no undefined references outside its imports", () => {
 
 test("per-image display parameters are re-derived from the recorded ink measurements", () => {
   // P3.1 regression: the registry's measured table once disagreed with the
-  // committed measurement artifact for 5 of 20 entries (Kimi/side and Mimo/front
-  // were the material ones), which silently mis-sized those views. Re-derive
+  // committed measurement artifact, which silently mis-sized some views. Re-derive
   // every single value from `ink-bounds.json` so a transcription slip cannot
   // reach the page again.
   const measured = JSON.parse(readFileSync(path.join(root, "test/fixtures/skins/ink-bounds.json"), "utf8"));
@@ -962,8 +966,6 @@ test("per-image display parameters are re-derived from the recorded ink measurem
     kimi: "Kimi",
     qwen: "Qwen",
     grok: "Grok",
-    muse: "Muse",
-    mimo: "Mimo",
   };
   // One shared reference, because the registry normalises every drawn ink height
   // to the tallest measured image across both modes and views.
@@ -1051,8 +1053,8 @@ test("missing or invalid face geometry retains the static fallback", () => {
   }
 });
 
-// Palette snapshots, including Qwen/Mimo/Muse dark surface contrast adjusted on 2026-11-16.
-test("all twenty production palettes match the current approved colors", () => {
+// Palette snapshots, including Qwen dark surface contrast adjusted on 2026-11-16.
+test("all sixteen production palettes match the current approved colors", () => {
   const rows = [
     [
       "chatgpt",
@@ -1342,81 +1344,9 @@ test("all twenty production palettes match the current approved colors", () => {
         "#BDB6AB",
       ],
     ],
-    [
-      "muse",
-      "light",
-      [
-        "#EBF7FF",
-        "#FEFEFF",
-        "#E8F1F6",
-        "#FEFEFF",
-        "#B4C4CE",
-        "#13171A",
-        "#373C40",
-        "#1759BD",
-        "#FEFEFF",
-        "#E8F1F6",
-        "#13171A",
-        "#465158",
-      ],
-    ],
-    [
-      "muse",
-      "dark",
-      [
-        "#0C0F11",
-        "#272B2E",
-        "#3E4549",
-        "#464D51",
-        "#020405",
-        "#E4F1F9",
-        "#C4CED5",
-        "#8CB9FF",
-        "#272B2E",
-        "#3E4549",
-        "#E4F1F9",
-        "#C4CED5",
-      ],
-    ],
-    [
-      "mimo",
-      "light",
-      [
-        "#F6F0EF",
-        "#FEFBFA",
-        "#EEECEB",
-        "#FFFEFE",
-        "#C0BDBB",
-        "#181413",
-        "#3B3939",
-        "#9C3D00",
-        "#FEFBFA",
-        "#EEECEB",
-        "#181413",
-        "#534F4D",
-      ],
-    ],
-    [
-      "mimo",
-      "dark",
-      [
-        "#100F0E",
-        "#2C2A29",
-        "#45413F",
-        "#4D4947",
-        "#030202",
-        "#F2EDEC",
-        "#CCC6C3",
-        "#FF996C",
-        "#2C2A29",
-        "#45413F",
-        "#F2EDEC",
-        "#CCC6C3",
-      ],
-    ],
   ];
-  assert.equal(rows.length, 20);
-  assert.equal(new Set(rows.map(([skinId, mode]) => `${skinId}/${mode}`)).size, 20);
+  assert.equal(rows.length, 16);
+  assert.equal(new Set(rows.map(([skinId, mode]) => `${skinId}/${mode}`)).size, 16);
   for (const [skinId, mode, values] of rows) {
     assert.equal(values.length, PALETTE_TOKEN_KEYS.length);
     const selected = Object.fromEntries(PALETTE_TOKEN_KEYS.map((key, index) => [key, values[index]]));

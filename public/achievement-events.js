@@ -1,10 +1,10 @@
-import { isCharacterSkin } from "./skins.js";
+import { isCharacterSkin, isRetiredCharacterSkin } from "./skins.js";
 
 const pending = new Map();
 const PENDING_KEY = "waifu-agent-usage-achievement-pending-v1";
 try {
   const saved = JSON.parse(globalThis.localStorage?.getItem(PENDING_KEY) || "[]");
-  if (Array.isArray(saved))
+  if (Array.isArray(saved)) {
     for (const operation of saved) {
       if (
         (operation?.kind === "share" && typeof operation.receipt === "string" && operation.receipt) ||
@@ -12,6 +12,10 @@ try {
       )
         pending.set(JSON.stringify(operation), operation);
     }
+    if (saved.some((operation) => operation?.kind === "skin" && isRetiredCharacterSkin(operation.characterId))) {
+      persistPending();
+    }
+  }
 } catch {
   /* Restricted storage must not affect the completed product action. */
 }

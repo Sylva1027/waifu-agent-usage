@@ -6,6 +6,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { createUsageServer } from "../src/server.js";
 import { UsageStore } from "../src/usage-store.js";
+import { SKIN_PREFERENCE_KEY } from "../public/skins.js";
 import { resolveBrowserRuntime } from "../scripts/skin-palette/capture.mjs";
 import { createPaletteFixture, createPaletteServerOptions } from "../test-support/skin-palette-fixture.mjs";
 import { createCodexIntegrationFixture, createUsageIntegrationFixture } from "../test-support/usage-fixture.mjs";
@@ -491,11 +492,13 @@ async function verifyImportAndSkin(page, fixture) {
       ),
     ].map((node) => node.getBoundingClientRect().height),
     outputLine: getComputedStyle(dialog.querySelector("output")).lineHeight,
-    cards: dialog.querySelectorAll(".skin-card").length,
+    cardRows: Object.values(
+      Object.groupBy([...dialog.querySelectorAll(".skin-card")], (card) => card.getBoundingClientRect().top),
+    ).map((row) => row.length),
   }));
   for (const height of skinParts.rows) near(height, 36, "skin control row");
   assert.equal(skinParts.outputLine, "19px");
-  assert.equal(skinParts.cards, 10, "all ten character skins are offered");
+  assert.deepEqual(skinParts.cardRows, [4, 4], "the eight desktop cards form two rows of four");
   assert.equal(await page.locator("#skinCharactersToggle").isDisabled(), true, "classic has no character controls");
   await page.locator('.skin-card[data-skin-id="deepseek"]').click();
   assert.equal(await page.locator('.skin-card[data-skin-id="deepseek"]').getAttribute("aria-checked"), "true");
@@ -510,7 +513,7 @@ async function verifyImportAndSkin(page, fixture) {
   assert.equal(await page.locator('.skin-card[data-skin-id="deepseek"]').getAttribute("aria-checked"), "false");
   const changedSkin = await dialogGeometry(page, "#skinDialog .dialog");
   near(changedSkin.shell.height, skin.shell.height, "skin controls preserve shell height");
-  for (const skinId of ["glm", "gemini", "qwen", "grok", "mimo"]) {
+  for (const skinId of ["glm", "gemini", "qwen", "grok"]) {
     await page.locator(`.skin-card[data-skin-id="${skinId}"]`).click();
     await page.waitForFunction(
       (id) =>
@@ -752,6 +755,100 @@ test("UI geometry uses the production app and isolated source fixtures", async (
       }
     }
   }
+
+  await t.test("retired skin preferences and drafts migrate without crediting studio preview", async () => {
+    const { context, page, errors } = await createDashboardPage(browser, VIEWPORTS[0], "en-US", "dark");
+    try {
+      const events = [];
+      const retiredArtRequests = [];
+      const studioKey = "codexUsageSkinPaletteStudioV1";
+      const pendingKey = "waifu-agent-usage-achievement-pending-v1";
+      const retainedDraft = {
+        colors: ["#101112", "#434445", "#767778", "#DADBDC"],
+        overrides: { light: { accent: "#143264" }, dark: {} },
+      };
+      await context.route("**/api/achievements/operations", async (route) => {
+        events.push(route.request().postDataJSON());
+        await route.fulfill({ json: { ok: true } });
+      });
+      context.on("request", (request) => {
+        if (/\/assets\/skins\/[^/]+\/(?:Muse|Mimo)-/.test(request.url())) retiredArtRequests.push(request.url());
+      });
+      await context.addInitScript(
+        ({ skinKey, studioKey, pendingKey, retainedDraft }) => {
+          if (window !== window.top || localStorage.getItem(skinKey)) return;
+          localStorage.setItem(
+            skinKey,
+            JSON.stringify({ version: 1, skinId: "muse", showCharacters: false, opacity: 0 }),
+          );
+          localStorage.setItem(
+            studioKey,
+            JSON.stringify({
+              version: 1,
+              activeSkinId: "mimo",
+              activeMode: "light",
+              drafts: {
+                muse: retainedDraft,
+                mimo: retainedDraft,
+                qwen: retainedDraft,
+              },
+            }),
+          );
+          localStorage.setItem(
+            pendingKey,
+            JSON.stringify([
+              { kind: "skin", characterId: "muse" },
+              { kind: "skin", characterId: "mimo" },
+              { kind: "share", receipt: "real-queued-share" },
+            ]),
+          );
+        },
+        { skinKey: SKIN_PREFERENCE_KEY, studioKey, pendingKey, retainedDraft },
+      );
+      await page.goto(new URL("skin-palette-studio.html", url).href);
+      const preview = page.frameLocator("#studioFrame");
+      await preview.locator(':root[data-skin="deepseek"][data-theme="light"]').waitFor({ state: "attached" });
+      assert.deepEqual(events, [], "preview must not credit a character or send the homepage queue");
+      const stored = await page.evaluate(
+        ([skinKey, studioKey]) => [
+          JSON.parse(localStorage.getItem(skinKey)),
+          JSON.parse(localStorage.getItem(studioKey)),
+        ],
+        [SKIN_PREFERENCE_KEY, studioKey],
+      );
+      assert.deepEqual(stored[0], { version: 1, skinId: "classic", showCharacters: false, opacity: 0 });
+      assert.equal(stored[1].activeSkinId, "deepseek");
+      assert.deepEqual(stored[1].drafts, { qwen: retainedDraft });
+
+      const queuedShare = page.waitForRequest((request) => request.url().endsWith("/api/achievements/operations"));
+      await page.goto(url);
+      await page.locator(':root[data-skin="classic"][data-theme="dark"]').waitFor({ state: "attached" });
+      await queuedShare;
+      await page.waitForFunction((key) => localStorage.getItem(key) === "[]", pendingKey);
+      assert.deepEqual(events, [{ kind: "share", receipt: "real-queued-share" }]);
+
+      await page.locator("#skinToggle").click();
+      const cardRows = () =>
+        page
+          .locator("#skinGrid .skin-card")
+          .evaluateAll((cards) =>
+            Object.values(Object.groupBy(cards, (card) => card.getBoundingClientRect().top)).map((row) => row.length),
+          );
+      assert.deepEqual(await cardRows(), [4, 4]);
+      await page.setViewportSize({ width: 900, height: 800 });
+      assert.deepEqual(await cardRows(), [3, 3, 2]);
+      await page.setViewportSize({ width: 390, height: 700 });
+      assert.deepEqual(await cardRows(), [2, 2, 2, 2]);
+
+      const realSelection = page.waitForRequest((request) => request.url().endsWith("/api/achievements/operations"));
+      await page.getByRole("radio", { name: "DeepSeek" }).click();
+      assert.deepEqual((await realSelection).postDataJSON(), { kind: "skin", characterId: "deepseek" });
+      assert.deepEqual(retiredArtRequests, []);
+      assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
+    }
+  });
 
   await t.test("real font splitting preserves mixed text, input and placeholder geometry", async (t) => {
     const session = await openDashboard(browser, url, VIEWPORTS[0], "zh-CN", "light");

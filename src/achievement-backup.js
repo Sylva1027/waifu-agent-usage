@@ -3,7 +3,8 @@ import { link, lstat, mkdir, open, rm, copyFile } from "node:fs/promises";
 import { constants } from "node:fs";
 import path from "node:path";
 import { backup, DatabaseSync } from "node:sqlite";
-import { ACHIEVEMENT_CATALOG, ACHIEVEMENT_RULES_VERSION } from "./achievement-catalog.js";
+import { ACHIEVEMENT_CATALOG } from "./achievement-catalog.js";
+import { supportsAchievementRuleDirectory } from "./achievement-format-descriptor.js";
 import { AchievementStore } from "./achievement-store.js";
 
 const TABLES = [
@@ -107,9 +108,7 @@ function inspect(file) {
         throw fail(`Missing achievement table: ${table}`);
     }
     const profile = AchievementStore.inspect(db, ACHIEVEMENT_CATALOG);
-    const catalogHash = createHash("sha256").update(JSON.stringify(ACHIEVEMENT_CATALOG)).digest("hex");
-    if (profile.rulesVersion !== ACHIEVEMENT_RULES_VERSION || profile.catalogHash !== catalogHash)
-      throw fail("Unsupported achievement rule directory");
+    if (!supportsAchievementRuleDirectory(profile)) throw fail("Unsupported achievement rule directory");
     for (const key of ["progressRevision", "awardRevision", "seenAwardRevision"]) {
       const value = profile[key];
       if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0)

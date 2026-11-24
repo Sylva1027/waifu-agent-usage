@@ -36,7 +36,7 @@ let showCost = false;
 let sequence = 0;
 let previewUrl;
 let imageBlob;
-const t = (zh, en) => (snapshot.locale === "en-US" ? en : zh);
+const t = (zh, en) => (snapshot.locale?.startsWith("en") ? en : zh);
 
 function bindHint(selector) {
   const hint = $(selector);
@@ -126,19 +126,34 @@ function setReady(ready) {
   $("#shareImage").setAttribute("aria-busy", String(!ready));
 }
 
+function releasePreview() {
+  ++sequence;
+  imageBlob = null;
+  if (previewUrl) URL.revokeObjectURL(previewUrl);
+  previewUrl = null;
+  $("#shareImage").removeAttribute("src");
+  for (const id of menus) setMenu(id, false);
+  snapshot.opener.setAttribute("aria-expanded", "false");
+  snapshot = null;
+}
+
 async function updateImage() {
   const current = ++sequence;
   setReady(false);
   imageBlob = null;
-  $("#shareStatus").textContent = "";
+  const status = $("#shareStatus");
+  status.textContent = snapshot.render ? t("正在生成图片…", "Creating image…") : "";
   let url;
   try {
-    const blob = await renderShareCard({ ...snapshot, layout, chart, metrics: [...selectedMetrics()], showCost });
+    const blob = await (snapshot.render
+      ? snapshot.render()
+      : renderShareCard({ ...snapshot, layout, chart, metrics: [...selectedMetrics()], showCost }));
+    if (current !== sequence || !$("#shareDialog").open) return;
     url = URL.createObjectURL(blob);
     const probe = new Image();
     probe.src = url;
     await probe.decode();
-    if (current !== sequence) {
+    if (current !== sequence || !$("#shareDialog").open) {
       URL.revokeObjectURL(url);
       return;
     }
@@ -147,11 +162,14 @@ async function updateImage() {
     $("#shareImage").src = url;
     if (previous) URL.revokeObjectURL(previous);
     imageBlob = blob;
+    status.textContent = "";
     setReady(true);
   } catch {
     if (url) URL.revokeObjectURL(url);
-    if (current === sequence)
-      $("#shareStatus").textContent = t("图片加载失败，请重新打开。", "Image could not load. Please reopen.");
+    if (current === sequence && $("#shareDialog").open) {
+      $("#shareImage").setAttribute("aria-busy", "false");
+      status.textContent = t("图片加载失败，请重新打开。", "Image could not load. Please reopen.");
+    }
   }
 }
 
@@ -273,15 +291,13 @@ function bind() {
     void updateImage();
   });
   $("#shareDialog").addEventListener("close", () => {
-    ++sequence;
+    if ($("#shareDialog").open || !snapshot) return;
+    const { opener } = snapshot;
     copyHint();
-    imageBlob = null;
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-    previewUrl = null;
-    $("#shareImage").removeAttribute("src");
-    for (const id of menus) setMenu(id, false);
-    $("#shareToggle").setAttribute("aria-expanded", "false");
-    $("#shareToggle").focus({ preventScroll: true });
+    $("#shareOriginalDialog").close();
+    releasePreview();
+    const target = opener.disabled ? opener.closest("dialog")?.querySelector("h2[tabindex]") : opener;
+    target?.focus({ preventScroll: true });
   });
   $("#openShareImage").addEventListener("click", () => {
     $("#shareOriginalDialog img").src = previewUrl;
@@ -291,7 +307,7 @@ function bind() {
   $("#shareOriginalDialog").addEventListener("close", () => {
     originalHint();
     $("#shareOriginalDialog img").removeAttribute("src");
-    $("#openShareImage").focus({ preventScroll: true });
+    if ($("#shareDialog").open) $("#openShareImage").focus({ preventScroll: true });
   });
   for (const dialog of [$("#shareDialog"), $("#shareOriginalDialog")]) {
     let downOutside = false;
@@ -317,7 +333,7 @@ function bind() {
     const url = URL.createObjectURL(imageBlob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = shareCardFilename(snapshot.data.range);
+    link.download = snapshot.filename;
     link.click();
     recordSharedSnapshot(receipt);
     setTimeout(() => URL.revokeObjectURL(url), 60000);
@@ -340,36 +356,16 @@ function bind() {
   });
 }
 
-export function openShareDialog({
-  summary,
-  preset,
-  recentValue,
-  startDate,
-  endDate,
-  calendarZone,
-  currency,
-  usdToCnyRate,
-  periodComparison,
-  pricingModels,
-  achievementReceipt,
-  ...appearance
-}) {
-  const data = createShareCardData(summary, {
-    preset,
-    recentValue,
-    startDate,
-    endDate,
-    calendarZone,
-    currency,
-    usdToCnyRate,
-    periodComparison,
-    pricingModels,
-  });
-  if (!data || $("#shareDialog").open) return;
+function openPreview(next) {
+  const dialog = $("#shareDialog");
+  if (dialog.open) return;
   if (!initialized) bind();
-  snapshot = { ...appearance, data, achievementReceipt };
+  if (snapshot) releasePreview();
+  $("#shareCopyHint").hidden = true;
+  snapshot = next;
+  const achievement = Boolean(snapshot.render);
   for (const [selector, zh, en] of [
-    ["#shareTitle", "分享图片", "Share image"],
+    ["#shareTitle", achievement ? "分享成就" : "分享图片", achievement ? "Share achievement" : "Share image"],
     [".share-metrics-label", "辅助指标", "Metrics"],
     [".share-chart-label", "图形", "Chart"],
     [".share-layout-label", "版式", "Layout"],
@@ -398,11 +394,56 @@ export function openShareDialog({
     $(selector).setAttribute("aria-label", t(zh, en));
   $("#openShareImage").title = t("查看原图", "View full image");
   $(".project-link").title = t("GitHub 项目", "GitHub project");
-  $("#shareImage").alt = t("模型用量分享图片", "Model usage card");
+  $("#shareImage").alt = snapshot.title || t("模型用量分享图片", "Model usage card");
   $("#shareOriginalDialog img").alt = $("#shareImage").alt;
-  renderControls();
-  $("#shareDialog").showModal();
-  $("#shareToggle").setAttribute("aria-expanded", "true");
+  $(".share-customize").hidden = achievement;
+  if (achievement) {
+    dialog.dataset.layout = "achievement";
+    $("#shareImage").width = 960;
+    $("#shareImage").height = 1200;
+  } else renderControls();
+  dialog.showModal();
+  snapshot.opener.setAttribute("aria-expanded", "true");
   $("#shareTitle").focus();
   void updateImage();
+}
+
+export function openShareDialog({
+  summary,
+  preset,
+  recentValue,
+  startDate,
+  endDate,
+  calendarZone,
+  currency,
+  usdToCnyRate,
+  periodComparison,
+  pricingModels,
+  achievementReceipt,
+  ...appearance
+}) {
+  const data = createShareCardData(summary, {
+    preset,
+    recentValue,
+    startDate,
+    endDate,
+    calendarZone,
+    currency,
+    usdToCnyRate,
+    periodComparison,
+    pricingModels,
+  });
+  if (!data) return;
+  openPreview({
+    ...appearance,
+    data,
+    achievementReceipt,
+    opener: $("#shareToggle"),
+    filename: shareCardFilename(data.range),
+  });
+}
+
+export function openAchievementShareDialog({ opener, locale, title, render }) {
+  const name = title.replace(/[<>:"/\\|?*]/g, "-").replace(/[. ]+$/, "");
+  openPreview({ opener, locale, title, render, filename: `waifu-achievement-${name}.png` });
 }

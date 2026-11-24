@@ -34,7 +34,7 @@
  *            若没有落盘判据支撑则结论无从追溯。双侧一致 unreachable 只对矩阵
  *            里登记了 precondition 预案的状态豁免（当前即 quota-toast 一类已知
  *            触发不到的单元）；正常可触发的状态双侧标不可达一律阻断。
- *   选择      requireSelections=true 时在重算后的容器哈希上核对十套 choices 与
+ *   选择      requireSelections=true 时在重算后的容器哈希上核对全部皮肤的 choices 与
  *            candidateSetHash / assessmentHash 两个总摘要绑定。
  *   正式身份  production=true 只验正式身份（capture.candidate.production=true 且
  *            skinId 合法）；source 变更规则等待 M4.4.7 适配。
@@ -409,7 +409,7 @@ async function verifyCurrentProfiles({ evidence, origin, candidate, runDirReal, 
  *
  * @param {{ evidence: object, requireSelections?: boolean, production?: boolean, sourceSnapshot?: object }} options
  *   evidence — loadReviewEvidence 的返回值（深冻对象；本模块不再修改）。
- *   requireSelections — true 时额外核对十套选择与两个总摘要绑定。
+ *   requireSelections — true 时额外核对全部皮肤的选择与两个总摘要绑定。
  *   production — true 时走正式身份核验（M4.4.7 适配前的最小口径）。
  *   sourceSnapshot — 仅供历史候选重核的三文件 Buffer 字节；任何返回均标
  *                    sourceContext:"historical"，不能当作当前正式核验。
@@ -1083,7 +1083,7 @@ function verifyProduction({ evidence, errors, gaps }) {
       errors.push({
         code: "PRODUCTION_IDENTITY",
         candidateId: key,
-        detail: `正式身份 skinId "${String(captureCandidate.skinId)}" 不在十套皮肤内`,
+        detail: `正式身份 skinId "${String(captureCandidate.skinId)}" 不在现役皮肤内`,
       });
       continue;
     }
@@ -1818,7 +1818,7 @@ function verifyImageCoverage({ evidence, candidates, verifiedUnitTrees, collecte
   }
 }
 
-/** 选择记录核验：十套 choices + 两个总摘要（candidateSetHash / 复核后 assessmentHash）。 */
+/** 选择记录核验：全部皮肤的 choices + 两个总摘要（candidateSetHash / 复核后 assessmentHash）。 */
 function verifySelections({ evidence, displaySet, container, loadedContainer, errors, gaps }) {
   const selections = evidence.selections;
   if (!isPlainObject(selections) || selections.present !== true || !isPlainObject(selections.record)) {

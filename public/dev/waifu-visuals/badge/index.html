@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>3D 成就徽章 · Waifu Agent Usage</title>
+    <link rel="stylesheet" href="../demo.css">
+    <link rel="stylesheet" href="./badge.css">
+    <script type="module" src="./badge.js"></script>
+  </head>
+  <body>
+    <main class="badge-page">
+      <nav><a href="../index.html">← 视觉实验</a></nav>
+      <h1>3D 成就徽章</h1>
+      <section class="workbench" aria-label="原图与立体徽章对照">
+        <div class="stage">
+          <figure>
+            <div class="sample">
+              <img id="reference" src="../../../assets/achievements/A01/silver.webp" width="120" height="120" alt="银级原始徽章">
+            </div>
+            <figcaption>原始 WebP</figcaption>
+          </figure>
+          <figure>
+            <div class="sample" id="interactive">
+              <img id="fallback" src="../../../assets/achievements/A01/silver.webp" width="120" height="120" alt="">
+              <canvas id="badgeCanvas" width="120" height="120" aria-label="立体徽章预览"></canvas>
+            </div>
+            <figcaption id="previewLabel">3D 徽章</figcaption>
+          </figure>
+        </div>
+        <form id="controls" aria-label="预览参数">
+          <label>徽章材质
+            <select id="grade" name="grade">
+              <option value="stone">石</option><option value="bronze">铜</option>
+              <option value="silver" selected>银</option><option value="gold">金</option>
+            </select>
+          </label>
+          <label>侧壁
+            <select id="edge" name="edge">
+              <option value="smooth">抛光倒角</option><option value="grooved">双槽倒角</option>
+            </select>
+          </label>
+          <label>显示尺寸
+            <select id="size" name="size">
+              <option value="120">120 px</option><option value="72">72 px</option>
+            </select>
+          </label>
+          <label>主题
+            <select id="theme" name="theme">
+              <option value="light">浅色</option><option value="dark">深色</option>
+            </select>
+          </label>
+          <label class="flag"><input type="checkbox" id="locked">未解锁</label>
+          <label class="flag"><input type="checkbox" id="tilt" checked>鼠标倾斜</label>
+        </form>
+      </section>
+      <section class="transport" aria-label="帧率对比">
+        <label>渲染帧率
+          <select id="fps">
+            <option value="12" selected>12 FPS</option><option value="15">15 FPS</option><option value="30">30 FPS</option>
+          </select>
+        </label>
+        <button type="button" id="play" disabled>播放 3 秒</button>
+        <output id="stats" aria-live="off">等待载入</output>
+      </section>
+    </main>
+  </body>
+</html>

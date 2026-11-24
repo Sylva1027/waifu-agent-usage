@@ -11,7 +11,7 @@ Waifu Agent Usage v1.0 offers the full Waifu experience and Lite for focused usa
 - [Dashboard](12-dashboard.en.md): ranges, Codex quotas, search, refresh, and sharing.
 - [Data sources and accounting](10-data-sources.en.md): source management, token details, and channel grouping.
 - [Pricing and updates](11-pricing.en.md): cost estimates, model prices, exchange rates, and manual edits.
-- [Character skins and palettes](13-skins.en.md): ten characters, themes, opacity, and palette maintenance.
+- [Character skins and palettes](13-skins.en.md): eight characters, themes, opacity, and palette maintenance.
 - [Achievements](achievements.en.md): progress, notices, and profile restoration.
 
 ## Data and upgrades

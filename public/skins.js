@@ -118,10 +118,8 @@ function normalizePalette(raw) {
 // resolution. Both modes share one measurement set because the light/dark files
 // have byte-identical alpha masks (P0.3).
 //
-// Front-view ink height is nearly constant across characters (0.980 .. 0.993),
-// but ink WIDTH varies a lot (0.567 .. 0.990): some silhouettes are narrow with
-// wide side margins. Anchoring naively by canvas would therefore render Mimo and
-// Muse visibly smaller than the rest, so each image carries its own measurement.
+// Drawn height, width and side margins vary by silhouette, so each image
+// carries its own measurement.
 //
 // The height factor `scale` normalises the drawn ink height; it scales the whole
 // image uniformly, because width differences are the silhouette itself and
@@ -166,14 +164,6 @@ const MEASURED_INK = {
     front: { w: 0.987248, h: 0.983254, cx: 0.506376, top: 0.007775 },
     side: { w: 0.971307, h: 0.98445, cx: 0.50797, top: 0.00299 },
   },
-  Muse: {
-    front: { w: 0.912109, h: 0.992839, cx: 0.505859, top: 0.003906 },
-    side: { w: 0.756836, h: 0.988932, cx: 0.574707, top: 0.005859 },
-  },
-  Mimo: {
-    front: { w: 0.567383, h: 0.979818, cx: 0.502441, top: 0.007812 },
-    side: { w: 0.688477, h: 0.988281, cx: 0.596191, top: 0.005859 },
-  },
 };
 
 // Manually marked visible face boundaries, as fractions of the SOURCE canvas.
@@ -189,8 +179,6 @@ const PAGE_FACE_BOUNDS = {
   Kimi: { front: [0.46, 0.57], side: [0.395, 0.485] },
   Qwen: { front: [0.42, 0.54], side: [0.38, 0.47] },
   Grok: { front: [0.48, 0.62], side: [0.35, 0.46] },
-  Muse: { front: [0.42, 0.55], side: [0.35, 0.48] },
-  Mimo: { front: [0.425, 0.535], side: [0.31, 0.42] },
 };
 
 function pageFaceFor(assetPrefix, view) {
@@ -221,7 +209,7 @@ export function skinFaceTarget(face, imageWidth, layerWidth, targetX) {
   return min > max ? layerWidth / 2 : Math.min(max, Math.max(min, targetX));
 }
 
-// The tallest drawn ink among the ten characters; every image is scaled up so its
+// The tallest drawn ink among the characters; every image is scaled up so its
 // own ink height matches this, which is what makes the set look consistent.
 const REFERENCE_INK_HEIGHT = Math.max(...Object.values(MEASURED_INK).flatMap((views) => [views.front.h, views.side.h]));
 
@@ -230,9 +218,7 @@ const REFERENCE_INK_HEIGHT = Math.max(...Object.values(MEASURED_INK).flatMap((vi
  *
  * `scale` grows the whole image uniformly so its drawn ink reaches the reference
  * height. A uniform scale is deliberate: ink width varies across characters
- * because the silhouettes genuinely differ (Mimo's figure is narrower than
- * Grok's), and stretching that away would distort the art. What must be
- * consistent is the drawn HEIGHT, which is what `scale` normalises.
+ * with the silhouette, so only the drawn height is normalised.
  *
  * `anchorX` centres on the ink rather than the canvas, so uneven side margins do
  * not push a character off-centre.
@@ -299,8 +285,6 @@ export const SKINS = Object.freeze([
   characterSkin("kimi", "Kimi", "Kimi"),
   characterSkin("qwen", "Qwen", "Qwen"),
   characterSkin("grok", "Grok", "Grok"),
-  characterSkin("muse", "Muse", "Muse"),
-  characterSkin("mimo", "Mimo", "Mimo"),
 ]);
 
 const SKINS_BY_ID = new Map(SKINS.map((skin) => [skin.id, skin]));
@@ -341,6 +325,10 @@ export function skinAssetUrl(skinId, mode, view) {
 /** True when the skin actually ships character art. */
 export function isCharacterSkin(skinId) {
   return !findSkin(skinId).isClassic;
+}
+
+export function isRetiredCharacterSkin(skinId) {
+  return skinId === "muse" || skinId === "mimo";
 }
 
 export function clampOpacity(value) {

@@ -75,8 +75,6 @@ const IDENTITY_BY_SKIN = Object.freeze({
   kimi: "#8F2F5C",
   qwen: "#6B6FB4",
   grok: "#444444",
-  muse: "#8F6B2F",
-  mimo: "#2F8F8A",
 });
 
 function makeCandidate({ skinId = "chatgpt", variant = "a", identity } = {}) {
@@ -873,7 +871,7 @@ test("总集出处 currentProfiles 通道：登记即核验——漂移/缺失 f
   }
 });
 
-test("selections.json：十套绑定核验；candidateSetHash/assessmentHash/choiceHash 错误全拒绝", async () => {
+test("selections.json：八套绑定核验；candidateSetHash/assessmentHash/choiceHash 错误全拒绝", async () => {
   const sb = await createSandbox();
   try {
     const run = await sb.makeRun("run-selections");

@@ -239,6 +239,46 @@ test("formal share window keeps layout preferences, snapshot and latest PNG acro
         Math.abs(r.width / r.height - image.naturalWidth / image.naturalHeight) < 0.001
       );
     });
+  const resizeShare = async ({ width, height }) => {
+    await page.setViewportSize({ width, height });
+    // The app closes open pickers when the browser dispatches resize.
+    await page.waitForFunction((size) => window.shareViewportSize === size, `${width}x${height}`);
+  };
+  const assertPreviewSpacing = async (layout) => {
+    const { width, height } = page.viewportSize();
+    const at = `${layout} at ${width}×${height}`;
+    const { gaps, dialogWidth, horizontalOverflow } = await page.locator("#shareDialog").evaluate((dialog) => {
+      const well = dialog.querySelector(".share-preview-well").getBoundingClientRect();
+      const image = dialog.querySelector("#shareImage").getBoundingClientRect();
+      const controls = dialog.querySelector(".share-customize");
+      return {
+        gaps: [image.left - well.left, well.right - image.right, image.top - well.top, well.bottom - image.bottom],
+        dialogWidth: dialog.getBoundingClientRect().width,
+        horizontalOverflow: [dialog, controls].some((node) => node.scrollWidth > node.clientWidth + 1),
+      };
+    });
+    assert.ok(dialogWidth <= width - 40 && dialogWidth < (layout === "portrait" ? 620 : 1100), at);
+    assert.equal(horizontalOverflow, false, at);
+    assert.ok(
+      gaps.every((gap) => Math.abs(gap - 17) < 0.1),
+      `${at}: preview gaps ${gaps.join(", ")}`,
+    );
+    const placement = await controlPlacement();
+    assert.equal(placement[layout === "landscape" && width > 600 ? "right" : "below"], true, at);
+  };
+  const compactViewports = [
+    { width: 1440, height: 620 },
+    { width: 900, height: 700 },
+    { width: 720, height: 600 },
+    { width: 600, height: 720 },
+    { width: 390, height: 844 },
+  ];
+  await assertPreviewSpacing("portrait");
+  for (const viewport of compactViewports) {
+    await resizeShare(viewport);
+    await assertPreviewSpacing("portrait");
+  }
+  await resizeShare({ width: 1440, height: 900 });
   assert.ok(await roundedPreview(), "Portrait image itself has the shared radius and its natural aspect ratio");
   assert.deepEqual(portrait.metrics, ["会话", "输入"], "Old portrait preferences survive migration");
   let requests = 0;
@@ -255,6 +295,7 @@ test("formal share window keeps layout preferences, snapshot and latest PNG acro
   );
   assert.deepEqual(landscape.dimensions, [1440, 1080]);
   assert.equal((await controlPlacement()).right, true);
+  await assertPreviewSpacing("landscape");
   assert.equal(await page.locator("#shareLayoutValue").textContent(), "横版");
   assert.ok(await roundedPreview(), "Landscape image itself has the shared radius and its natural aspect ratio");
   assert.equal(await page.locator(".dialog-heading #shareChart").count(), 0);
@@ -338,16 +379,11 @@ test("formal share window keeps layout preferences, snapshot and latest PNG acro
   await page.keyboard.press("Escape");
   await page.waitForFunction(() => !document.querySelector("#shareOriginalDialog img").hasAttribute("src"));
   assert.equal(await page.locator("#shareDialog").isVisible(), true);
-  for (const viewport of [
-    { width: 900, height: 700 },
-    { width: 720, height: 600 },
-  ]) {
-    await page.setViewportSize(viewport);
-    // The app closes open pickers when the browser dispatches resize.
-    await page.waitForFunction((size) => window.shareViewportSize === size, `${viewport.width}x${viewport.height}`);
-    assert.equal(await page.locator("#shareDialog").evaluate((node) => node.scrollWidth <= node.clientWidth + 1), true);
-    assert.equal((await controlPlacement()).right, true);
+  for (const viewport of compactViewports) {
+    await resizeShare(viewport);
+    await assertPreviewSpacing("landscape");
     assert.ok(await roundedPreview(), `Preview remains rounded at ${viewport.width}px`);
+    if (viewport.width !== 900 && viewport.width !== 720) continue;
     for (const id of ["shareLayout", "shareChart", "shareMetricFirst", "shareMetricFourth"]) {
       await page.locator(`#${id}`).press("End");
       const contained = await page.locator(`#${id}Menu`).evaluate((menu) => {
@@ -368,6 +404,7 @@ test("formal share window keeps layout preferences, snapshot and latest PNG acro
       assert.equal(await page.locator("#shareDialog").isVisible(), true, `Escape from ${id} at ${viewport.width}px`);
     }
   }
+  await resizeShare({ width: 720, height: 600 });
   await mkdir("output/share-landscape", { recursive: true });
   await page.locator("#shareDialog").screenshot({ path: "output/share-landscape/dialog.png" });
   assert.equal(requests, 0, "Share controls must reuse the captured data");

@@ -31,7 +31,7 @@
     sans-serif;
   font-variant-numeric: tabular-nums;
 }
-#achievementDialog button {
+#achievementDialog button:not(:where(.share-toggle)) {
   font: inherit;
   color: inherit;
   border: 0;
@@ -171,6 +171,12 @@
   line-height: 21px;
   margin-right: auto;
   outline: none;
+}
+#achievementShareToggle {
+  flex: 0 0 42px;
+  height: 36px;
+  min-height: 36px;
+  padding: 0;
 }
 #achievementDialog .search,
 #achievementDialog .recent-combobox {

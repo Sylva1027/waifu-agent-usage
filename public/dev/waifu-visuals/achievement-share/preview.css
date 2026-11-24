@@ -1,0 +1,666 @@
+@import "../../../achievement-share-card.css";
+
+:root {
+  --font:
+    Inter, "Noto Sans SC", "Microsoft YaHei UI", "PingFang SC", system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: #f3f6fb;
+  color: #212a38;
+  font: 15px / 1.5 var(--font);
+}
+main {
+  max-width: 960px;
+  margin: auto;
+  padding: 24px clamp(15px, 3.6vw, 50px) 36px;
+}
+header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+h1,
+h2,
+p,
+figure {
+  margin: 0;
+}
+h1 {
+  font-size: clamp(22px, 3vw, 29px);
+  font-weight: 650;
+}
+header small,
+.note {
+  color: #556073;
+  font-size: 13px;
+}
+.page {
+  display: grid;
+  grid-template-columns: minmax(0, 475px) minmax(220px, 1fr);
+  gap: clamp(25px, 5vw, 64px);
+}
+.choices {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+button {
+  cursor: pointer;
+  border: 1px solid #bcc9de;
+  border-radius: 7px;
+  background: #fbfdff;
+  color: #394863;
+  font: inherit;
+  font-size: 14px;
+  padding: 6px 10px;
+}
+button[aria-pressed="true"] {
+  color: white;
+  background: #3252ad;
+  border-color: #3252ad;
+}
+button:focus-visible {
+  outline: 3px solid #7597c9;
+  outline-offset: 2px;
+}
+aside h2,
+legend {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0 0 9px;
+  padding: 0;
+}
+fieldset {
+  min-inline-size: 0;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+aside .note {
+  margin: 12px 0;
+}
+.mini {
+  width: min(240px, 100%);
+  aspect-ratio: 4 / 5;
+  position: relative;
+}
+.mini > .card {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  border-radius: 10.5px;
+}
+.preview-tools {
+  display: grid;
+  gap: 11px;
+  max-width: 100%;
+  width: 260px;
+}
+.preview-tools label {
+  display: block;
+  font: inherit;
+  font-size: 14px;
+}
+#achievement-select {
+  display: block;
+  margin-top: 4px;
+  padding: 6px 8px;
+  border: 1px solid #bac9df;
+  border-radius: 6px;
+  color: #293653;
+  background: #fbfdff;
+  font: inherit;
+  width: 100%;
+  text-overflow: ellipsis;
+}
+.languages {
+  display: flex;
+  gap: 5px;
+}
+
+@media (max-width: 705px) {
+  main {
+    width: min(520px, 100%);
+    padding: 16px 14px 26px;
+  }
+  .page {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+  }
+  .maincard {
+    width: 100%;
+  }
+  aside {
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    margin-bottom: 14px;
+  }
+}
+.preview-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 18px;
+  padding-bottom: 16px;
+  margin-bottom: 17px;
+  border-bottom: 1px solid #dce3ed;
+}
+.select-field {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.select-field span,
+.mode-caption {
+  color: #415269;
+  font-size: 14px;
+  font-weight: 600;
+}
+.preview-bar select {
+  color: #293653;
+  background: #fbfdff;
+  border: 1px solid #bac9df;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 14px;
+  height: 34px;
+  padding: 4px 8px;
+  max-width: 100%;
+}
+#skin-select {
+  min-width: 116px;
+}
+#achievement-select {
+  width: 220px;
+  margin: 0;
+  padding: 4px 7px;
+  height: 34px;
+  font-size: 14px;
+}
+.mode-group,
+.languages {
+  display: flex;
+  gap: 4px;
+}
+.preview-bar button {
+  min-height: 34px;
+  padding: 4px 9px;
+}
+.mode-caption {
+  margin: 0 0 8px 3px;
+}
+.preview-note {
+  margin-top: 15px;
+  color: #556073;
+  font-size: 13px;
+}
+[data-layout="pair"] .page {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(12px, 2.4vw, 28px);
+}
+.primary-sample,
+.dark-sample {
+  min-width: 0;
+}
+[hidden] {
+  display: none !important;
+}
+@media (max-width: 705px) {
+  [data-layout="pair"] main {
+    width: min(680px, 100%);
+  }
+  .preview-bar {
+    gap: 9px 12px;
+  }
+  .mode-caption {
+    margin-bottom: 5px;
+  }
+}
+@media (max-width: 480px) {
+  .preview-bar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 10px;
+  }
+  #skin-select,
+  #achievement-select {
+    width: 100%;
+    min-width: 0;
+  }
+  .preview-bar .languages {
+    align-self: end;
+  }
+  .mode-group {
+    justify-self: end;
+  }
+  .preview-bar button {
+    padding-inline: 7px;
+  }
+  .mode-caption {
+    font-size: 13px;
+  }
+  [data-layout="pair"] .page {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 20px;
+  }
+}
+
+.maincard,
+.paircard {
+  position: relative;
+}
+.card-open {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 21px;
+  background: transparent;
+  cursor: zoom-in;
+  touch-action: manipulation;
+}
+.card-open:focus-visible {
+  outline: 3px solid #3252ad;
+  outline-offset: 3px;
+}
+html.viewing-share {
+  overflow: hidden;
+}
+.share-viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  padding: max(6px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right))
+    max(8px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  background: #111317;
+  color: #fff;
+}
+.viewer-close {
+  justify-self: end;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.viewer-close:hover {
+  background: #ffffff1c;
+}
+.viewer-close:focus-visible {
+  outline: 2px solid #c0d6ff;
+  outline-offset: -3px;
+}
+.viewer-close svg {
+  width: 22px;
+  height: 22px;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  fill: none;
+}
+.viewer-stage {
+  display: grid;
+  place-items: center;
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+  cursor: zoom-out;
+}
+.viewer-stage > .card {
+  box-shadow: none;
+}
+
+/* Keep the printed drawing and the bevel of the solid cutout on separate layers. */
+.figure-glass {
+  position: absolute;
+  left: 0;
+  bottom: 4.85%;
+  width: 100%;
+  height: 95.2%;
+  transform: scaleX(-1);
+  pointer-events: none;
+}
+.standee .ink-density {
+  opacity: 0.24;
+}
+.card[data-mode="dark"] .ink-density {
+  opacity: 0.4;
+}
+.figure-glass > i,
+.figure-glass::before,
+.figure-glass::after {
+  position: absolute;
+  inset: 0;
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center bottom;
+}
+.figure-glass > i {
+  mask-image: var(--figure-mask);
+  background: linear-gradient(
+    128deg,
+    color-mix(in srgb, white 38%, transparent) 0%,
+    color-mix(in srgb, var(--neo-surface) 14%, transparent) 40%,
+    color-mix(in srgb, var(--blue) 7%, transparent) 72%,
+    color-mix(in srgb, var(--neo-surface) 30%, transparent)
+  );
+}
+.figure-glass::before,
+.figure-glass::after {
+  content: "";
+  mask-image: var(--figure-mask), var(--figure-mask);
+  mask-composite: subtract;
+}
+.figure-glass::before {
+  mask-position:
+    calc(50% + 0.17cqw) calc(100% - 0.14cqw),
+    center bottom;
+  background: linear-gradient(145deg, #fff 0%, color-mix(in srgb, white 82%, var(--blue)) 63%, var(--neo-surface));
+}
+.figure-glass::after {
+  mask-position:
+    calc(50% - 0.29cqw) calc(100% + 0.21cqw),
+    center bottom;
+  background: linear-gradient(
+    140deg,
+    color-mix(in srgb, var(--glass-bevel, #b5c8dc) 58%, transparent),
+    color-mix(in srgb, var(--glass-cut, #8aa4bd) 74%, transparent)
+  );
+}
+.card[data-mode="dark"] .figure-glass > i {
+  background: linear-gradient(
+    128deg,
+    color-mix(in srgb, var(--blue) 13%, transparent),
+    color-mix(in srgb, var(--neo-surface) 13%, transparent) 45%,
+    color-mix(in srgb, var(--blue) 6%, transparent)
+  );
+}
+.card[data-mode="dark"] .figure-glass::before {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--glass-flash) 71%, transparent),
+    color-mix(in srgb, var(--blue) 40%, transparent)
+  );
+}
+.card[data-mode="dark"] .figure-glass::after {
+  background: linear-gradient(
+    140deg,
+    color-mix(in srgb, var(--blue) 24%, var(--bg)),
+    color-mix(in srgb, var(--blue) 42%, var(--bg))
+  );
+}
+
+.card[data-skin="gemini"] .figure-glass {
+  --figure-mask: url("./art/gemini/silhouette.webp");
+}
+
+.card[data-skin="grok"] .figure-glass {
+  --figure-mask: url("./art/grok/silhouette.webp");
+}
+.card[data-skin="kimi"] .figure-glass {
+  --figure-mask: url("./art/kimi/silhouette.webp");
+}
+
+.scene-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  flex-basis: 100%;
+  grid-column: 1 / -1;
+}
+.scene-row span {
+  font-size: 14px;
+  font-weight: 600;
+  color: #415269;
+  margin-inline-end: 5px;
+}
+
+.card[data-skin="chatgpt"] .room::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--chatgpt-scene) center / 100% 100% no-repeat;
+  pointer-events: none;
+}
+.card[data-skin="chatgpt"] .light {
+  opacity: 0.15;
+}
+body[data-scene="tide"] .card[data-skin="chatgpt"][data-mode="light"] {
+  --chatgpt-scene: url("../../../assets/achievement-share/chatgpt/background-light.webp");
+}
+body[data-scene="tide"] .card[data-skin="chatgpt"][data-mode="dark"] {
+  --chatgpt-scene: url("../../../assets/achievement-share/chatgpt/background-dark.webp");
+}
+
+.scene-row[hidden],
+.material-options[hidden] {
+  display: none;
+}
+.material-buttons,
+.material-options {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+@media (min-width: 650px) {
+  .material-options {
+    margin-inline-start: 12px;
+  }
+}
+@media (max-width: 649px) {
+  .material-options {
+    flex-basis: 100%;
+  }
+}
+body[data-scene="tide"] .card[data-skin="chatgpt"] :is(.figure-glass, .ink-density) {
+  display: none;
+}
+
+body[data-scene="sea"] .card[data-skin="deepseek"] .room {
+  background: var(--sea-room) center / 100% 100% no-repeat;
+}
+body[data-scene="sea"] .card[data-skin="deepseek"] .light,
+body[data-scene="sea"] .card[data-skin="deepseek"] .table,
+body[data-scene="sea"] .card[data-skin="deepseek"] .figure-glass,
+body[data-scene="sea"] .card[data-skin="deepseek"] .ink-density {
+  display: none;
+}
+body[data-material="flat"] .card[data-skin="deepseek"] .character {
+  opacity: 0;
+}
+body[data-material="flat"] .card[data-skin="deepseek"] .room::before {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  inset: auto;
+  left: 17%;
+  top: 81.94805194805195%;
+  width: 25%;
+  height: 10%;
+  background: var(--sea-shoe-back) center / 100% 100% no-repeat;
+}
+body[data-material="flat"] .card[data-skin="deepseek"] .room::after {
+  content: "";
+  position: absolute;
+  inset: auto;
+  left: 17%;
+  top: 81.94805194805195%;
+  width: 25%;
+  height: 10%;
+  background: var(--sea-shoe-glass) center / 100% 100% no-repeat;
+  pointer-events: none;
+  z-index: 1;
+}
+body[data-scene="sea"] .card[data-skin="deepseek"] .award {
+  z-index: 2;
+}
+body[data-material="relief"] .card[data-skin="deepseek"][data-mode="light"] {
+  --sea-room: url("../../../assets/achievement-share/deepseek/background-light.webp");
+}
+body[data-material="flat"] .card[data-skin="deepseek"][data-mode="light"] {
+  --sea-room: url("./art/deepseek/sea-flat-light.webp");
+  --sea-shoe-back: url("./art/deepseek/shoe-back-light.webp");
+  --sea-shoe-glass: url("./art/deepseek/shoe-flat-light.webp");
+}
+body[data-material="relief"] .card[data-skin="deepseek"][data-mode="dark"] {
+  --sea-room: url("../../../assets/achievement-share/deepseek/background-dark.webp");
+}
+body[data-material="flat"] .card[data-skin="deepseek"][data-mode="dark"] {
+  --sea-room: url("./art/deepseek/sea-flat-dark.webp");
+  --sea-shoe-back: url("./art/deepseek/shoe-back-dark.webp");
+  --sea-shoe-glass: url("./art/deepseek/shoe-flat-dark.webp");
+}
+
+.card[data-skin="qwen"] .room {
+  background:
+    var(--room-texture, none) center / 100% 100% no-repeat,
+    radial-gradient(ellipse at 27% 33%, var(--room-halo), transparent 52%),
+    linear-gradient(118deg, var(--room-edge) -13%, var(--bg) 32%, var(--neo-surface) 75%, var(--room-edge) 112%);
+}
+.card[data-skin="qwen"] :is(.figure-glass, .ink-density) {
+  display: none;
+}
+body[data-preview-skin="qwen"][data-material="refraction"] .character-frame {
+  display: contents;
+}
+body[data-preview-skin="qwen"][data-material="lineart"] .character-frame {
+  position: absolute;
+  left: 0;
+  bottom: 4.85%;
+  width: 100%;
+  height: 95.2%;
+  container-type: size;
+  pointer-events: none;
+}
+body[data-preview-skin="qwen"][data-material="lineart"] .standee .character-frame .character {
+  left: 50%;
+  bottom: 0;
+  width: min(calc(100cqw * 1024 / 941), calc(100cqh * 1024 / 1672));
+  height: auto;
+  max-width: none;
+  transform: translate(-50.048828125%, 3.3482142857%) scaleX(-1);
+}
+body[data-preview-skin="qwen"][data-texture="fan"] .card[data-mode="light"] .room {
+  --room-texture:
+    radial-gradient(
+      ellipse 24% 29% at 29% 19%,
+      rgba(250, 252, 247, 0.59),
+      rgba(248, 252, 246, 0.32) 48%,
+      transparent 100%
+    ),
+    url(../../../assets/achievement-share/qwen/background-light.webp);
+}
+body[data-preview-skin="qwen"][data-texture="fan"] .card[data-mode="dark"] .room {
+  --room-texture: url(../../../assets/achievement-share/qwen/background-dark.webp);
+}
+body[data-preview-skin="qwen"] .optical-plane {
+  display: none;
+}
+body[data-preview-skin="qwen"][data-material="lineart"] .optical-plane {
+  display: block;
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: min(calc(100cqw * 1024 / 941), calc(100cqh * 1024 / 1672));
+  aspect-ratio: 948 / 1659;
+  pointer-events: none;
+  background-repeat: no-repeat;
+  background-image: var(--raw);
+  background-size: 93.2286% 93.3982%;
+  background-position: 54.8% 50.43%;
+  transform: translate(-50.048828125%, 3.3482142857%) scaleX(-1) matrix(1, 0.0005552, 0.0017281, 1, 0, 0);
+}
+body[data-preview-skin="qwen"][data-texture="fan"][data-material="lineart"] .card .character {
+  visibility: hidden;
+}
+body[data-preview-skin="qwen"] .card[data-mode="light"] {
+  --raw: url(../../../assets/skins/light/Qwen-side-lineart.webp);
+}
+body[data-preview-skin="qwen"] .card[data-mode="dark"] {
+  --raw: url(../../../assets/skins/dark/Qwen-side-dark-lineart.webp);
+}
+.card[data-skin="claude"][data-mode="light"] .room {
+  background: center / cover no-repeat url("../../../assets/achievement-share/claude/background-light.png");
+}
+.card[data-skin="claude"][data-mode="dark"] .room {
+  background: center / cover no-repeat url("../../../assets/achievement-share/claude/background-dark.png");
+}
+.card[data-skin="glm"][data-mode="light"] .room {
+  background: center / 100% 100% no-repeat url("../../../assets/achievement-share/glm/background-light.webp");
+}
+.card[data-skin="glm"][data-mode="dark"] .room {
+  background: center / 100% 100% no-repeat url("../../../assets/achievement-share/glm/background-dark.webp");
+}
+.card[data-skin="gemini"][data-mode="light"] .room {
+  background: center / 100% 100% no-repeat url("../../../assets/achievement-share/gemini/background-light.webp");
+}
+.card[data-skin="gemini"][data-mode="dark"] .room {
+  background: center / 100% 100% no-repeat url("../../../assets/achievement-share/gemini/background-dark.webp");
+}
+.card[data-skin="kimi"][data-mode="light"] .room {
+  background: center / 100% 100% no-repeat url("../../../assets/achievement-share/kimi/background-light.webp");
+}
+.card[data-skin="kimi"][data-mode="dark"] .room {
+  background: center / 100% 100% no-repeat url("../../../assets/achievement-share/kimi/background-dark.webp");
+}
+.card[data-skin="grok"][data-mode="light"] .room {
+  background: center / 100% 100% no-repeat url("../../../assets/achievement-share/grok/background-light.webp");
+}
+.card[data-skin="grok"][data-mode="dark"] .room {
+  background: center / 100% 100% no-repeat url("../../../assets/achievement-share/grok/background-dark.webp");
+}
+.card[data-skin="grok"] :is(.table, .light, .figure-glass, .ink-density),
+.card[data-skin="grok"] .room::before,
+.card[data-skin="grok"] .room::after {
+  display: none;
+}
+.card[data-skin="claude"] :is(.table, .light, .figure-glass, .ink-density) {
+  display: none;
+}
+body[data-material="refraction"] .card[data-skin="qwen"] .character,
+body[data-material="relief"] .card:is([data-skin="chatgpt"], [data-skin="deepseek"]) .character,
+.card[data-skin="claude"] .character,
+.card[data-skin="glm"] .character,
+.card[data-skin="gemini"] .character,
+.card[data-skin="kimi"] .character,
+.card[data-skin="grok"] .character {
+  opacity: 1;
+  filter: none;
+  mix-blend-mode: normal;
+}
+.card:is([data-skin="glm"], [data-skin="gemini"], [data-skin="kimi"]) :is(.table, .light, .figure-glass, .ink-density),
+.card:is([data-skin="glm"], [data-skin="gemini"], [data-skin="kimi"]) .room::before,
+.card:is([data-skin="glm"], [data-skin="gemini"], [data-skin="kimi"]) .room::after {
+  display: none;
+}
+.card[data-skin="glm"] .character {
+  transform: none;
+}

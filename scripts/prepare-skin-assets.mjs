@@ -3,17 +3,17 @@
  *
  *   node scripts/prepare-skin-assets.mjs prepare        # write derived artifacts (authoring checkout)
  *   node scripts/prepare-skin-assets.mjs check          # verify what ships, read-only
- *   node scripts/prepare-skin-assets.mjs check-sources  # check + bind the 40 authoring PNGs
+ *   node scripts/prepare-skin-assets.mjs check-sources  # check + bind the authoring PNGs
  *
  * Scope and honest limits:
  *   - Node has no built-in image encoder, and these commands may only use built-in
  *     fs/path without adding production dependencies. So this script never
- *     re-encodes the 40 public WebP copies. Those come from the one-off
+ *     re-encodes the public WebP copies. Those come from the
  *     development generator documented in plan 3.4.
  *   - `prepare` derives everything that follows from the registry: the asset
  *     manifest (with expected hashes) and the synchronous bootstrap script.
  *   - `check` verifies only what a release archive contains: the registry
- *     contract, the 40 committed WebP copies against the recorded hashes, the
+ *     contract, the committed WebP copies against the recorded hashes, the
  *     manifest and the bootstrap. `.gitignore` keeps
  *     `lineart assets/` local, so this command must pass in a tree without the
  *     authoring PNGs.
@@ -28,7 +28,7 @@
 
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
-import { readFile, rename, writeFile } from "node:fs/promises";
+import { readdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -183,12 +183,18 @@ async function prepare(tree) {
 // check
 // ---------------------------------------------------------------------------
 
-/** Registry contract: 40 assets, one URL each, extension and file name agree. */
+/** Every character has one image for each mode and view. */
 function checkRegistry(sources) {
   const problems = [];
   const registryUrls = new Set();
-  if (sources.length !== 40) problems.push(`registry enumerates ${sources.length} source assets, expected 40`);
+  const expected = new Set(
+    skins.SKINS.filter((skin) => !skin.isClassic).flatMap(({ id }) =>
+      skins.SKIN_MODES.flatMap((mode) => skins.CHARACTER_VIEWS.map((view) => `${id}/${mode}/${view}`)),
+    ),
+  );
   for (const entry of sources) {
+    const slot = `${entry.skinId}/${entry.mode}/${entry.view}`;
+    if (!expected.delete(slot)) problems.push(`unexpected or duplicate image slot: ${slot}`);
     registryUrls.add(entry.publicUrl);
     if (!entry.publicUrl.startsWith(`/assets/skins/${entry.mode}/`)) {
       problems.push(`${entry.skinId}/${entry.mode}/${entry.view}: unexpected public path ${entry.publicUrl}`);
@@ -200,6 +206,7 @@ function checkRegistry(sources) {
       problems.push(`${entry.skinId}/${entry.mode}/${entry.view}: URL file name does not match expected name`);
     }
   }
+  for (const slot of expected) problems.push(`registry is missing image slot: ${slot}`);
   if (registryUrls.size !== sources.length) problems.push("registry contains duplicate public URLs");
   return { problems, registryUrls };
 }
@@ -210,6 +217,21 @@ function checkRegistry(sources) {
  */
 async function checkPublicTree(tree, sources, registryUrls) {
   const problems = [];
+  for (const mode of skins.SKIN_MODES) {
+    const dir = `assets/skins/${mode}`;
+    let files;
+    try {
+      files = await readdir(path.join(tree.publicDir, dir));
+    } catch (error) {
+      if (error.code !== "ENOENT") throw error;
+      files = [];
+    }
+    for (const file of files) {
+      const url = `/${dir}/${file}`;
+      if (file.toLowerCase().endsWith(".webp") && !registryUrls.has(url))
+        problems.push(`unregistered public skin image: ${url}`);
+    }
+  }
   const manifestRaw = await readMaybe(tree.manifestFile);
   if (!manifestRaw) {
     problems.push(`missing ${path.relative(tree.root, tree.manifestFile)}; run skins:prepare`);

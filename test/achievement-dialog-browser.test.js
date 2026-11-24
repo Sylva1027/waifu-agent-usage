@@ -40,8 +40,16 @@ async function setup(t, options = {}) {
     await fixture.close();
   });
   if (options.edition !== "lite") await fixture.ready();
-  browser = await runtime.chromium.launch({ executablePath: runtime.executablePath, headless: true });
-  const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" });
+  browser = await runtime.chromium.launch({
+    executablePath: runtime.executablePath,
+    headless: true,
+    args: options.graphics ? ["--enable-unsafe-swiftshader", "--use-gl=angle", "--use-angle=swiftshader"] : [],
+  });
+  const page = await browser.newPage({
+    viewport: { width: 1440, height: 1000 },
+    reducedMotion: "reduce",
+    hasTouch: options.hasTouch ?? false,
+  });
   await page.addInitScript((key) => {
     localStorage.setItem("codexUsageAutoRefresh", "off");
     localStorage.setItem("codexUsageLocale", "zh-CN");
@@ -131,6 +139,225 @@ test("production modal uses real API progress and dates; material preview is rea
   assert.deepEqual(errors, []);
 });
 
+test("the achievement share button exports the displayed earned medal and returns to its opener", async (t) => {
+  const { fixture, page, errors, requests } = await setup(t, { graphics: true });
+  await page.goto(fixture.url);
+  await open(page);
+  const share = page.locator("#achievementShareToggle");
+  const status = page.locator("#achievementStatusFilter");
+  assert.equal(await share.locator("svg").innerHTML(), await page.locator("#shareToggle svg").innerHTML());
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 1000 });
+    // Read both controls in the same layout after resizing the modal.
+    const { control, action } = await status.evaluate((filter) => ({
+      control: filter.getBoundingClientRect().toJSON(),
+      action: document.querySelector("#achievementShareToggle").getBoundingClientRect().toJSON(),
+    }));
+    assert.ok(action.x >= control.x + control.width);
+    assert.equal(action.height, control.height);
+    assert.equal(action.y, control.y);
+  }
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.locator('[data-category="用量规模"]').click();
+  await page.locator('[data-achievement="A01"]').click();
+  await page.locator('[data-preview-grade="gold"]').click();
+  assert.equal(await share.isEnabled(), false);
+  assert.equal(
+    requests.some(({ path }) => path === "/achievement-share-card.js"),
+    false,
+  );
+  await page.locator('[data-preview-grade="bronze"]').click();
+  assert.equal(await share.isEnabled(), true);
+  await share.click();
+  await page.locator('#shareDialog[data-layout="achievement"][open]').waitFor();
+  await page.waitForFunction(() => !document.querySelector("#saveShareImage").disabled);
+  const result = await page.locator("#shareImage").evaluate(async (image) => {
+    await image.decode();
+    const canvas = document.createElement("canvas");
+    canvas.width = image.naturalWidth;
+    canvas.height = image.naturalHeight;
+    const context = canvas.getContext("2d");
+    context.drawImage(image, 0, 0);
+    return {
+      ratio: image.naturalWidth / image.naturalHeight,
+      corner: context.getImageData(0, 0, 1, 1).data[3],
+      body: context.getImageData(canvas.width / 2, canvas.height / 2, 1, 1).data[3],
+    };
+  });
+  assert.deepEqual(result, { ratio: 0.8, corner: 0, body: 255 });
+  for (const [width, height] of [
+    [1440, 1000],
+    [1440, 620],
+    [390, 844],
+    [320, 480],
+  ]) {
+    await page.setViewportSize({ width, height });
+    const { gaps, dialogWidth, horizontalOverflow } = await page.locator("#shareDialog").evaluate((dialog) => {
+      const well = dialog.querySelector(".share-preview-well").getBoundingClientRect();
+      const card = dialog.querySelector("#shareImage").getBoundingClientRect();
+      return {
+        gaps: [card.left - well.left, well.right - card.right, card.top - well.top, well.bottom - card.bottom],
+        dialogWidth: dialog.getBoundingClientRect().width,
+        horizontalOverflow: dialog.scrollWidth > dialog.clientWidth,
+      };
+    });
+    assert.ok(dialogWidth <= Math.min(497, width - 40));
+    assert.equal(horizontalOverflow, false);
+    assert.ok(
+      gaps.every((gap) => Math.abs(gap - 17) < 0.1),
+      `Uneven preview margins at ${width}×${height}: ${gaps}`,
+    );
+  }
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  assert.ok(requests.some(({ path }) => path.startsWith("/assets/achievement-share/chatgpt/")));
+  const download = page.waitForEvent("download");
+  await page.locator("#saveShareImage").click();
+  assert.match((await download).suggestedFilename(), /\.png$/);
+  await page.keyboard.press("Escape");
+  assert.ok(await page.locator("#achievementDialog").evaluate((dialog) => dialog.open));
+  assert.equal(await page.evaluate(() => document.activeElement.id), "achievementShareToggle");
+  assert.deepEqual(errors, []);
+});
+
+test("only the displayed earned tier loads and draws the 3D badge; redraws, fallback and closing preserve the original", async (t) => {
+  const { fixture, page, errors, requests } = await setup(t, { graphics: true, hasTouch: true });
+  const bundle = "/waifu-achievement-badge.js";
+  const canvas = page.locator("#achievementDetail .badge-canvas");
+  const image = page.locator(".detail-panel > img.badge");
+  await page.addInitScript(() => {
+    const clear = WebGL2RenderingContext.prototype.clear;
+    window.badgeFrames = [];
+    WebGL2RenderingContext.prototype.clear = function (...args) {
+      if (this.canvas.classList.contains("badge-canvas")) window.badgeFrames.push(performance.now());
+      return clear.apply(this, args);
+    };
+  });
+  await page.goto(fixture.url);
+  await open(page);
+  await page.locator('[data-category="用量规模"]').click();
+  await page.locator('[data-achievement="A01"]').click();
+  assert.equal(await canvas.count(), 0, "Reduced motion uses the WebP on an earned tier");
+  await page.locator('[data-preview-grade="gold"]').click();
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
+  assert.equal(await canvas.count(), 0, "A locked gold preview on an earned silver badge stays static");
+  assert.equal(requests.filter(({ path }) => path === bundle).length, 0);
+
+  // Hold a real module response until the user has already left the earned tier.
+  const loading = Promise.withResolvers();
+  const release = Promise.withResolvers();
+  await page.route(
+    `**${bundle}`,
+    async (route) => {
+      loading.resolve();
+      await release.promise;
+      await route.continue();
+    },
+    { times: 1 },
+  );
+  await page.locator('[data-preview-grade="silver"]').click();
+  await loading.promise;
+  assert.equal(await image.evaluate((node) => getComputedStyle(node).opacity), "1");
+  await page.locator('[data-preview-grade="gold"]').click();
+  const arrived = page.waitForResponse((response) => new URL(response.url()).pathname === bundle);
+  release.resolve();
+  await arrived;
+  assert.equal(await canvas.count(), 0);
+  assert.equal(await image.evaluate((node) => getComputedStyle(node).opacity), "0.22");
+  assert.equal(await page.evaluate(() => window.badgeFrames.length), 0);
+
+  await page.locator('[data-preview-grade="silver"]').click();
+  await page.locator(".detail-panel > .badge-canvas.is-ready").waitFor();
+  const retained = await canvas.elementHandle();
+  for (const [height, size] of [
+    [1000, 120],
+    [660, 72],
+  ]) {
+    await page.setViewportSize({ width: 1440, height });
+    // The resize handler can reposition the dialog between browser calls.
+    const { original, overlay } = await image.evaluate((badge) => ({
+      original: badge.getBoundingClientRect().toJSON(),
+      overlay: badge.parentElement.querySelector(".badge-canvas").getBoundingClientRect().toJSON(),
+    }));
+    assert.equal(original.width, size);
+    assert.deepEqual(overlay, original);
+  }
+  await page.locator('[data-preview-grade="silver"]').click();
+  assert.ok(await retained.evaluate((node) => node === document.querySelector(".detail-panel > canvas")));
+  assert.equal(await image.evaluate((node) => getComputedStyle(node).opacity), "0");
+  const badgeBox = await image.boundingBox();
+  assert.equal(
+    await page.evaluate(() => matchMedia("(hover: hover) and (pointer: fine)").matches),
+    false,
+    "The primary input is touch while a separate mouse drives the badge",
+  );
+  for (const [edge, x, y, axis, sign] of [
+    ["left", 0.1, 0.5, 2, 1],
+    ["right", 0.9, 0.5, 2, -1],
+    ["top", 0.5, 0.1, 6, -1],
+    ["bottom", 0.5, 0.9, 6, 1],
+  ]) {
+    await page.mouse.move(badgeBox.x + badgeBox.width * x, badgeBox.y + badgeBox.height * y);
+    // In the actual vertex shader's model-view matrix, entries 2 and 6 are the
+    // right/up axes' camera-space Z components. Increasing Z approaches the viewer.
+    await page
+      .waitForFunction(
+        ([axis, sign]) => {
+          const gl = document.querySelector(".badge-canvas").getContext("webgl2");
+          const program = gl.getParameter(gl.CURRENT_PROGRAM);
+          const location = program && gl.getUniformLocation(program, "modelViewMatrix");
+          return location && gl.getUniform(program, location)[axis] * sign > 0.04;
+        },
+        [axis, sign],
+        { timeout: 4000 },
+      )
+      .catch((cause) => {
+        throw new Error(`Hovering the ${edge} edge must tilt it away from the viewer`, { cause });
+      });
+  }
+  const frameTimes = await image.evaluate(async (node) => {
+    const rect = node.getBoundingClientRect();
+    const start = performance.now();
+    window.badgeFrames = [];
+    await new Promise((done) => {
+      function move(now) {
+        if (now - start >= 1500) return done();
+        node.dispatchEvent(
+          new PointerEvent("pointermove", {
+            bubbles: true,
+            pointerType: "mouse",
+            clientX: rect.left + rect.width * (0.5 + Math.sin(now / 140) * 0.4),
+            clientY: rect.top + rect.height / 2,
+          }),
+        );
+        requestAnimationFrame(move);
+      }
+      requestAnimationFrame(move);
+    });
+    return window.badgeFrames;
+  });
+  assert.ok(frameTimes.length >= 2 && frameTimes.length <= 20, `Unexpected draw count in 1.5 s: ${frameTimes.length}`);
+  await page.locator("#achievementDetail").dispatchEvent("pointerleave");
+  await page.waitForTimeout(250);
+  const idle = await page.evaluate(() => window.badgeFrames.length);
+  await image.dispatchEvent("pointermove", {
+    pointerType: "touch",
+    clientX: badgeBox.x + badgeBox.width * 0.9,
+    clientY: badgeBox.y + badgeBox.height * 0.5,
+  });
+  await page.waitForTimeout(250);
+  assert.equal(await page.evaluate(() => window.badgeFrames.length), idle);
+  await canvas.evaluate((node) => node.getContext("webgl2").getExtension("WEBGL_lose_context").loseContext());
+  await canvas.waitFor({ state: "detached" });
+  assert.equal(await image.evaluate((node) => getComputedStyle(node).opacity), "1");
+  assert.ok(await image.evaluate((node) => node.complete && node.naturalWidth === 256));
+  await page.locator('[data-preview-grade="bronze"]').click();
+  await page.locator(".badge-canvas.is-ready").waitFor();
+  await page.keyboard.press("Escape");
+  await canvas.waitFor({ state: "detached" });
+  assert.deepEqual(errors, []);
+});
+
 test("S07 desktop geometry, filters, search, focus and bilingual themed card presentation remain stable", async (t) => {
   const { fixture, page, errors } = await setup(t);
   await page.goto(fixture.url);
@@ -212,7 +439,8 @@ test("S07 desktop geometry, filters, search, focus and bilingual themed card pre
 });
 
 test("an empty archive, initial network failure and retry never display invented awards; a later failure preserves complete rows", async (t) => {
-  const { fixture, page, errors } = await setup(t, { empty: true });
+  const { fixture, page, errors, requests } = await setup(t, { empty: true });
+  await page.emulateMedia({ reducedMotion: "no-preference" });
   let reject = true;
   await page.route("**/api/achievements", async (route) => {
     if (reject) await route.fulfill({ status: 503, json: { error: "isolated failure" } });
@@ -255,6 +483,8 @@ test("an empty archive, initial network failure and retry never display invented
   }
   await page.locator('[data-category="故事纪念"]').click();
   await page.locator('[data-achievement="A31"]').click();
+  assert.equal(await page.locator(".detail-panel > canvas").count(), 0);
+  assert.equal(requests.filter(({ path }) => path === "/waifu-achievement-badge.js").length, 0);
   assert.equal(
     await page.locator(".detail-panel > .badge").evaluate((badge) => getComputedStyle(badge).opacity),
     "0.22",

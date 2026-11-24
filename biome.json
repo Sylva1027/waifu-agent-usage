@@ -11,9 +11,13 @@
       "public/**",
       "test/**",
       "scripts/skin-palette/**",
+      "scripts/waifu-visuals/**",
       "test-support/skin-palette-fixture.mjs",
       "test-support/usage-fixture.mjs",
       "!!docs/validation",
+      "!!public/waifu-achievement-badge.js",
+      "!!public/waifu-achievement-notice-effect.js",
+      "!!public/waifu-visuals-core.js",
       "!!.tmp",
       "!!output"
     ],
@@ -29,6 +33,7 @@
       "public/**",
       "test/**",
       "scripts/skin-palette/**",
+      "scripts/waifu-visuals/**",
       "test-support/skin-palette-fixture.mjs",
       "test-support/usage-fixture.mjs",
       "!public/skin-bootstrap.js"

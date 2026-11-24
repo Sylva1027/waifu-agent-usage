@@ -225,6 +225,10 @@ test("real multi-award batch merges into one S07 notice; cross-level upgrade, pr
   assert.equal(style.animation, "none");
   assert.equal(style.inside, true);
   assert.equal(style.children, 0);
+  assert.ok(
+    !requests.some(({ path }) => path === "/waifu-achievement-notice-effect.js"),
+    "reduced motion keeps the notice static",
+  );
   await viewRecent(page, fixture, earned);
   assert.equal(await page.locator("#achievementList .achievement-row").count(), 6);
   await page.locator("#achievementToggle").click();
@@ -390,8 +394,10 @@ test("a delayed real GET cannot roll back a newer event or acknowledge an unseen
   const stale = await gate.entered;
   assert.equal(stale.awardRevision, initial.awardRevision);
   const newer = await fixture.addGold();
+  assert.ok(newer.awardRevision > stale.awardRevision);
   await eventAt(page, newer);
   await page.keyboard.press("Escape");
+  await page.locator("#achievementDialog").waitFor({ state: "hidden" });
   await gate.release();
   await notice(page, true);
   assert.equal((await fixture.snapshot()).seenAwardRevision, initial.awardRevision);
@@ -474,4 +480,52 @@ test("a successful real share download awards A43 and notifies a second page wit
   const replay = await post(fixture, "/api/achievements/operations", receipt);
   assert.equal(replay.recorded, false);
   assert.equal(replay.snapshot.awardRevision, shared.awardRevision);
+});
+
+test("an accepted award plays one local visual and a modal cancels an outstanding visual import without acknowledging", {
+  timeout: 60_000,
+}, async (t) => {
+  const { fixture, newPage } = await setup(t);
+  const live = await newPage(),
+    delayed = await newPage();
+  const modulePath = "/waifu-achievement-notice-effect.js";
+  for (const { page, requests } of [live, delayed]) {
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    await page.addInitScript(() => {
+      window.noticeEffectCount = 0;
+      new MutationObserver((records) => {
+        for (const record of records)
+          for (const node of record.addedNodes)
+            if (node.classList?.contains("achievement-notice-effect")) window.noticeEffectCount++;
+      }).observe(document, { subtree: true, childList: true });
+    });
+    await visit(page, fixture);
+    await notice(page, true);
+    assert.ok(!requests.some(({ path }) => path === modulePath), "historical unread does not load the renderer");
+  }
+  const baseline = await fixture.snapshot();
+  const gate = await hold(t, delayed.page, modulePath);
+  const award = await fixture.addGold();
+  await Promise.all([eventAt(live.page, award), gate.entered]);
+  await live.page.waitForFunction(() => window.noticeEffectCount === 1);
+  await live.page.waitForFunction(() => !document.querySelector(".achievement-notice-effect"));
+  await delayed.page.locator("#skinToggle").click();
+  await delayed.page.locator("#skinDialog").waitFor({ state: "visible" });
+  await delayed.page.keyboard.press("Escape");
+  await delayed.page.locator("#skinDialog").waitFor({ state: "hidden" });
+  await gate.release();
+  await delayed.page.evaluate(async (path) => {
+    await import(path);
+    await new Promise(requestAnimationFrame);
+  }, modulePath);
+  const progress = await fixture.appendBatch([{ total: 1 }]);
+  assert.equal(progress.awardRevision, award.awardRevision);
+  await Promise.all([eventAt(live.page, progress), eventAt(delayed.page, progress)]);
+  assert.equal(await live.page.evaluate(() => window.noticeEffectCount), 1);
+  assert.equal(await delayed.page.evaluate(() => window.noticeEffectCount), 0);
+  for (const { page, requests } of [live, delayed]) {
+    await notice(page, true);
+    assert.ok(!requests.some(({ path }) => path === "/api/achievements/seen"));
+  }
+  assert.equal((await fixture.snapshot()).seenAwardRevision, baseline.seenAwardRevision);
 });

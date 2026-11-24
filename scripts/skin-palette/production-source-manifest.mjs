@@ -1,14 +1,13 @@
 import path from "node:path";
 import { enumerateSourceAssets } from "../../public/skins.js";
 import { SOURCE_FILES } from "./capture.mjs";
-import { sha256Canonical, validateCandidateSet } from "./contracts.mjs";
+import { sha256Canonical, SOURCE_ASSET_COUNT, validateCandidateSet } from "./contracts.mjs";
 import { verifyProductionSourceTransition } from "./production-source-transition.mjs";
 import { GENERATED_ASSET_TOOL_FILES, verifyProductionGeneratedAssets } from "./review-production.mjs";
 
 const SHA256_RE = /^[a-f0-9]{64}$/;
 const URL_LIKE_PATH = /^(?:[a-z][a-z0-9+.-]*:\/\/|(?:file|https?|ftp|data|blob|ws|wss|url):)/i;
 const VALIDATION_PREFIX = ["docs", "validation"];
-const SOURCE_ASSET_COUNT = 40;
 const PRODUCTION_MANIFEST_KIND = "skin-palette-production-source-manifest";
 const FIXED_ORIGIN_FILES = Object.freeze({
   candidateSet: "candidates.json",
@@ -139,7 +138,9 @@ function registeredAssetPaths() {
     new Set(sourcePaths).size !== SOURCE_ASSET_COUNT ||
     new Set(publicPaths).size !== SOURCE_ASSET_COUNT
   ) {
-    throw new TypeError("registered source assets must contain exactly 40 unique sourcePath and publicPath entries");
+    throw new TypeError(
+      "registered source assets must contain one unique sourcePath and publicPath for every registered asset",
+    );
   }
   return { sourcePaths, publicPaths };
 }

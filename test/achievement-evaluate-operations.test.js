@@ -75,22 +75,22 @@ test("share deduplicates data snapshots across copy, save, layout, metric and th
   assert.deepEqual(evaluateOperationAchievements(context(operations)), { A43: 2n, A44: 0n, A46: 0n });
 });
 
-test("skin uses canonical registry character IDs and excludes classic, variants, aliases and missing payloads", () => {
-  assert.equal(characterIds.length, 10);
+test("skin uses active registry IDs and excludes retired skins, classic, variants, aliases and missing payloads", () => {
+  assert.equal(characterIds.length, Number(ACHIEVEMENT_CATALOG.find(({ id }) => id === "A44").thresholds[0]));
   const operations = [
     ...characterIds.flatMap((characterId) => [
       receipt("skin", `${characterId}-light`, { characterId, mode: "light", opacity: 0.5 }),
       receipt("skin", `${characterId}-dark`, { characterId, mode: "dark", opacity: 1 }),
     ]),
-    ...["classic", "chatgpt-light", "chatgpt/dark", "ChatGPT", "unknown", "", null, 1].map((characterId, i) =>
-      receipt("skin", `invalid-${i}`, { characterId }),
+    ...["muse", "mimo", "classic", "chatgpt-light", "chatgpt/dark", "ChatGPT", "unknown", "", null, 1].map(
+      (characterId, i) => receipt("skin", `invalid-${i}`, { characterId }),
     ),
     receipt("skin", "missing-character", { skinId: "chatgpt" }),
     receipt("skin", "null-payload", null),
     receipt("skin-preview", "preview", { characterId: "chatgpt" }),
     receipt("skin-preload", "preload", { characterId: "claude" }),
   ];
-  assert.deepEqual(evaluateOperationAchievements(context(operations)), { A43: 0n, A44: 10n, A46: 0n });
+  assert.deepEqual(evaluateOperationAchievements(context(operations)), { A43: 0n, A44: 8n, A46: 0n });
   assert.equal(evaluateOperationAchievements(context([receipt("skin", "alias", { characterId: "ChatGPT" })])).A44, 0n);
 });
 

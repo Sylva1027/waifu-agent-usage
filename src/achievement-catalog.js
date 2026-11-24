@@ -1,5 +1,5 @@
 // Approved R7 IDs, tiers and thresholds. No sample progress or authoring dependencies.
-export const ACHIEVEMENT_RULES_VERSION = "R7-production-1";
+export const ACHIEVEMENT_RULES_VERSION = "R7-production-2";
 export const ACHIEVEMENT_CATALOG = Object.freeze(
   [
     {
@@ -130,7 +130,7 @@ export const ACHIEVEMENT_CATALOG = Object.freeze(
     {
       id: "A44",
       tiers: ["stone"],
-      thresholds: ["10"],
+      thresholds: ["8"],
     },
     {
       id: "A46",

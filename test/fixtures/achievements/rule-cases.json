@@ -2096,14 +2096,14 @@
     {
       "id": "A44",
       "tiered": false,
-      "thresholds": ["10"],
+      "thresholds": ["8"],
       "requires": null,
       "boundaryCases": [
         {
           "caseId": "A44-stone-below",
-          "requestedMetric": "9",
-          "effectiveMetric": "9",
-          "target": "10",
+          "requestedMetric": "7",
+          "effectiveMetric": "7",
+          "target": "8",
           "expected": {
             "reachesTarget": false,
             "highestEarned": null
@@ -2111,9 +2111,9 @@
         },
         {
           "caseId": "A44-stone-at",
-          "requestedMetric": "10",
-          "effectiveMetric": "10",
-          "target": "10",
+          "requestedMetric": "8",
+          "effectiveMetric": "8",
+          "target": "8",
           "expected": {
             "reachesTarget": true,
             "highestEarned": "stone"
@@ -2121,9 +2121,9 @@
         },
         {
           "caseId": "A44-stone-above",
-          "requestedMetric": "11",
-          "effectiveMetric": "10",
-          "target": "10",
+          "requestedMetric": "9",
+          "effectiveMetric": "8",
+          "target": "8",
           "expected": {
             "reachesTarget": true,
             "highestEarned": "stone"

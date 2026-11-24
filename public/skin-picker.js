@@ -9,7 +9,7 @@
  *   - The close button, a click on the backdrop and Escape all run one close
  *     function that restores focus and the previous scroll position. Clicks
  *     inside the content never close it.
- *   - All ten character skins render in the comparison matrix. Classic
+ *   - All character skins render in the comparison matrix. Classic
  *     stays in the registry and remains reachable through its separate button.
  */
 
@@ -28,8 +28,6 @@ const previewComposition = {
   kimi: { anchorX: 51.5, stageX: 76, top: 2, scale: 2.15 },
   qwen: { anchorX: 48, stageX: 76, top: 2, scale: 2.15 },
   grok: { anchorX: 55, stageX: 76, top: -20, scale: 2.15 },
-  muse: { anchorX: 48.5, stageX: 74, top: -5, scale: 2.15 },
-  mimo: { anchorX: 48, stageX: 72, top: -10, scale: 2.15 },
 };
 
 /**

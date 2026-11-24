@@ -157,7 +157,7 @@ test("buildSkinBootstrapSource：覆盖单角色只改该角色两模式 palette
 
 test("buildSkinBootstrapSource：未知 id、classic、半套、未知模式与坏色值显式抛错", () => {
   const full = { light: makeTokens(), dark: makeTokens() };
-  assert.throws(() => buildSkinBootstrapSource({ foo: full }), /不是十套角色皮肤/);
+  assert.throws(() => buildSkinBootstrapSource({ foo: full }), /不是现役角色皮肤/);
   assert.throws(() => buildSkinBootstrapSource({ classic: full }), /classic 不可覆盖/);
   assert.throws(() => buildSkinBootstrapSource({ kimi: { light: makeTokens() } }), /缺少自有属性 dark/);
   assert.throws(() => buildSkinBootstrapSource({ kimi: { dark: makeTokens() } }), /缺少自有属性 light/);

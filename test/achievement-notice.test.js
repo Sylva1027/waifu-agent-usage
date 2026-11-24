@@ -59,4 +59,36 @@ test("notice is appended to the refresh well and only accepts a ready, valid unr
   assert.equal(button.hidden, false, "Clicking delegates viewing; it cannot acknowledge an award");
   notice.update({ state: "ready", awardRevision: 2, seenAwardRevision: 2 });
   assert.equal(button.hidden, true);
+
+  let attempted = 0;
+  const previousWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
+  Object.defineProperty(globalThis, "window", {
+    configurable: true,
+    value: {
+      matchMedia: () => {
+        attempted++;
+        return { matches: true };
+      },
+    },
+  });
+  t.after(() =>
+    previousWindow ? Object.defineProperty(globalThis, "window", previousWindow) : delete globalThis.window,
+  );
+  const accept = (profileId, awardRevision, seenAwardRevision = 0, state = "ready") =>
+    notice.update({ profileId, state, awardRevision, seenAwardRevision });
+  accept("a", 8);
+  accept("a", 8);
+  accept("b", 101);
+  accept("b", 101, 0, "preparing");
+  assert.equal(attempted, 0, "initial unread and profile changes only establish a baseline");
+  accept("b", 102);
+  assert.equal(attempted, 1, "a temporary preparing state retains the ready revision watermark");
+  accept("b", 102, 1);
+  accept("b", 101);
+  accept("b", 102);
+  accept("b", 103, 103);
+  accept("c", 1);
+  assert.equal(attempted, 1, "seen awards, repeat/stale snapshots and new profiles never replay");
+  accept("c", 2);
+  assert.equal(attempted, 2, "a later unread revision after switching profiles is eligible");
 });

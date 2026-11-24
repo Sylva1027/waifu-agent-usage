@@ -45,14 +45,14 @@ const input = (facts = [], extra = {}) => ({
   ...extra,
 });
 const row = (result, id) => result.rows.find((item) => item.id === id);
-function archive(t, options = {}) {
+function archive(t, options = {}, initial = profile) {
   const store = new AchievementStore({
     databaseFile: ":memory:",
     catalog: ACHIEVEMENT_CATALOG,
     clock: () => T0 + DAY + 1000,
     ...options,
   });
-  store.open(profile);
+  store.open(initial);
   t.after(() => store.close());
   return store;
 }
@@ -63,6 +63,36 @@ test("empty R7 evaluation contains exactly all 42 IDs and no awards", () => {
   assert.equal(new Set(result.rows.map((item) => item.id)).size, 42);
   assert.ok(result.rows.every((item) => item.observedValue === "0"));
   assert.deepEqual(result.awards, []);
+});
+
+test("full evaluation publishes the new rules for a prepared legacy profile", (t) => {
+  let interrupt = true;
+  const store = archive(
+    t,
+    {
+      fault: (stage) => {
+        if (interrupt && stage === "afterAwards") throw new Error("interrupted before rule stamp");
+      },
+    },
+    {
+      ...profile,
+      rulesVersion: "R7-production-1",
+      catalogHash: "75e83543b974ff9245c0222a01ffab5a50e4c9cb6276054a12ed16518ea30b4c",
+    },
+  );
+  const operations = ["chatgpt", "claude", "glm", "gemini", "deepseek", "kimi", "qwen", "grok", "muse", "mimo"].map(
+    (characterId) => ({ kind: "skin", key: characterId, occurredAt: T0 + 1, payload: { characterId } }),
+  );
+  const prepared = input([], { operations });
+  const before = store.readSnapshot();
+  assert.throws(() => commitAchievementEvaluation(store, prepared), /interrupted before rule stamp/);
+  assert.deepEqual(store.readSnapshot(), before);
+  interrupt = false;
+  const result = commitAchievementEvaluation(store, prepared);
+  assert.equal(result.rulesVersion, ACHIEVEMENT_RULES_VERSION);
+  assert.equal(result.catalogHash, catalogHash);
+  assert.equal(row(result, "A44").observedValue, "8");
+  assert.equal(row(result, "A44").highestEarned, "stone");
 });
 
 test("T0/cutoff, exact integers, canonical replay and legal duplicate multiplicities", () => {

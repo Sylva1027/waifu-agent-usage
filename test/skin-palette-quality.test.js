@@ -553,7 +553,7 @@ test("M3.1：M0 输入校验——坏 token / 未知皮肤 / 非法模式 / 缺 
   assert.throws(() => m31Run({ roles: "not-an-array" }), /roleCatalog/);
 });
 
-test("M3.1：官方十套调色板全模式冒烟——结构完整、必要角色无 unmeasured、比值可复算", () => {
+test("M3.1：现役调色板全模式冒烟——结构完整、必要角色无 unmeasured、比值可复算", () => {
   for (const skinId of ["chatgpt", "grok", "claude", "gemini", "deepseek"]) {
     for (const mode of ["light", "dark"]) {
       // 官方 paletteTokens 是样式表原值（允许小写）；候选契约为大写——调用方先归一
@@ -11964,7 +11964,7 @@ test("M3.4：全部必要 (mode, role, state) 有实测通过 + 代理初筛接�
 test("M3.4：技术失败就是 rejected——材质与身份距离再高也不抵消，诊断树也不夹带判定", () => {
   const candidate = m34Candidate();
   const neon = m34Candidate({
-    skinId: "muse",
+    skinId: "grok",
     variant: "b",
     modes: { light: { ...M34_NEON_TOKENS }, dark: { ...M34_NEON_TOKENS } },
   });
@@ -12290,7 +12290,7 @@ test("M3.4：证据过期一律 incomplete 并注明 STALE_EVIDENCE——出处�
   assert.equal(tampered.readiness, "incomplete");
   assert.ok(tampered.diagnostics.evidence.stale.some((item) => item.object === "candidateSet"));
 
-  const outsider = m34Candidate({ skinId: "mimo" });
+  const outsider = m34Candidate({ skinId: "grok" });
   const otherSet = { ...set, candidates: [outsider] };
   const missing = m34Assess({
     candidate,
