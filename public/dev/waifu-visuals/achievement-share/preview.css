@@ -941,10 +941,10 @@ body[data-scene="sea"] .card[data-skin="deepseek"] .figure-glass,
 body[data-scene="sea"] .card[data-skin="deepseek"] .ink-density {
   display: none;
 }
-body[data-scene="sea"] .card[data-skin="deepseek"] .character {
+body[data-material="flat"] .card[data-skin="deepseek"] .character {
   opacity: 0;
 }
-body[data-scene="sea"] .card[data-skin="deepseek"] .room::before {
+body[data-material="flat"] .card[data-skin="deepseek"] .room::before {
   content: "";
   position: absolute;
   pointer-events: none;
@@ -955,7 +955,7 @@ body[data-scene="sea"] .card[data-skin="deepseek"] .room::before {
   height: 10%;
   background: var(--sea-shoe-back) center / 100% 100% no-repeat;
 }
-body[data-scene="sea"] .card[data-skin="deepseek"] .room::after {
+body[data-material="flat"] .card[data-skin="deepseek"] .room::after {
   content: "";
   position: absolute;
   inset: auto;
@@ -970,26 +970,20 @@ body[data-scene="sea"] .card[data-skin="deepseek"] .room::after {
 body[data-scene="sea"] .card[data-skin="deepseek"] .award {
   z-index: 2;
 }
-body[data-scene="sea"] .card[data-skin="deepseek"][data-mode="light"] {
-  --sea-shoe-back: url("./art/deepseek/shoe-back-light.webp");
-}
 body[data-material="relief"] .card[data-skin="deepseek"][data-mode="light"] {
-  --sea-room: url("./art/deepseek/sea-relief-light.webp");
-  --sea-shoe-glass: url("./art/deepseek/shoe-relief-light.webp");
+  --sea-room: url("./art/deepseek/background-light.webp");
 }
 body[data-material="flat"] .card[data-skin="deepseek"][data-mode="light"] {
   --sea-room: url("./art/deepseek/sea-flat-light.webp");
+  --sea-shoe-back: url("./art/deepseek/shoe-back-light.webp");
   --sea-shoe-glass: url("./art/deepseek/shoe-flat-light.webp");
 }
-body[data-scene="sea"] .card[data-skin="deepseek"][data-mode="dark"] {
-  --sea-shoe-back: url("./art/deepseek/shoe-back-dark.webp");
-}
 body[data-material="relief"] .card[data-skin="deepseek"][data-mode="dark"] {
-  --sea-room: url("./art/deepseek/sea-relief-dark.webp");
-  --sea-shoe-glass: url("./art/deepseek/shoe-relief-dark.webp");
+  --sea-room: url("./art/deepseek/background-dark.webp");
 }
 body[data-material="flat"] .card[data-skin="deepseek"][data-mode="dark"] {
   --sea-room: url("./art/deepseek/sea-flat-dark.webp");
+  --sea-shoe-back: url("./art/deepseek/shoe-back-dark.webp");
   --sea-shoe-glass: url("./art/deepseek/shoe-flat-dark.webp");
 }
 
@@ -1002,7 +996,10 @@ body[data-material="flat"] .card[data-skin="deepseek"][data-mode="dark"] {
 .card[data-skin="qwen"] :is(.figure-glass, .ink-density) {
   display: none;
 }
-body[data-preview-skin="qwen"] .character-frame {
+body[data-preview-skin="qwen"][data-material="refraction"] .character-frame {
+  display: contents;
+}
+body[data-preview-skin="qwen"][data-material="lineart"] .character-frame {
   position: absolute;
   left: 0;
   bottom: 4.85%;
@@ -1011,7 +1008,7 @@ body[data-preview-skin="qwen"] .character-frame {
   container-type: size;
   pointer-events: none;
 }
-body[data-preview-skin="qwen"] .standee .character-frame .character {
+body[data-preview-skin="qwen"][data-material="lineart"] .standee .character-frame .character {
   left: 50%;
   bottom: 0;
   width: min(calc(100cqw * 1024 / 941), calc(100cqh * 1024 / 1672));
@@ -1034,21 +1031,16 @@ body[data-preview-skin="qwen"][data-texture="fan"] .card[data-mode="dark"] .room
 }
 body[data-preview-skin="qwen"] .optical-plane {
   display: none;
+}
+body[data-preview-skin="qwen"][data-material="lineart"] .optical-plane {
+  display: block;
   position: absolute;
   left: 50%;
   bottom: 0;
   width: min(calc(100cqw * 1024 / 941), calc(100cqh * 1024 / 1672));
   aspect-ratio: 948 / 1659;
   pointer-events: none;
-  transform: translate(-50.048828125%, 3.3482142857%) scaleX(-1);
-  background-size: 100% 100%;
   background-repeat: no-repeat;
-}
-body[data-preview-skin="qwen"][data-texture="fan"][data-material="refraction"] .optical-plane {
-  display: block;
-}
-body[data-preview-skin="qwen"][data-texture="fan"][data-material="lineart"] .optical-plane {
-  display: block;
   background-image: var(--raw);
   background-size: 93.2286% 93.3982%;
   background-position: 54.8% 50.43%;
@@ -1062,18 +1054,6 @@ body[data-preview-skin="qwen"] .card[data-mode="light"] {
 }
 body[data-preview-skin="qwen"] .card[data-mode="dark"] {
   --raw: url(../../../assets/skins/dark/Qwen-side-dark-lineart.webp);
-}
-body[data-preview-skin="qwen"][data-texture="fan"][data-material="refraction"] .card[data-mode="light"] .optical-plane {
-  background-image: url(./art/qwen/relief-light.webp);
-}
-body[data-preview-skin="qwen"][data-texture="fan"][data-material="refraction"] .card[data-mode="light"] .character {
-  filter: url(#qwen-fan-day-etch);
-}
-body[data-preview-skin="qwen"][data-texture="fan"][data-material="refraction"] .card[data-mode="dark"] .optical-plane {
-  background-image: url(./art/qwen/relief-dark.webp);
-}
-body[data-preview-skin="qwen"][data-texture="fan"][data-material="refraction"] .card[data-mode="dark"] .character {
-  filter: url(#qwen-fan-night-etch);
 }
 .card[data-skin="claude"][data-mode="light"] .room {
   background: center / cover no-repeat url("./art/claude/background-light.png");
@@ -1113,6 +1093,8 @@ body[data-preview-skin="qwen"][data-texture="fan"][data-material="refraction"] .
 .card[data-skin="claude"] :is(.table, .light, .figure-glass, .ink-density) {
   display: none;
 }
+body[data-material="refraction"] .card[data-skin="qwen"] .character,
+body[data-material="relief"] .card:is([data-skin="chatgpt"], [data-skin="deepseek"]) .character,
 .card[data-skin="claude"] .character,
 .card[data-skin="glm"] .character,
 .card[data-skin="gemini"] .character,

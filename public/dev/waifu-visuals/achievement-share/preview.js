@@ -389,8 +389,6 @@ for (const [id, skin] of Object.entries(data.skins)) {
 let selectedSkin = "deepseek",
   appearance = "light";
 
-const nacreRelief = { light: "./art/chatgpt/relief-light.webp", dark: "./art/chatgpt/relief-dark.webp" };
-const qwenGlassPortrait = "./art/qwen/source.png";
 function fitQwenFrame(card, id) {
   const image = card.querySelector(".character");
   const previous = image.closest(".character-frame");
@@ -408,14 +406,12 @@ function fitQwenFrame(card, id) {
   frame.append(optics, image);
 }
 function portraitSource(id, mode) {
+  const material = document.body.dataset.material;
+  if (material === "relief" || material === "refraction") return `./art/${id}/relief-${mode}.webp`;
   if (id === "glm" || id === "claude" || id === "gemini" || id === "kimi" || id === "grok") {
-    const file = document.body.dataset.material === "flat" ? "source.png" : `relief-${mode}.webp`;
-    return `./art/${id}/${file}`;
+    return `./art/${id}/source.png`;
   }
-  if (id === "qwen") return qwenGlassPortrait;
-  const active =
-    id === "chatgpt" && document.body.dataset.scene === "tide" && document.body.dataset.material === "relief";
-  return active ? nacreRelief[mode] : data.skins[id][mode].image;
+  return data.skins[id][mode].image;
 }
 function paintCharacter(card, id, mode) {
   fitQwenFrame(card, id);
