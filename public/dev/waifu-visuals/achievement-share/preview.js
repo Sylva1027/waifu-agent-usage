@@ -407,7 +407,9 @@ function fitQwenFrame(card, id) {
 }
 function portraitSource(id, mode) {
   const material = document.body.dataset.material;
-  if (material === "relief" || material === "refraction") return `./art/${id}/relief-${mode}.webp`;
+  if (material === "relief" || material === "refraction") {
+    return `../../../assets/achievement-share/${id}/relief-${mode}.webp`;
+  }
   if (id === "glm" || id === "claude" || id === "gemini" || id === "kimi" || id === "grok") {
     return `./art/${id}/source.png`;
   }

@@ -3027,6 +3027,27 @@ async function bootDashboard() {
     achievementDialog = createAchievementDialog({
       readSnapshot: () => achievementUnread.refresh(),
       onRecentShown: (displayed) => achievementUnread.markShown(displayed),
+      async onShare(selection) {
+        const appearance = {
+          ...state.skinRuntime.getPreference(),
+          mode: state.theme,
+        };
+        try {
+          const { openAchievementShareDialog } = await import("./share-dialog.js");
+          if (!selection.opener.closest("dialog")?.open) return;
+          openAchievementShareDialog({
+            ...selection,
+            render: async () => {
+              const { renderAchievementShareCard } = await import("./achievement-share-card.js");
+              return renderAchievementShareCard({ ...selection, ...appearance });
+            },
+          });
+        } catch {
+          runtimeNotice(
+            selection.locale === "en-US" ? "Could not open achievement sharing." : "暂时无法打开成就分享。",
+          );
+        }
+      },
     });
     achievementNotice = createAchievementNotice({ onOpen: () => achievementDialog.openRecent() });
     refreshAchievements();

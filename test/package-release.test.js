@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
+import { achievementShareArt } from "../public/achievement-share-art.js";
+import { SKIN_MODES, SKINS } from "../public/skins.js";
 import {
   commonHashes,
   packageRelease,
@@ -48,12 +50,20 @@ test("Lite closure binds all canonical entries and retains the exact common runt
   assert.doesNotMatch(Object.keys(inputs).join("\n"), /^public\/(?:assets|i18n|share|skin|achievement)|^src\/waifu/m);
 });
 
-test("Waifu closure keeps 42 achievement families / 96 original badge bytes and 32 skin assets", async () => {
+test("Waifu closure keeps all achievement badges, share artwork, and dashboard skins", async () => {
   const files = await releaseFiles("waifu");
   const badges = files.filter((file) => file.startsWith("public/assets/achievements/"));
   assert.equal(badges.length, 96);
   assert.equal(new Set(badges.map((file) => file.split("/")[3])).size, 42);
   assert.equal(files.filter((file) => file.startsWith("public/assets/skins/")).length, 32);
+  const shareArt = SKINS.filter((skin) => !skin.isClassic).flatMap(({ id }) =>
+    SKIN_MODES.flatMap((mode) => {
+      const { background, figure } = achievementShareArt(id, mode);
+      return [`public${background}`, `public${figure}`];
+    }),
+  );
+  assert.equal(new Set(shareArt).size, 32);
+  assert.deepEqual(files.filter((file) => file.startsWith("public/assets/achievement-share/")).sort(), shareArt.sort());
   for (const file of [
     "src/achievement-runtime.js",
     "src/achievement-restore.js",
@@ -68,7 +78,11 @@ test("Waifu closure keeps 42 achievement families / 96 original badge bytes and 
     "native/windows-source-proof/bin/windows-source-proof.build.json",
   ])
     assert.ok(files.includes(file), file);
-  assert.doesNotMatch(files.join("\n"), /target\/|node_modules\/|\.png$|^(?:test|docs|scripts|output)\//m);
+  assert.doesNotMatch(files.join("\n"), /target\/|node_modules\/|^(?:test|docs|scripts|output)\//m);
+  assert.deepEqual(
+    files.filter((file) => file.endsWith(".png")).sort(),
+    ["dark", "light"].map((mode) => `public${achievementShareArt("claude", mode).background}`),
+  );
   assert.doesNotMatch(files.join("\n"), /^public\/dev\//m);
   assert.equal(files.includes("src/cli-lite.js"), false);
   await assert.rejects(releaseFiles("standard"), /Unknown edition/);

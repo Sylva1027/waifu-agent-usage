@@ -1,3 +1,5 @@
+@import "../../../achievement-share-card.css";
+
 :root {
   --font:
     Inter, "Noto Sans SC", "Microsoft YaHei UI", "PingFang SC", system-ui, -apple-system, BlinkMacSystemFont,
@@ -95,310 +97,6 @@ aside .note {
   width: 100%;
   border-radius: 10.5px;
 }
-.card {
-  --share-right-inset: 3.4cqw;
-  --surface-paint: linear-gradient(
-    115deg,
-    var(--neo-surface),
-    var(--bg) 53%,
-    color-mix(in srgb, var(--bg) 92%, var(--blue))
-  );
-  --bg: #e2ecfc;
-  --neo-surface: #f0f6ff;
-  --control: #f0f6ff;
-  --neo-edge: #e2e6ed;
-  --line: #e2e6ed;
-  --ink: #121212;
-  --muted: #313740;
-  --chart-text: #4a505a;
-  --chart-line: #333436;
-  --control-hover: #dae0ea;
-  --blue: #3252ad;
-  --record: #3252ad;
-  --skin-active-accent: #3252ad;
-  --active-ink: #ffffff;
-  --ceramic-top: #f4f8ff;
-  --ceramic-bottom: #e8f1fd;
-  --ceramic-well: #d7e1f0;
-  --ceramic-light: rgba(252, 253, 255, 0.6);
-  --ceramic-shade: rgba(176, 184, 196, 0.54);
-  --ceramic-rim: rgba(252, 253, 255, 0.6);
-  container-type: inline-size;
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
-  border-radius: 21px;
-  width: 100%;
-  aspect-ratio: 4 / 5;
-  color: var(--ink);
-  font-family: var(--font);
-  background: var(--bg);
-  box-shadow:
-    0 6px 21px #4b668623,
-    0 0 0 1px #596c841c;
-}
-.room {
-  position: absolute;
-  inset: 0 0 23%;
-  isolation: isolate;
-  overflow: hidden;
-  background:
-    radial-gradient(ellipse at 27% 33%, #ffffffd4, transparent 43%),
-    linear-gradient(
-      118deg,
-      color-mix(in srgb, var(--bg) 75%, var(--blue)) -13%,
-      var(--bg) 32%,
-      var(--neo-surface) 75%,
-      color-mix(in srgb, var(--blue) 18%, var(--bg)) 112%
-    );
-}
-.light {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: linear-gradient(117deg, transparent 28%, #fff4 33%, transparent 36% 48%, #ffffff36 52%, transparent 55%);
-  opacity: 0.8;
-}
-.table {
-  position: absolute;
-  inset: 74% 0 0;
-  background: linear-gradient(179deg, #c5d7ef00, #cadaf15e 42%, var(--bg) 100%);
-}
-.standee {
-  position: absolute;
-  left: 2.2%;
-  bottom: 6.6%;
-  width: 51%;
-  height: 84.2%;
-}
-.standee:before {
-  content: "";
-  position: absolute;
-  left: 19%;
-  right: -3%;
-  bottom: 1%;
-  height: 8%;
-  border-radius: 50%;
-  background: linear-gradient(90deg, #829db24a, #7e9dbd20);
-  filter: blur(1.25cqw);
-  transform: skewX(-27deg);
-}
-.base {
-  position: absolute;
-  left: 5%;
-  bottom: 0;
-  width: 92%;
-  height: 8.6%;
-  border: 0.17cqw solid #a0bad673;
-  border-radius: 50% / 35%;
-  background: linear-gradient(
-    176deg,
-    #fbfdffef 4%,
-    #e9f2ffed 29%,
-    #fafdffe0 38%,
-    #bdd5eda8 49%,
-    #c3daf0e0 74%,
-    #e4f1ff 94%
-  );
-  box-shadow:
-    inset -0.45cqw -0.3cqw 0.65cqw #829ec273,
-    inset 0.4cqw 0.15cqw 0.5cqw #fff,
-    0 0.6cqw 0.75cqw #57749645;
-}
-.base:before {
-  content: "";
-  position: absolute;
-  inset: -0.06cqw 0 31%;
-  border: 0.23cqw solid #f9feff;
-  border-bottom-color: #c2d7e4;
-  border-radius: 50%;
-  background: linear-gradient(115deg, #fbfdffba, #c0d7ec63 50%, #fff9);
-  box-shadow: 0 0.22cqw 0.3cqw #839ab139;
-}
-.standee img {
-  position: absolute;
-  left: 0;
-  bottom: 4.85%;
-  width: 100%;
-  height: 95.2%;
-  object-fit: contain;
-  object-position: center bottom;
-  transform: scaleX(-1);
-}
-
-.award {
-  position: absolute;
-  right: 0;
-  bottom: 14.6%;
-  width: 47%;
-  margin: 0;
-  text-align: right;
-}
-.collectible {
-  position: relative;
-  z-index: 2;
-  width: 33.8cqw;
-  margin: 0 0.06cqw 0.62cqw auto;
-  line-height: 0;
-}
-
-.medal {
-  display: block;
-  width: 100%;
-  height: auto;
-}
-
-.heading,
-.story {
-  background: var(--surface-paint);
-  border-top: 0.25cqw solid #f7fcff;
-}
-.heading {
-  width: max-content;
-  max-width: 100%;
-  min-width: 24cqw;
-  margin-left: auto;
-  text-align: right;
-  padding: 2.1cqw var(--share-right-inset) 2.65cqw 6.5cqw;
-  border-radius: 3.4cqw 0 0 3.4cqw;
-}
-.heading h2 {
-  margin: 0;
-  font-size: var(--title-size, 8.8cqw);
-  font-weight: 700;
-  line-height: 1.15;
-  letter-spacing: -0.045em;
-  color: color-mix(in srgb, var(--blue) 33%, var(--ink));
-  text-wrap: balance;
-}
-.date {
-  display: block;
-  width: max-content;
-  max-width: 100%;
-  margin: 2.15cqw var(--share-right-inset) 0 auto;
-  font-size: 2.35cqw;
-  line-height: 1.45;
-  letter-spacing: 0.035em;
-  color: color-mix(in srgb, var(--blue) 34%, var(--muted));
-  font-variant-numeric: tabular-nums;
-}
-.story {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  height: 23%;
-  border-bottom-left-radius: inherit;
-  border-bottom-right-radius: inherit;
-  padding: 3.25cqw 7.3cqw 0;
-  box-shadow:
-    0 -0.28cqw 0.75cqw #718caf22,
-    0 -0.6cqw 2cqw #c9d9ee40;
-}
-.fact {
-  font-size: 6.8cqw;
-  line-height: 1.22;
-  letter-spacing: -0.04em;
-  font-weight: 660;
-  color: color-mix(in srgb, var(--blue) 37%, var(--ink));
-  white-space: nowrap;
-}
-.detail {
-  margin-top: 0.7cqw;
-  font-size: 3.55cqw;
-  line-height: 1.46;
-  color: var(--muted);
-}
-.share-watermark {
-  position: absolute;
-  bottom: 1.9cqw;
-  right: 7.3%;
-  display: flex;
-  align-items: center;
-  gap: 0.7cqw;
-  font-size: 2.3cqw;
-  font-weight: 450;
-  line-height: 1.1;
-  color: color-mix(in srgb, var(--muted) 64%, var(--bg));
-  white-space: nowrap;
-}
-.share-watermark svg {
-  width: 2.7cqw;
-  height: 2.7cqw;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.6;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.heading h2 {
-  font-size: 8.8cqw;
-  overflow-wrap: break-word;
-  word-break: normal;
-}
-.date {
-  white-space: nowrap;
-}
-
-.story {
-  display: grid;
-  grid-template: minmax(0, 1fr) auto minmax(0, 2.2fr) / minmax(0, 1fr);
-  padding: 2.6cqw 7.3cqw;
-}
-.story-copy {
-  grid-row: 2;
-  display: flex;
-  flex-direction: column;
-  gap: 1.05cqw;
-  min-width: 0;
-}
-.fact,
-.detail {
-  margin: 0;
-  white-space: normal;
-  word-break: normal;
-  overflow-wrap: anywhere;
-  text-wrap: pretty;
-}
-.fact {
-  font-size: var(--fact-size, 6.8cqw);
-  line-height: 1.2;
-}
-.detail {
-  font-size: var(--detail-size, 3.3cqw);
-  line-height: 1.4;
-  font-weight: 350;
-  font-style: italic;
-  color: color-mix(in srgb, var(--muted) 83%, var(--bg));
-  white-space: pre-line;
-}
-.detail:has(.detail-attribution) {
-  text-wrap: wrap;
-}
-.detail-attribution {
-  display: inline-block;
-  white-space: nowrap;
-}
-.fact:has(.qualifier) {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  column-gap: 2.2cqw;
-  row-gap: 0.25cqw;
-}
-.qualifier {
-  font-size: max(3.45cqw, 0.55em);
-  font-weight: 500;
-  letter-spacing: 0;
-  line-height: 1.4;
-}
-.share-watermark {
-  z-index: 3;
-  top: 2.7cqw;
-  right: var(--share-right-inset);
-  bottom: auto;
-}
 .preview-tools {
   display: grid;
   gap: 11px;
@@ -448,146 +146,6 @@ aside .note {
     margin-bottom: 14px;
   }
 }
-/* The original DeepSeek daylight study has its own finished material. */
-.card[data-mode="light"]:not([data-skin="deepseek"]) {
-  --room-edge: color-mix(in srgb, var(--bg) 73%, var(--blue));
-  --room-halo: color-mix(in srgb, white 53%, var(--neo-surface));
-  --room-ray: color-mix(in srgb, white 84%, var(--blue));
-  --floor-tone: color-mix(in srgb, var(--ceramic-well) 88%, var(--blue));
-  --glass-flash: color-mix(in srgb, white 91%, var(--blue));
-  --glass-body: color-mix(in srgb, var(--bg) 84%, var(--blue));
-  --glass-bevel: color-mix(in srgb, var(--bg) 60%, var(--blue));
-  --glass-cut: color-mix(in srgb, white 56%, var(--blue));
-  --material-shadow: color-mix(in srgb, var(--ink) 45%, var(--blue));
-  --slab-rim: color-mix(in srgb, white 65%, var(--neo-surface));
-}
-
-.card[data-mode="dark"] {
-  --room-edge: color-mix(in srgb, var(--bg) 90%, var(--blue));
-  --room-halo: color-mix(in srgb, var(--neo-surface) 86%, var(--blue));
-  --room-ray: color-mix(in srgb, var(--ceramic-top) 65%, var(--blue));
-  --floor-tone: color-mix(in srgb, var(--ceramic-well) 86%, var(--blue));
-  --glass-flash: color-mix(in srgb, var(--ink) 48%, var(--blue));
-  --glass-body: color-mix(in srgb, var(--neo-surface) 90%, var(--blue));
-  --glass-bevel: color-mix(in srgb, var(--ceramic-bottom) 73%, var(--blue));
-  --glass-cut: color-mix(in srgb, var(--ceramic-top) 53%, var(--blue));
-  --material-shadow: color-mix(in srgb, black 80%, var(--bg));
-  --slab-rim: color-mix(in srgb, var(--ceramic-top) 82%, var(--blue));
-  --surface-paint: linear-gradient(
-    115deg,
-    var(--ceramic-top),
-    var(--neo-surface) 53%,
-    color-mix(in srgb, var(--neo-surface) 93%, var(--blue))
-  );
-}
-
-.card:where([data-mode="dark"], [data-mode="light"]:not([data-skin="deepseek"])) {
-  box-shadow:
-    0 6px 21px color-mix(in srgb, var(--material-shadow) 14%, transparent),
-    0 0 0 1px color-mix(in srgb, var(--material-shadow) 14%, transparent);
-
-  & .room {
-    background:
-      radial-gradient(ellipse at 27% 33%, var(--room-halo), transparent 52%),
-      linear-gradient(118deg, var(--room-edge) -13%, var(--bg) 32%, var(--neo-surface) 75%, var(--room-edge) 112%);
-  }
-  & .light {
-    background: linear-gradient(
-      117deg,
-      transparent 28%,
-      color-mix(in srgb, var(--room-ray) 24%, transparent) 33%,
-      transparent 36% 48%,
-      color-mix(in srgb, var(--room-ray) 15%, transparent) 52%,
-      transparent 55%
-    );
-  }
-  & .table {
-    background: linear-gradient(
-      179deg,
-      transparent,
-      color-mix(in srgb, var(--floor-tone) 45%, transparent) 42%,
-      var(--bg)
-    );
-  }
-  & .standee::before {
-    background: linear-gradient(
-      90deg,
-      color-mix(in srgb, var(--material-shadow) 30%, transparent),
-      color-mix(in srgb, var(--material-shadow) 12%, transparent)
-    );
-  }
-
-  & .base {
-    border-color: color-mix(in srgb, var(--glass-cut) 55%, transparent);
-    background: linear-gradient(
-      176deg,
-      color-mix(in srgb, var(--glass-flash) 93%, transparent) 4%,
-      var(--neo-surface) 29%,
-      color-mix(in srgb, var(--glass-flash) 88%, transparent) 38%,
-      color-mix(in srgb, var(--glass-bevel) 62%, transparent) 49%,
-      color-mix(in srgb, var(--glass-body) 88%, transparent) 74%,
-      var(--bg) 94%
-    );
-    box-shadow:
-      inset -0.45cqw -0.3cqw 0.65cqw color-mix(in srgb, var(--glass-cut) 45%, transparent),
-      inset 0.4cqw 0.15cqw 0.5cqw var(--glass-flash),
-      0 0.6cqw 0.75cqw color-mix(in srgb, var(--material-shadow) 32%, transparent);
-  }
-  & .base::before {
-    border-color: var(--glass-flash);
-    border-bottom-color: color-mix(in srgb, var(--glass-bevel) 70%, transparent);
-    background: linear-gradient(
-      115deg,
-      color-mix(in srgb, var(--glass-flash) 68%, transparent),
-      color-mix(in srgb, var(--glass-body) 38%, transparent) 50%,
-      color-mix(in srgb, var(--glass-flash) 55%, transparent)
-    );
-    box-shadow: 0 0.22cqw 0.3cqw color-mix(in srgb, var(--material-shadow) 24%, transparent);
-  }
-  & .heading,
-  & .story {
-    border-top-color: var(--slab-rim);
-  }
-  & .story {
-    box-shadow:
-      0 -0.28cqw 0.75cqw color-mix(in srgb, var(--material-shadow) 15%, transparent),
-      0 -0.6cqw 2cqw color-mix(in srgb, var(--floor-tone) 28%, transparent);
-  }
-  & .share-watermark {
-    color: color-mix(in srgb, var(--muted) 78%, var(--bg));
-  }
-}
-
-/* Narrow reflecting edges and a translucent, smoked interior under white line art. */
-.card[data-mode="dark"] {
-  & .base {
-    border-color: color-mix(in srgb, var(--glass-cut) 62%, transparent);
-    background: linear-gradient(
-      176deg,
-      var(--glass-bevel) 4%,
-      var(--glass-body) 29%,
-      var(--glass-cut) 38%,
-      color-mix(in srgb, var(--glass-bevel) 65%, transparent) 49%,
-      color-mix(in srgb, var(--glass-body) 78%, transparent) 74%,
-      var(--ceramic-well) 94%
-    );
-    box-shadow:
-      inset -0.45cqw -0.3cqw 0.65cqw var(--material-shadow),
-      inset 0.4cqw 0.15cqw 0.5cqw color-mix(in srgb, var(--glass-cut) 67%, transparent),
-      0 0.6cqw 0.75cqw color-mix(in srgb, var(--material-shadow) 65%, transparent);
-  }
-  & .base::before {
-    border-color: color-mix(in srgb, var(--glass-flash) 53%, transparent);
-    border-bottom-color: var(--glass-bevel);
-    background: linear-gradient(
-      115deg,
-      color-mix(in srgb, var(--glass-cut) 49%, transparent),
-      color-mix(in srgb, var(--glass-body) 68%, transparent) 48%,
-      color-mix(in srgb, var(--glass-cut) 39%, transparent)
-    );
-  }
-}
-
 .preview-bar {
   display: flex;
   flex-wrap: wrap;
@@ -895,10 +453,10 @@ html.viewing-share {
   opacity: 0.15;
 }
 body[data-scene="tide"] .card[data-skin="chatgpt"][data-mode="light"] {
-  --chatgpt-scene: url("./art/chatgpt/background-light.webp");
+  --chatgpt-scene: url("../../../assets/achievement-share/chatgpt/background-light.webp");
 }
 body[data-scene="tide"] .card[data-skin="chatgpt"][data-mode="dark"] {
-  --chatgpt-scene: url("./art/chatgpt/background-dark.webp");
+  --chatgpt-scene: url("../../../assets/achievement-share/chatgpt/background-dark.webp");
 }
 
 .scene-row[hidden],
@@ -965,7 +523,7 @@ body[data-scene="sea"] .card[data-skin="deepseek"] .award {
   z-index: 2;
 }
 body[data-material="relief"] .card[data-skin="deepseek"][data-mode="light"] {
-  --sea-room: url("./art/deepseek/background-light.webp");
+  --sea-room: url("../../../assets/achievement-share/deepseek/background-light.webp");
 }
 body[data-material="flat"] .card[data-skin="deepseek"][data-mode="light"] {
   --sea-room: url("./art/deepseek/sea-flat-light.webp");
@@ -973,7 +531,7 @@ body[data-material="flat"] .card[data-skin="deepseek"][data-mode="light"] {
   --sea-shoe-glass: url("./art/deepseek/shoe-flat-light.webp");
 }
 body[data-material="relief"] .card[data-skin="deepseek"][data-mode="dark"] {
-  --sea-room: url("./art/deepseek/background-dark.webp");
+  --sea-room: url("../../../assets/achievement-share/deepseek/background-dark.webp");
 }
 body[data-material="flat"] .card[data-skin="deepseek"][data-mode="dark"] {
   --sea-room: url("./art/deepseek/sea-flat-dark.webp");
@@ -1018,10 +576,10 @@ body[data-preview-skin="qwen"][data-texture="fan"] .card[data-mode="light"] .roo
       rgba(248, 252, 246, 0.32) 48%,
       transparent 100%
     ),
-    url(./art/qwen/background-light.webp);
+    url(../../../assets/achievement-share/qwen/background-light.webp);
 }
 body[data-preview-skin="qwen"][data-texture="fan"] .card[data-mode="dark"] .room {
-  --room-texture: url(./art/qwen/background-dark.webp);
+  --room-texture: url(../../../assets/achievement-share/qwen/background-dark.webp);
 }
 body[data-preview-skin="qwen"] .optical-plane {
   display: none;
@@ -1050,34 +608,34 @@ body[data-preview-skin="qwen"] .card[data-mode="dark"] {
   --raw: url(../../../assets/skins/dark/Qwen-side-dark-lineart.webp);
 }
 .card[data-skin="claude"][data-mode="light"] .room {
-  background: center / cover no-repeat url("./art/claude/background-light.png");
+  background: center / cover no-repeat url("../../../assets/achievement-share/claude/background-light.png");
 }
 .card[data-skin="claude"][data-mode="dark"] .room {
-  background: center / cover no-repeat url("./art/claude/background-dark.png");
+  background: center / cover no-repeat url("../../../assets/achievement-share/claude/background-dark.png");
 }
 .card[data-skin="glm"][data-mode="light"] .room {
-  background: center / 100% 100% no-repeat url("./art/glm/background-light.webp");
+  background: center / 100% 100% no-repeat url("../../../assets/achievement-share/glm/background-light.webp");
 }
 .card[data-skin="glm"][data-mode="dark"] .room {
-  background: center / 100% 100% no-repeat url("./art/glm/background-dark.webp");
+  background: center / 100% 100% no-repeat url("../../../assets/achievement-share/glm/background-dark.webp");
 }
 .card[data-skin="gemini"][data-mode="light"] .room {
-  background: center / 100% 100% no-repeat url("./art/gemini/background-light.webp");
+  background: center / 100% 100% no-repeat url("../../../assets/achievement-share/gemini/background-light.webp");
 }
 .card[data-skin="gemini"][data-mode="dark"] .room {
-  background: center / 100% 100% no-repeat url("./art/gemini/background-dark.webp");
+  background: center / 100% 100% no-repeat url("../../../assets/achievement-share/gemini/background-dark.webp");
 }
 .card[data-skin="kimi"][data-mode="light"] .room {
-  background: center / 100% 100% no-repeat url("./art/kimi/background-light.webp");
+  background: center / 100% 100% no-repeat url("../../../assets/achievement-share/kimi/background-light.webp");
 }
 .card[data-skin="kimi"][data-mode="dark"] .room {
-  background: center / 100% 100% no-repeat url("./art/kimi/background-dark.webp");
+  background: center / 100% 100% no-repeat url("../../../assets/achievement-share/kimi/background-dark.webp");
 }
 .card[data-skin="grok"][data-mode="light"] .room {
-  background: center / 100% 100% no-repeat url("./art/grok/background-light.webp");
+  background: center / 100% 100% no-repeat url("../../../assets/achievement-share/grok/background-light.webp");
 }
 .card[data-skin="grok"][data-mode="dark"] .room {
-  background: center / 100% 100% no-repeat url("./art/grok/background-dark.webp");
+  background: center / 100% 100% no-repeat url("../../../assets/achievement-share/grok/background-dark.webp");
 }
 .card[data-skin="grok"] :is(.table, .light, .figure-glass, .ink-density),
 .card[data-skin="grok"] .room::before,

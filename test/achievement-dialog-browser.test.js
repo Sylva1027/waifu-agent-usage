@@ -139,6 +139,83 @@ test("production modal uses real API progress and dates; material preview is rea
   assert.deepEqual(errors, []);
 });
 
+test("the achievement share button exports the displayed earned medal and returns to its opener", async (t) => {
+  const { fixture, page, errors, requests } = await setup(t, { graphics: true });
+  await page.goto(fixture.url);
+  await open(page);
+  const share = page.locator("#achievementShareToggle");
+  const status = page.locator("#achievementStatusFilter");
+  assert.equal(await share.locator("svg").innerHTML(), await page.locator("#shareToggle svg").innerHTML());
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 1000 });
+    const control = await status.boundingBox();
+    const action = await share.boundingBox();
+    assert.ok(action.x >= control.x + control.width);
+    assert.equal(action.height, control.height);
+    assert.equal(action.y, control.y);
+  }
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.locator('[data-category="用量规模"]').click();
+  await page.locator('[data-achievement="A01"]').click();
+  await page.locator('[data-preview-grade="gold"]').click();
+  assert.equal(await share.isEnabled(), false);
+  assert.equal(
+    requests.some(({ path }) => path === "/achievement-share-card.js"),
+    false,
+  );
+  await page.locator('[data-preview-grade="bronze"]').click();
+  assert.equal(await share.isEnabled(), true);
+  await share.click();
+  await page.locator('#shareDialog[data-layout="achievement"][open]').waitFor();
+  await page.waitForFunction(() => !document.querySelector("#saveShareImage").disabled);
+  const result = await page.locator("#shareImage").evaluate(async (image) => {
+    await image.decode();
+    const canvas = document.createElement("canvas");
+    canvas.width = image.naturalWidth;
+    canvas.height = image.naturalHeight;
+    const context = canvas.getContext("2d");
+    context.drawImage(image, 0, 0);
+    return {
+      ratio: image.naturalWidth / image.naturalHeight,
+      corner: context.getImageData(0, 0, 1, 1).data[3],
+      body: context.getImageData(canvas.width / 2, canvas.height / 2, 1, 1).data[3],
+    };
+  });
+  assert.deepEqual(result, { ratio: 0.8, corner: 0, body: 255 });
+  for (const [width, height] of [
+    [1440, 1000],
+    [1440, 620],
+    [390, 844],
+    [320, 480],
+  ]) {
+    await page.setViewportSize({ width, height });
+    const { gaps, dialogWidth, horizontalOverflow } = await page.locator("#shareDialog").evaluate((dialog) => {
+      const well = dialog.querySelector(".share-preview-well").getBoundingClientRect();
+      const card = dialog.querySelector("#shareImage").getBoundingClientRect();
+      return {
+        gaps: [card.left - well.left, well.right - card.right, card.top - well.top, well.bottom - card.bottom],
+        dialogWidth: dialog.getBoundingClientRect().width,
+        horizontalOverflow: dialog.scrollWidth > dialog.clientWidth,
+      };
+    });
+    assert.ok(dialogWidth <= Math.min(497, width - 40));
+    assert.equal(horizontalOverflow, false);
+    assert.ok(
+      gaps.every((gap) => Math.abs(gap - 17) < 0.1),
+      `Uneven preview margins at ${width}×${height}: ${gaps}`,
+    );
+  }
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  assert.ok(requests.some(({ path }) => path.startsWith("/assets/achievement-share/chatgpt/")));
+  const download = page.waitForEvent("download");
+  await page.locator("#saveShareImage").click();
+  assert.match((await download).suggestedFilename(), /\.png$/);
+  await page.keyboard.press("Escape");
+  assert.ok(await page.locator("#achievementDialog").evaluate((dialog) => dialog.open));
+  assert.equal(await page.evaluate(() => document.activeElement.id), "achievementShareToggle");
+  assert.deepEqual(errors, []);
+});
+
 test("only the displayed earned tier loads and draws the 3D badge; redraws, fallback and closing preserve the original", async (t) => {
   const { fixture, page, errors, requests } = await setup(t, { graphics: true, hasTouch: true });
   const bundle = "/waifu-achievement-badge.js";

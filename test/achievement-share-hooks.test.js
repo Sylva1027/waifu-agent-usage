@@ -29,7 +29,7 @@ test("share hooks submit only after copy/download success, capture pre-await rec
       res
         .writeHead(200, { "Content-Type": "text/html" })
         .end(
-          `<!doctype html><html data-edition="${url.searchParams.get("edition") === "standard" ? "standard" : "waifu"}"><head><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/share.css"></head><body><button id="shareToggle">Share</button>${dialogs}</body></html>`,
+          `<!doctype html><html data-edition="${url.searchParams.get("edition") === "standard" ? "standard" : "waifu"}"><head><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/share.css"></head><body><button id="shareToggle">Share</button><dialog id="achievementFixture"><button id="achievementFixtureShare">Share achievement</button></dialog>${dialogs}</body></html>`,
         );
       return;
     }
@@ -162,6 +162,68 @@ test("share hooks submit only after copy/download success, capture pre-await rec
   await page.locator("#saveShareImage").click();
   await noReceiptDownload;
   assert.equal(requests.length, 3, "Missing receipts never prevent sharing or fabricate a success");
+  await close();
+
+  const openAchievement = (imageMode) =>
+    page.evaluate(async (imageMode) => {
+      const { openAchievementShareDialog } = await import("/share-dialog.js");
+      const fixture = document.querySelector("#achievementFixture");
+      if (!fixture.open) fixture.showModal();
+      window.copyMode = null;
+      openAchievementShareDialog({
+        opener: fixture.querySelector("button"),
+        locale: "en-US",
+        title: "Let's Sync Up",
+        render: () => {
+          if (imageMode === "fail") throw new Error("render failed");
+          const picture = document.createElement("canvas");
+          picture.width = 960;
+          picture.height = 1200;
+          if (imageMode === "pending") {
+            return new Promise((resolve) => {
+              window.finishAchievementImage = () => picture.toBlob(resolve);
+            });
+          }
+          return new Promise((resolve) => picture.toBlob(resolve));
+        },
+      });
+    }, imageMode);
+
+  await page.setViewportSize({ width: 350, height: 600 });
+  await openAchievement("pending");
+  assert.equal(await page.locator("#shareStatus").textContent(), "Creating image…");
+  await close();
+  await openAchievement("fail");
+  await page.evaluate(() => window.finishAchievementImage());
+  await page.waitForFunction(() => document.querySelector("#shareStatus").textContent.includes("Image could not load"));
+  assert.equal(await page.locator("#shareImage").getAttribute("src"), null);
+  assert.equal(await page.locator("#shareImage").getAttribute("aria-busy"), "false");
+  await close();
+
+  await openAchievement("ready");
+  await page.waitForFunction(() => !document.querySelector("#saveShareImage").disabled);
+  assert.equal(await page.locator("#shareTitle").textContent(), "Share achievement");
+  assert.equal(await page.locator("#shareDialog").getAttribute("data-layout"), "achievement");
+  assert.equal(await page.locator(".share-customize").isVisible(), false);
+  assert.equal(await page.locator("#shareImage").getAttribute("alt"), "Let's Sync Up");
+  assert.ok(await page.locator("#shareDialog").evaluate((node) => node.scrollWidth <= node.clientWidth + 1));
+  await page.locator("#openShareImage").click();
+  assert.equal(await page.locator("#shareOriginalDialog").isVisible(), true);
+  await page.keyboard.press("Escape");
+  await page.waitForFunction(() => document.activeElement.id === "openShareImage");
+  await page.locator("#copyShareImage").click();
+  await page.waitForFunction(() => document.querySelector("#shareCopyHint").textContent === "Image copied");
+  const achievementDownload = page.waitForEvent("download");
+  await page.locator("#saveShareImage").click();
+  assert.equal((await achievementDownload).suggestedFilename(), "waifu-achievement-Let's Sync Up.png");
+  assert.equal(requests.length, 3, "Sharing a badge does not create a usage share receipt");
+  await page.keyboard.press("Escape");
+  await page.waitForFunction(() => document.activeElement.id === "achievementFixtureShare");
+  assert.equal(await page.locator("#achievementFixture").isVisible(), true);
+  await page.keyboard.press("Escape");
+  await open(null);
+  assert.equal(await page.locator("#shareDialog").getAttribute("data-layout"), "portrait");
+  assert.equal(await page.locator(".share-customize").isVisible(), true);
 
   const standard = await browser.newPage({ viewport: { width: 1440, height: 1080 } });
   const standardModules = [];
