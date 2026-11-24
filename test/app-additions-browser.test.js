@@ -49,12 +49,12 @@ test("detail growth, uncut quota control and theme transitions work in the real 
   await page.waitForFunction(() => window.__skinTestHook);
   await page.locator('#presetButtons button[data-preset="all"]').click();
   await page.waitForSelector("#detailList .bar-row");
-  const height = () => page.locator(".detail-panel").evaluate((node) => node.getBoundingClientRect().height);
+  const height = () => page.locator("#detailPanel").evaluate((node) => node.getBoundingClientRect().height);
   assert.ok(Math.abs((await height()) - 384) < 1);
   await page.locator('#timelineModes [data-timeline-mode="model"]').click();
-  await page.waitForFunction(() => document.querySelector(".detail-panel").getBoundingClientRect().height > 700);
+  await page.waitForFunction(() => document.getElementById("detailPanel").getBoundingClientRect().height > 700);
   const geometry = await page.evaluate(() => {
-    const detail = document.querySelector(".detail-panel");
+    const detail = document.getElementById("detailPanel");
     const list = document.querySelector("#detailList");
     return {
       height: detail.getBoundingClientRect().height,

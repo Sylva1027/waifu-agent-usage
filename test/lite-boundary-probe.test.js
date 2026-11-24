@@ -248,7 +248,7 @@ test("achievement initialization, evaluation, preparation and operations reach r
       {
         module: "src/achievement-incremental.js",
         name: "achievement.evaluate",
-        anchor: "  evaluate({ profile, cutoff, operations, inputKey }, existingAwards) {",
+        anchor: "    const enabledAt = Date.parse(profile.enabledAt);",
       },
       { module: "src/achievement-foundation.js", name: "achievement.prepare", anchor: "  prepare(options = {}) {" },
       {
