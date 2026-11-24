@@ -78,6 +78,13 @@ Use PowerShell 7 to create a desktop shortcut for Waifu or Lite, then double-cli
 
 ![Achievements and badges](docs/images/achievements.png)
 
+Achievement share card previews
+
+<p align="center">
+  <a href="docs/images/achievement-share-deepseek-light.png"><img src="docs/images/achievement-share-deepseek-light.png" width="48%" alt="Freebie King silver badge on the Chinese DeepSeek light share card"></a>
+  <a href="docs/images/achievement-share-claude-dark-en.png"><img src="docs/images/achievement-share-claude-dark-en.png" width="48%" alt="Let's Sync Up gold badge on the English Claude dark share card"></a>
+</p>
+
 **Sources and history.** Scan local logs or import another directory, refresh automatically, or pause the current view. Back up, import, and restore history to keep your records over time and move them between machines.
 
 ![Data source management](docs/images/sources.png)

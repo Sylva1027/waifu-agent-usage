@@ -78,6 +78,13 @@ Waifu 和 Lite 都可以用 PowerShell 7 创建桌面快捷方式，之后双击
 
 ![成就与徽章](docs/images/achievements.png)
 
+成就分享卡预览
+
+<p align="center">
+  <a href="docs/images/achievement-share-deepseek-light.png"><img src="docs/images/achievement-share-deepseek-light.png" width="48%" alt="薅羊毛大王银牌，DeepSeek 浅色中文成就分享卡"></a>
+  <a href="docs/images/achievement-share-claude-dark-en.png"><img src="docs/images/achievement-share-claude-dark-en.png" width="48%" alt="Let's Sync Up 金牌，Claude 深色英文成就分享卡"></a>
+</p>
+
 **来源与历史。** 扫描本机日志或导入其他目录，自动刷新，也可暂停当前视图。支持历史备份、导入与恢复，方便长期保留和转移使用记录。
 
 ![数据来源管理](docs/images/sources.png)
