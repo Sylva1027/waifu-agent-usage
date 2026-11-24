@@ -346,11 +346,16 @@ test("runtime status preserves real dashboard frames, live feedback and keyboard
                     .evaluate((node) => getComputedStyle(node).textDecorationLine),
                   /line-through/,
                 );
+                await page.locator("#achievementNotice").waitFor({ state: "visible" });
+                await page.keyboard.press("Tab");
+                assert.equal(await page.evaluate(() => document.activeElement.id), "achievementNotice");
                 await page.keyboard.press("Tab");
                 assert.equal(
                   await page.evaluate(() => document.activeElement.closest("#timelineModes") !== null),
                   true,
                 );
+                await page.keyboard.press("Shift+Tab");
+                assert.equal(await page.evaluate(() => document.activeElement.id), "achievementNotice");
                 await page.keyboard.press("Shift+Tab");
                 assert.equal(await page.evaluate(() => document.activeElement.id), "autoRefreshToggle");
                 await page.locator("#recentValue").focus();
