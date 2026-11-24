@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import { withAchievementBackupLock } from "../src/achievement-backup.js";
-import { ACHIEVEMENT_CATALOG } from "../src/achievement-catalog.js";
+import { ACHIEVEMENT_CATALOG, ACHIEVEMENT_RULES_VERSION } from "../src/achievement-catalog.js";
 import { achievementDatabaseFile } from "../src/achievement-foundation.js";
 import { AchievementOperationService } from "../src/achievement-operations.js";
 import { AchievementRuntime } from "../src/achievement-runtime.js";
@@ -12,6 +12,59 @@ import { AchievementStore } from "../src/achievement-store.js";
 import { createHistoryBackup, restoreHistoryBackup, verifyHistoryBackup } from "../src/history-backup.js";
 import { UsageStore } from "../src/usage-store.js";
 import { observed, runtimeFixture, T0 } from "./fixtures/achievement-runtime-fixture.js";
+
+const activeSkins = ["chatgpt", "claude", "glm", "gemini", "deepseek", "kimi", "qwen", "grok"];
+const retiredSkins = ["muse", "mimo"];
+const storyWithoutSkin = ["A31", "A33", "A36", "A38", "A39", "A43", "A46", "A73", "A74", "A75"];
+
+function seedOldProfile(f, skins, awarded) {
+  const archive = new AchievementStore({
+    databaseFile: f.options.databaseFile,
+    catalog: ACHIEVEMENT_CATALOG,
+    clock: () => T0 + 50,
+  });
+  try {
+    archive.open({
+      enabledAt: T0,
+      timeZone: "Asia/Shanghai",
+      rulesVersion: "R7-production-1",
+      catalogHash: "75e83543b974ff9245c0222a01ffab5a50e4c9cb6276054a12ed16518ea30b4c",
+    });
+    for (const characterId of skins)
+      archive.recordOperation({ kind: "skin", key: characterId, occurredAt: T0 + 10, payload: { characterId } });
+    archive.recordOperation({ kind: "share", key: "historical-share", occurredAt: T0 + 10, payload: {} });
+    archive.putEvidence({ kind: "free", key: "historical-price", value: { free: true } });
+    archive.commitBatch({
+      inputKey: "achievement-history-v1:before-skin-retirement",
+      evaluatedThrough: T0 + 50,
+      rows: ACHIEVEMENT_CATALOG.map(({ id, thresholds }) => ({
+        id,
+        observedValue: id === "A44" ? String(skins.length) : "0",
+        nextTarget: id === "A44" ? (awarded ? null : "10") : thresholds[0],
+      })),
+      awards: [...storyWithoutSkin, ...(awarded ? ["A44", "A76"] : [])].map((id) => ({
+        id,
+        tier: id === "A43" ? "bronze" : "stone",
+      })),
+      sourceCheckpoints: [
+        {
+          kind: "hermes-cumulative",
+          key: "historical-session",
+          value: { total: "100", credited: "50", segments: [] },
+        },
+      ],
+    });
+    archive.markSeen(1);
+    return {
+      snapshot: archive.readSnapshot(),
+      operations: archive.readOperations(),
+      freeEvidence: archive.readEvidence("free"),
+      checkpoints: archive.readCheckpoints(),
+    };
+  } finally {
+    archive.close();
+  }
+}
 
 async function restoredRuntime(f, databaseFile) {
   const usage = new UsageStore({
@@ -185,4 +238,74 @@ test("upgraded full profile survives backup, cache rebuild and interrupted catch
   assert.equal(recovered.seenAwardRevision, before.seenAwardRevision);
   assert.deepEqual(await restored.runtime.update(), recovered, "replaying the completed input is idempotent");
   assert.deepEqual(f.runtime.readSnapshot(), newerSource, "restoring a backup never replaces the live source profile");
+});
+
+test("an old backup uses the current eight skins on first live settlement and can be exported again", async (t) => {
+  const f = await runtimeFixture(t);
+  const before = seedOldProfile(f, [...activeSkins.slice(0, 6), ...retiredSkins], false);
+  const backupFile = path.join(f.root, "old-rules.sqlite");
+  const manifest = await createHistoryBackup(f.store.database, backupFile, {
+    achievementDatabaseFile: f.options.databaseFile,
+  });
+  const sidecar = path.join(f.root, manifest.achievements.filename);
+  const originalBytes = readFileSync(sidecar);
+  const destination = path.join(f.root, "old-rules-restored.sqlite");
+  const restoredArchive = achievementDatabaseFile(destination);
+  const result = await restoreHistoryBackup(backupFile, destination, undefined, {
+    achievementDatabaseFile: restoredArchive,
+  });
+  assert.equal(result.profile.profileId, before.snapshot.profileId);
+  assert.deepEqual(readFileSync(restoredArchive), originalBytes);
+  const restored = await restoredRuntime(f, destination);
+  assert.deepEqual(await restored.runtime.start(), before.snapshot);
+  f.setNow(T0 + 100);
+  const updated = await restored.runtime.update();
+  assert.equal(updated.rulesVersion, ACHIEVEMENT_RULES_VERSION);
+  assert.equal(observed(updated, "A44"), "6");
+  assert.equal(updated.rows.find(({ id }) => id === "A44").nextTarget, "8");
+  assert.equal(observed(updated, "A76"), "10");
+  assert.equal(updated.profileId, before.snapshot.profileId);
+  assert.equal(updated.enabledAt, before.snapshot.enabledAt);
+  assert.equal(updated.timeZone, before.snapshot.timeZone);
+  assert.deepEqual(updated.awards, before.snapshot.awards);
+  assert.equal(updated.seenAwardRevision, before.snapshot.seenAwardRevision);
+  assert.deepEqual(restored.runtime.archive.readOperations(), before.operations);
+  assert.deepEqual(restored.runtime.archive.readEvidence("free"), before.freeEvidence);
+  assert.deepEqual(restored.runtime.archive.readCheckpoints(), before.checkpoints);
+  assert.deepEqual(readFileSync(sidecar), originalBytes, "migration leaves the original backup untouched");
+  const newBackup = path.join(f.root, "new-rules.sqlite");
+  await createHistoryBackup(restored.usage.database, newBackup, { achievementDatabaseFile: restoredArchive });
+  assert.equal((await verifyHistoryBackup(newBackup)).manifest.achievements.inputKey, updated.inputKey);
+});
+
+test("all eight active skins qualify after interrupted migration, while old awards keep their original dates", async (t) => {
+  for (const awarded of [false, true]) {
+    await t.test(awarded ? "awarded under the old rules" : "newly qualified", async (t) => {
+      const f = await runtimeFixture(t);
+      const before = seedOldProfile(f, awarded ? [...activeSkins, ...retiredSkins] : activeSkins, awarded);
+      await f.runtime.start();
+      assert.equal(f.runtime.needsHistoryBackfill, false);
+      f.setNow(T0 + 100);
+      const commit = f.runtime.archive.commitBatch;
+      f.runtime.archive.commitBatch = () => {
+        throw new Error("interrupted rules publication");
+      };
+      await assert.rejects(f.runtime.update(), /interrupted rules publication/);
+      assert.deepEqual(f.runtime.readSnapshot(), before.snapshot);
+      f.runtime.archive.commitBatch = commit;
+      await f.reopen().start();
+      const updated = await f.runtime.update();
+      assert.equal(updated.rulesVersion, ACHIEVEMENT_RULES_VERSION);
+      assert.equal(observed(updated, "A44"), "8");
+      assert.equal(observed(updated, "A76"), "11");
+      for (const id of ["A44", "A76"]) {
+        const row = updated.rows.find((item) => item.id === id);
+        assert.equal(row.highestEarned, "stone");
+        assert.equal(row.earnedAt.stone, new Date(T0 + (awarded ? 50 : 100)).toISOString());
+      }
+      assert.equal(updated.seenAwardRevision, 1);
+      assert.equal(updated.awardRevision, awarded ? 1 : 2);
+      assert.deepEqual(await f.runtime.update(), updated);
+    });
+  }
 });

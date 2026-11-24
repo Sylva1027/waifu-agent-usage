@@ -1,8 +1,8 @@
 import { achievementRows } from "./achievement-list.js";
 
 // Keep these paired with the production catalog; the compatibility test detects drift.
-const RULES_VERSION = "R7-production-1";
-const CATALOG_HASH = "75e83543b974ff9245c0222a01ffab5a50e4c9cb6276054a12ed16518ea30b4c";
+const RULES_VERSION = "R7-production-2";
+const CATALOG_HASH = "e23dc3e34c58fd24df5045c6e92417518788437ba61b25a36e60b60968092f39";
 const revision = (value) => Number.isSafeInteger(value) && value >= 0;
 const compatible = (snapshot) => snapshot.rulesVersion === RULES_VERSION && snapshot.catalogHash === CATALOG_HASH;
 

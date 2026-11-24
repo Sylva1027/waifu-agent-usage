@@ -45,7 +45,7 @@ Waifu's price updates run independently of usage refresh. Price edits take effec
 
 The first language follows the browser. Use “文 / A” to switch Chinese and English; the selection is remembered. Fonts use local fonts and system fallbacks.
 
-Waifu offers light and dark themes. The clothing icon opens the style selector for ten characters or simple mode; character visibility, opacity, and selection are saved in the local browser. Lite is fixed dark and retains Waifu preferences for a later return. Theme transitions respect the system reduced-motion setting. See [character skins](13-skins.en.md).
+Waifu offers light and dark themes. The clothing icon opens the style selector for eight characters or simple mode; character visibility, opacity, and selection are saved in the local browser. Lite is fixed dark and retains Waifu preferences for a later return. Theme transitions respect the system reduced-motion setting. See [character skins](13-skins.en.md).
 
 ## Share images in Waifu
 

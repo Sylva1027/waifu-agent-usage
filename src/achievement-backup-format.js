@@ -4,11 +4,7 @@ import { lstat, open } from "node:fs/promises";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { isDeepStrictEqual } from "node:util";
-import {
-  ACHIEVEMENT_FORMAT_CATALOG,
-  ACHIEVEMENT_FORMAT_RULES_VERSION,
-  ACHIEVEMENT_FORMAT_CATALOG_HASH,
-} from "./achievement-format-descriptor.js";
+import { ACHIEVEMENT_FORMAT_CATALOG, supportsAchievementRuleDirectory } from "./achievement-format-descriptor.js";
 
 const COLUMNS = {
   achievement_profile:
@@ -249,11 +245,7 @@ export function inspectAchievementBackup(file) {
         throw fail(`Missing achievement table: ${table}`);
     }
     const profile = inspectAchievementDatabase(db);
-    if (
-      profile.rulesVersion !== ACHIEVEMENT_FORMAT_RULES_VERSION ||
-      profile.catalogHash !== ACHIEVEMENT_FORMAT_CATALOG_HASH
-    )
-      throw fail("Unsupported achievement rule directory");
+    if (!supportsAchievementRuleDirectory(profile)) throw fail("Unsupported achievement rule directory");
     for (const key of ["progressRevision", "awardRevision", "seenAwardRevision"]) {
       const value = profile[key];
       if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0)

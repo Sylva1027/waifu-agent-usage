@@ -612,6 +612,7 @@ function openExample() {
   setTreatment(validSkin, params.get("material"));
   changeAppearance(validSkin, ["light", "dark", "pair"].includes(view) ? view : "light");
   show(byId.has(id) ? id : "A14", language);
+  if (skin && skin !== validSkin) saveView();
 }
 window.addEventListener("hashchange", openExample);
 openExample();

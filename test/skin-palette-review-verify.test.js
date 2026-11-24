@@ -1592,7 +1592,7 @@ test("跨批出处：原批次上下文复核忠实；原批次 candidates.json 
   }
 });
 
-test("requireSelections：十套选择绑定两个总摘要；错哈希 .1 即拒；复核退步时选择过期", async () => {
+test("requireSelections：八套选择绑定两个总摘要；错哈希 .1 即拒；复核退步时选择过期", async () => {
   const box = await createSandbox();
   try {
     const candidates = SKIN_IDS.map((skinId) => makeCandidate({ skinId, variant: "a" }));
@@ -1606,7 +1606,7 @@ test("requireSelections：十套选择绑定两个总摘要；错哈希 .1 即�
           { candidateId: candidate.id, candidateHash: candidate.candidateHash },
         ]),
       ),
-      decisionSource: "用户消息 2026-10-06：十套按代理初筛顺序确认",
+      decisionSource: "用户消息 2026-10-06：八套按代理初筛顺序确认",
       recordedAt: "2026-10-06T00:00:00.000Z",
     });
 
@@ -1678,7 +1678,7 @@ test("requireSelections 但没有选择记录 → selections-missing；绑定缺
     assert.equal(withSelectionFlag.status, "incomplete");
     assert.equal(findGap(withSelectionFlag, "selections-missing").length, 1);
 
-    // 无评审容器但写了完整十套选择记录：.1 记"绑定无法核验"。不要求选择 →
+    // 无评审容器但写了完整八套选择记录：.1 记"绑定无法核验"。不要求选择 →
     // 非阻断提示；要求选择 → assessmentHash 不匹配任何容器，按伪造处理。
     const noReviewCandidates = SKIN_IDS.map((skinId) => makeCandidate({ skinId, variant: "a" }));
     const noReviewSet = makeCandidateSet(noReviewCandidates);

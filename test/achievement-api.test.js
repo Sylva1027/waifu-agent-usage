@@ -194,6 +194,9 @@ test("real summary receipts and applied skins record once, survive restart, and 
     false,
   );
   assert.equal((await f.request("/api/achievements/operations", { kind: "skin", characterId: "classic" })).status, 400);
+  for (const characterId of ["muse", "mimo"]) {
+    assert.equal((await f.request("/api/achievements/operations", { kind: "skin", characterId })).status, 400);
+  }
   await f.request("/api/achievements/seen", { profileId: viewed.profileId, seenThroughRevision: viewed.awardRevision });
   const seen = (await f.request()).body;
   assert.equal(seen.seenAwardRevision, viewed.awardRevision);

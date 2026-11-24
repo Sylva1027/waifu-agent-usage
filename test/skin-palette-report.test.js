@@ -304,14 +304,14 @@ test("shows state images referenced only by failure or unmeasured state ids", ()
   assert.deepEqual(selectedUnitIds, ["S4-failure", "S5-unmeasured"]);
 });
 
-test("renders the ten-skin report with two readable mode grids in candidate order", () => {
-  const skinIds = Array.from({ length: 10 }, (_, index) => `skin-${index}`);
+test("renders the eight-skin report with two readable mode grids in candidate order", () => {
+  const skinIds = Array.from({ length: 8 }, (_, index) => `skin-${index}`);
   const html = renderReviewReport({ verifiedModel: makeModel(skinIds) });
   const embedded = embeddedModel(html);
 
   assert.equal((html.match(/data-overview-mode="light"/g) ?? []).length, 1);
   assert.equal((html.match(/data-overview-mode="dark"/g) ?? []).length, 1);
-  assert.equal((html.match(/data-selection-skin=/g) ?? []).length, 10);
+  assert.equal((html.match(/data-selection-skin=/g) ?? []).length, 8);
   assert.deepEqual(
     embedded.candidates.map((entry) => entry.candidate.skinId),
     skinIds,
@@ -319,7 +319,7 @@ test("renders the ten-skin report with two readable mode grids in candidate orde
   assert.equal(
     embedded.candidates.flatMap((entry) => entry.assets).filter((asset) => asset.relativePath.endsWith("baseline.png"))
       .length,
-    20,
+    16,
   );
   assert.match(html, /grid-template-columns:repeat\(auto-fit,minmax\(320px,1fr\)\)/);
 });

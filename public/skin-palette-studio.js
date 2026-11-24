@@ -1,7 +1,7 @@
 /**
  * 临时工具：皮肤配色工作台（palette studio）。
  *
- * 用途：给十套角色皮肤逐套试配色。填四个源色 → 按「最浅作浅色底、最深作深色底」
+ * 用途：逐套试配色。填四个源色 → 按「最浅作浅色底、最深作深色底」
  * 的默认规则推导 12 个配色 token → 在右侧 iframe 里给真实首页注入同名 CSS 变量
  * 实时预览 → 逐项微调 → 导出可粘贴进 public/skin-palettes.js 的代码。
  *
@@ -13,10 +13,16 @@
  *   derivePaletteDeclarationsFromTokens 派生 20 项变量，与正式皮肤、首屏 bootstrap
  *   完全同源；注入前清除同一份 PALETTE_CSS_VAR_NAMES，不留旧值。「四源色生成草稿」
  *   保留为旧快速草稿，其算法不作求解器、不作门禁依据。导出里仍只有 12 个 token。
- * - 打开期间 iframe 会临时改动同源的皮肤/主题偏好；页面关闭时恢复打开前的值。
+ * - iframe 中的皮肤和主题改动只用于预览。
  */
 
-import { PALETTE_CSS_VAR_NAMES, PALETTE_TOKEN_KEYS, SKINS, derivePaletteDeclarationsFromTokens } from "./skins.js";
+import {
+  PALETTE_CSS_VAR_NAMES,
+  PALETTE_TOKEN_KEYS,
+  SKINS,
+  derivePaletteDeclarationsFromTokens,
+  isRetiredCharacterSkin,
+} from "./skins.js";
 import { SKIN_PALETTES } from "./skin-palettes.js";
 
 const STORAGE_KEY = "codexUsageSkinPaletteStudioV1";
@@ -278,6 +284,9 @@ function loadState() {
     if (CHARACTER_SKINS.some((skin) => skin.id === parsed.activeSkinId)) state.activeSkinId = parsed.activeSkinId;
     if (parsed.activeMode === "dark") state.activeMode = "dark";
     if (parsed.drafts && typeof parsed.drafts === "object") state.drafts = parsed.drafts;
+    const retiredDrafts = Object.keys(state.drafts).filter(isRetiredCharacterSkin);
+    for (const skinId of retiredDrafts) delete state.drafts[skinId];
+    if (retiredDrafts.length || isRetiredCharacterSkin(parsed.activeSkinId)) saveState();
   } catch {
     // A corrupt draft is treated as absent; defaults apply.
   }
@@ -375,28 +384,10 @@ const preview = {
   observerDoc: null,
   accents: { light: null, dark: null },
   inlineVars: { light: [], dark: [] },
-  boot: { theme: null, skin: null },
   init() {
-    try {
-      this.boot.theme = localStorage.getItem("codexUsageTheme");
-      this.boot.skin = localStorage.getItem("codexUsageSkinV1");
-    } catch {
-      // Preference restore is best-effort only.
-    }
-    window.addEventListener("pagehide", () => this.restorePrefs());
     frame.addEventListener("load", () => {
       this.onLoad();
     });
-  },
-  restorePrefs() {
-    try {
-      if (this.boot.theme === null) localStorage.removeItem("codexUsageTheme");
-      else localStorage.setItem("codexUsageTheme", this.boot.theme);
-      if (this.boot.skin === null) localStorage.removeItem("codexUsageSkinV1");
-      else localStorage.setItem("codexUsageSkinV1", this.boot.skin);
-    } catch {
-      // Best effort.
-    }
   },
   async onLoad() {
     this.ready = false;

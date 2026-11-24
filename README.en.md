@@ -66,7 +66,7 @@ Use PowerShell 7 to create a desktop shortcut for Waifu or Lite, then double-cli
 
 ![Cost estimate and model pricing settings](docs/images/pricing.png)
 
-**Characters and themes.** Choose from ten character skins with light and dark palettes, plus visibility and opacity controls. The interface supports English and Chinese.
+**Characters and themes.** Choose from eight character skins with light and dark palettes, plus visibility and opacity controls. The interface supports English and Chinese.
 
 ![Character skins and themes](docs/images/themes.png)
 

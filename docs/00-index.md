@@ -11,7 +11,7 @@ Waifu Agent Usage v1.0：Waifu 提供完整体验，Lite 专注用量统计与�
 - [看板使用](12-dashboard.md)：时间范围、Codex 额度、搜索、刷新和分享。
 - [数据来源与统计口径](10-data-sources.md)：来源管理、Token 明细和渠道归组。
 - [计价与自动更新](11-pricing.md)：费用估算、模型价格、汇率和手动修改。
-- [角色皮肤与配色](13-skins.md)：十款角色、主题、透明度与配色维护。
+- [角色皮肤与配色](13-skins.md)：八款角色、主题、透明度与配色维护。
 - [成就说明](achievements.md) · [Achievements](achievements.en.md)：进度、通知和档案恢复。
 
 ## 数据与升级

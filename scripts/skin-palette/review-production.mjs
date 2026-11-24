@@ -17,6 +17,7 @@ import {
   collectSourceHashes,
   sha256Canonical,
   SKIN_IDS,
+  SOURCE_ASSET_COUNT,
   validateCandidate,
   validateCandidateSet,
   validatePolicy,
@@ -1146,17 +1147,17 @@ export async function verifyProductionCurrentStability(options = {}) {
   const assets = enumerateSourceAssets();
   if (
     !Array.isArray(assets) ||
-    assets.length !== 40 ||
+    assets.length !== SOURCE_ASSET_COUNT ||
     assets.some(
       (asset) => !isPlainRecord(asset) || typeof asset.sourcePath !== "string" || typeof asset.publicPath !== "string",
     )
   ) {
-    throw new TypeError("enumerateSourceAssets must return exactly 40 sourcePath/publicPath records");
+    throw new TypeError("enumerateSourceAssets must return a sourcePath/publicPath record for every registered asset");
   }
   const sourcePaths = assets.map(({ sourcePath }) => sourcePath);
   const publicPaths = assets.map(({ publicPath }) => publicPath);
-  if (new Set(sourcePaths).size !== 40 || new Set(publicPaths).size !== 40) {
-    throw new TypeError("enumerateSourceAssets must return exactly 40 unique sourcePath/publicPath pairs");
+  if (new Set(sourcePaths).size !== SOURCE_ASSET_COUNT || new Set(publicPaths).size !== SOURCE_ASSET_COUNT) {
+    throw new TypeError("enumerateSourceAssets must return the expected number of unique sourcePath/publicPath pairs");
   }
   const startSourceAssetHashes = copyProductionAssetHashMap(
     assetFields.get("sourceAssetHashes"),
@@ -1658,16 +1659,16 @@ export async function readProductionPreMigrationAssets(options = {}) {
   const assets = enumerateSourceAssets();
   if (
     !Array.isArray(assets) ||
-    assets.length !== 40 ||
+    assets.length !== SOURCE_ASSET_COUNT ||
     assets.some(
       (asset) => !isPlainRecord(asset) || typeof asset.sourcePath !== "string" || typeof asset.publicPath !== "string",
     )
   ) {
-    throw new TypeError("enumerateSourceAssets must return exactly 40 sourcePath/publicPath records");
+    throw new TypeError("enumerateSourceAssets must return a sourcePath/publicPath record for every registered asset");
   }
   const sourcePaths = assets.map(({ sourcePath }) => sourcePath);
   const publicPaths = assets.map(({ publicPath }) => publicPath);
-  if (new Set(sourcePaths).size !== 40 || new Set(publicPaths).size !== 40) {
+  if (new Set(sourcePaths).size !== SOURCE_ASSET_COUNT || new Set(publicPaths).size !== SOURCE_ASSET_COUNT) {
     throw new TypeError("enumerateSourceAssets sourcePath and publicPath values must each be unique");
   }
   const generatedAssets = {
@@ -1715,14 +1716,14 @@ export async function readProductionGeneratedAssets(options = {}) {
   const assets = enumerateSourceAssets();
   if (
     !Array.isArray(assets) ||
-    assets.length !== 40 ||
+    assets.length !== SOURCE_ASSET_COUNT ||
     assets.some(
       (asset) => !isPlainRecord(asset) || typeof asset.sourcePath !== "string" || typeof asset.publicPath !== "string",
     ) ||
-    new Set(assets.map((asset) => asset.sourcePath)).size !== 40 ||
-    new Set(assets.map((asset) => asset.publicPath)).size !== 40
+    new Set(assets.map((asset) => asset.sourcePath)).size !== SOURCE_ASSET_COUNT ||
+    new Set(assets.map((asset) => asset.publicPath)).size !== SOURCE_ASSET_COUNT
   ) {
-    throw new TypeError("enumerateSourceAssets must return exactly 40 unique sourcePath/publicPath pairs");
+    throw new TypeError("enumerateSourceAssets must return the expected number of unique sourcePath/publicPath pairs");
   }
 
   const readHash = async (file) =>
@@ -1846,8 +1847,8 @@ export function verifyProductionGeneratedAssets(options = {}) {
   }
 
   const registeredAssets = enumerateSourceAssets();
-  if (!Array.isArray(registeredAssets) || registeredAssets.length !== 40) {
-    throw new TypeError("enumerateSourceAssets must return exactly 40 registered assets");
+  if (!Array.isArray(registeredAssets) || registeredAssets.length !== SOURCE_ASSET_COUNT) {
+    throw new TypeError("enumerateSourceAssets must return the expected number of registered assets");
   }
   if (
     registeredAssets.some(
@@ -1867,8 +1868,14 @@ export function verifyProductionGeneratedAssets(options = {}) {
   const sourcePaths = registeredAssets.map((asset) => asset.sourcePath);
   const publicPaths = registeredAssets.map((asset) => asset.publicPath);
   const publicUrls = registeredAssets.map((asset) => asset.publicUrl);
-  if (new Set(sourcePaths).size !== 40 || new Set(publicPaths).size !== 40 || new Set(publicUrls).size !== 40) {
-    throw new TypeError("enumerateSourceAssets must return exactly 40 unique registered asset paths and URLs");
+  if (
+    new Set(sourcePaths).size !== SOURCE_ASSET_COUNT ||
+    new Set(publicPaths).size !== SOURCE_ASSET_COUNT ||
+    new Set(publicUrls).size !== SOURCE_ASSET_COUNT
+  ) {
+    throw new TypeError(
+      "enumerateSourceAssets must return the expected number of unique registered asset paths and URLs",
+    );
   }
 
   const sourceHashFields = readExactOwnDataFields(
@@ -2068,7 +2075,7 @@ export function resolveProductionSelection({ verifiedModel, selections, candidat
     recordedAt: selections.recordedAt,
   });
   if (exported.fileName !== "selections.json") {
-    throw new TypeError("selections 必须是完整十套正式记录，不能是 selection-draft.json");
+    throw new TypeError("selections 必须是全部现役角色的正式记录，不能是 selection-draft.json");
   }
 
   const candidates = candidateSet.candidates.filter((candidate) => candidate.id === candidateId);

@@ -228,11 +228,11 @@
     {
       "id": "A44",
       "name": "我全都要！",
-      "description": "使用过 10 种角色皮肤。",
+      "description": "使用过 8 种角色皮肤。",
       "category": "故事纪念",
       "tiered": false,
       "unit": "皮肤",
-      "levels": ["10"]
+      "levels": ["8"]
     },
     {
       "id": "A46",

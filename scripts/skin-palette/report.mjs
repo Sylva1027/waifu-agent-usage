@@ -1,3 +1,4 @@
+import { SKIN_IDS } from "./contracts.mjs";
 import { ROLE_CATALOG } from "./roles.mjs";
 
 const MODES = ["light", "dark"];
@@ -167,7 +168,7 @@ export function renderReviewReport({ verifiedModel, selectionScript = "" } = {})
 </style><style>.zoom-open{width:100%;height:100%;padding:0;border:0;background:transparent;cursor:zoom-in}.zoom-open img{width:100%;height:100%;object-fit:contain}.mode-grid .zoom-open{height:auto}.state-assets .zoom-open{height:auto}</style></head><body>
 <header class="page"><h1>皮肤候选评审报告</h1><p>${escapeHtml(modelStatus)} · ${candidates.length} 个候选 / ${groups.size} 套皮肤</p><p>${escapeHtml(binding)}</p><p>${escapeHtml(selectionNotice)}</p><details><summary>全部缺件与警告（${verifiedModel.gaps.length}）</summary>${renderGaps(verifiedModel.gaps)}</details></header>
 <main>${reportCards}<section class="selection-area"><h2>选择区</h2><p data-selection-message>${escapeHtml(selectionNotice)}</p><button type="button" data-selection-export${selectionScript.trim() ? "" : " disabled"}>导出选择记录</button></section>
-${groups.size === 10 ? `<section class="overall"><h2>十套整体网格</h2>${MODES.map((mode) => `<h3>${mode === "light" ? "浅色整体" : "深色整体"}</h3><div class="mode-grid" data-overview-mode="${mode}"></div>`).join("")}</section>` : ""}
+${groups.size === SKIN_IDS.length ? `<section class="overall"><h2>角色整体网格</h2>${MODES.map((mode) => `<h3>${mode === "light" ? "浅色整体" : "深色整体"}</h3><div class="mode-grid" data-overview-mode="${mode}"></div>`).join("")}</section>` : ""}
 </main><dialog id="image-viewer" aria-label="原尺寸图片"><form method="dialog"><button type="submit">关闭原图</button></form><img alt="原尺寸评审图片"></dialog>
 <script type="application/json" id="review-model">${safeJson({ candidateSetHash: container.candidateSetHash, assessmentHash: container.assessmentHash, candidates: entries.map(({ candidate, assessment, index, id, gaps, selectable }) => ({ candidate, assessment, index, id, gaps, selectable, origin: verifiedModel.origins?.[id] ?? null, assets: verifiedModel.images.assets.filter((asset) => asset.candidateId === id) })) })}</script>
 <script>

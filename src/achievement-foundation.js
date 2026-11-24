@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import path from "node:path";
 import { ACHIEVEMENT_CATALOG, ACHIEVEMENT_RULES_VERSION } from "./achievement-catalog.js";
+import { supportsAchievementRuleDirectory } from "./achievement-format-descriptor.js";
 import { closedAchievementPeriods, validateAchievementTimeZone } from "./achievement-calendar.js";
 import { readAchievementFacts } from "./achievement-facts.js";
 import { createAchievementFreeClassifier, validateAchievementFreePolicies } from "./achievement-free-policy.js";
@@ -49,9 +50,10 @@ export class AchievementFoundation {
       clock: this.clock,
     });
     try {
-      archive.open({ enabledAt, timeZone, rulesVersion: ACHIEVEMENT_RULES_VERSION, catalogHash });
+      const profile = archive.open({ enabledAt, timeZone, rulesVersion: ACHIEVEMENT_RULES_VERSION, catalogHash });
+      if (!supportsAchievementRuleDirectory(profile)) throw new Error("Unsupported achievement rule directory");
       this.archive = archive;
-      return archive.readProfile();
+      return profile;
     } catch (error) {
       archive.close();
       throw error;
@@ -292,7 +294,7 @@ export class AchievementFoundation {
       ...captured.input,
       facts,
       inputKey,
-      profile,
+      profile: { ...profile, rulesVersion: ACHIEVEMENT_RULES_VERSION, catalogHash },
       usageStart: ACHIEVEMENT_USAGE_START,
       cutoff,
       operations,

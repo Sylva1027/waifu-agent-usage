@@ -52,7 +52,7 @@ function verifiedOverrides(paletteOverrides) {
   const verified = new Map();
   for (const skinId of Object.keys(paletteOverrides)) {
     if (!SKIN_IDS.includes(skinId)) {
-      throw new Error(`paletteOverrides 的 "${skinId}" 不是十套角色皮肤（classic 不可覆盖）`);
+      throw new Error(`paletteOverrides 的 "${skinId}" 不是现役角色皮肤（classic 不可覆盖）`);
     }
     const modes = paletteOverrides[skinId];
     if (!modes || typeof modes !== "object" || Array.isArray(modes)) {

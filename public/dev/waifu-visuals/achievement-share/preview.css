@@ -868,12 +868,6 @@ html.viewing-share {
 .card[data-skin="kimi"] .figure-glass {
   --figure-mask: url("./art/kimi/silhouette.webp");
 }
-.card[data-skin="mimo"] .figure-glass {
-  --figure-mask: url("./art/mimo/silhouette.webp");
-}
-.card[data-skin="muse"] .figure-glass {
-  --figure-mask: url("./art/muse/silhouette.webp");
-}
 
 .scene-row {
   display: flex;

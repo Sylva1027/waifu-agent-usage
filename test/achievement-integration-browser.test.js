@@ -144,7 +144,7 @@ test("actual picker, share download and CLI restore award A44/A43/A46 in the ori
   assert.equal(row(before, "A46").highestEarned, null);
   await page.locator("#skinToggle").click();
   const characters = SKINS.filter((skin) => !skin.isClassic);
-  assert.equal(characters.length, 10);
+  assert.equal(characters.length, 8);
   let selected;
   for (const [index, character] of characters.entries()) {
     stage = `applying actual picker ${character.id}`;
@@ -160,8 +160,9 @@ test("actual picker, share download and CLI restore award A44/A43/A46 in the ori
     selected = await fixture.waitForSnapshot((snapshot) => row(snapshot, "A44").observedValue === String(index + 1));
     assert.equal(await page.locator("html").getAttribute("data-skin"), character.id);
     assert.equal(row(selected, "A44").observedValue, String(index + 1));
-    assert.equal(row(selected, "A44").highestEarned, index === 9 ? "stone" : null);
-    if (index < 9) assert.equal(selected.awardRevision, before.awardRevision);
+    const last = index === characters.length - 1;
+    assert.equal(row(selected, "A44").highestEarned, last ? "stone" : null);
+    if (!last) assert.equal(selected.awardRevision, before.awardRevision);
   }
   const skinDate = row(selected, "A44").earnedAt.stone;
   assert.ok(skinDate);
@@ -174,7 +175,7 @@ test("actual picker, share download and CLI restore award A44/A43/A46 in the ori
   await page.locator(`.skin-card[data-skin-id="${characters[0].id}"]`).click();
   assert.equal((await repeated).status(), 200);
   const duplicate = await fixture.snapshot();
-  assert.equal(row(duplicate, "A44").observedValue, "10");
+  assert.equal(row(duplicate, "A44").observedValue, "8");
   assert.equal(row(duplicate, "A44").earnedAt.stone, skinDate);
   assert.equal(duplicate.awardRevision, selected.awardRevision);
   await page.locator("#resetSkinClassicButton").click();

@@ -1646,7 +1646,7 @@ test("M2.4：参数解析——固定参数与 all 展开正确，未知/重复/
   assert.equal(parsed.profilesPath, undefined);
   assert.equal(parsed.policyPath, undefined);
   const all = parseGenerateArgs(["--skins=all", "--seed", "s", "--out", "o"]);
-  assert.deepEqual(all.skins, [...SKIN_IDS], "--skins all 展开为注册表十套（排除 classic）");
+  assert.deepEqual(all.skins, [...SKIN_IDS], "--skins all 展开为注册表现役角色（排除 classic）");
   const overridden = parseGenerateArgs([
     "--skins",
     "chatgpt",

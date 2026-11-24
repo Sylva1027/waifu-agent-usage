@@ -217,7 +217,7 @@ test("E1 clean-source branch runs C5c and both post checks in a copied validatio
     await copyStaticModuleGraph(sandboxRoot, "src/server.js", copiedHashes);
 
     const assetRecords = enumerateSourceAssets();
-    assert.equal(assetRecords.length, 40);
+    assert.equal(assetRecords.length, 32);
     const explicitFiles = new Set([
       ...SOURCE_FILES,
       ...GENERATED_ASSET_TOOL_FILES,
@@ -252,8 +252,8 @@ test("E1 clean-source branch runs C5c and both post checks in a copied validatio
       { ...REAL_SOURCE_HASHES, "public/skin-picker.js": sha256(oldPicker) },
       "sandbox source bytes match the ready fixture source inputs",
     );
-    assert.equal(Object.keys(preAssets.sourceAssetHashes).length, 40);
-    assert.equal(Object.keys(preAssets.publicAssetHashes).length, 40);
+    assert.equal(Object.keys(preAssets.sourceAssetHashes).length, 32);
+    assert.equal(Object.keys(preAssets.publicAssetHashes).length, 32);
 
     const allowedRuns = new Set(["origin-run", "manifest-run"]);
     const box = {
@@ -266,7 +266,7 @@ test("E1 clean-source branch runs C5c and both post checks in a copied validatio
         return realpath(runDir);
       },
     };
-    // E1 needs ten selected a candidates and one unselected b gap; D9f-2 covers all 30 variants.
+    // E1 needs eight selected a candidates and one unselected b gap; D9f-2 covers all 30 variants.
     const candidates = SKIN_IDS.flatMap((skinId, index) =>
       (index === 0 ? ["a", "b"] : ["a"]).map((variant) => makeCandidate({ skinId, variant })),
     );
@@ -1102,7 +1102,7 @@ test("E1 clean-source branch runs C5c and both post checks in a copied validatio
         `${SOURCE_FILES.length} registry source files`,
         "4 generated-asset tools",
         "public/skin-assets.json",
-        "40 registered source assets + 40 published assets",
+        "32 registered source assets + 32 published assets",
         "test-support/skin-palette-fixture.mjs",
       ],
       sourceHashDigestBefore: sha256Canonical(preSources.sourceHashes),

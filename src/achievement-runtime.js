@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import path from "node:path";
 import { closedAchievementPeriods } from "./achievement-calendar.js";
+import { ACHIEVEMENT_FORMAT_CATALOG_HASH, ACHIEVEMENT_FORMAT_RULES_VERSION } from "./achievement-format-descriptor.js";
 import { ACHIEVEMENT_USAGE_START, AchievementFoundation, achievementDatabaseFile } from "./achievement-foundation.js";
 import { AchievementAggregates } from "./achievement-incremental.js";
 import { ACHIEVEMENT_IDENTITY_VERSION } from "./achievement-identity.js";
@@ -192,8 +193,8 @@ export class AchievementRuntime {
       operations,
       calendar,
       ACHIEVEMENT_IDENTITY_VERSION,
-      profile.rulesVersion,
-      profile.catalogHash,
+      ACHIEVEMENT_FORMAT_RULES_VERSION,
+      ACHIEVEMENT_FORMAT_CATALOG_HASH,
     ]);
     const previous = this.state;
     const diagnostics = {
@@ -289,7 +290,12 @@ export class AchievementRuntime {
         },
         this.readSnapshot().awards,
       );
-      const snapshot = this.archive.commitBatch({ ...result, expectedProgressRevision: profile.progressRevision });
+      // Publish the rule stamp with the first complete recomputation so an interrupted update can retry.
+      const snapshot = this.archive.commitBatch({
+        ...result,
+        expectedProgressRevision: profile.progressRevision,
+        useCurrentRules: true,
+      });
       this.state = diagnostics.pendingCatchUp
         ? null
         : { aggregates, key, configuration, input: before, cutoff, nextTimestamp, visibility };

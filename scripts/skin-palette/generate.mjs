@@ -466,7 +466,7 @@ export function generateCandidates(options) {
     }
     requested.add(skinId);
     if (!SKIN_IDS.includes(skinId)) {
-      throw new TypeError(`generateCandidates: 未知皮肤 "${skinId}"（只接受注册表十套、排除 classic）`);
+      throw new TypeError(`generateCandidates: 未知皮肤 "${skinId}"（只接受注册表的角色皮肤、排除 classic）`);
     }
     const profile = profiles[skinId];
     if (!profile || typeof profile !== "object" || Array.isArray(profile)) {

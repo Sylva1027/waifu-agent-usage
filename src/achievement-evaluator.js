@@ -5,6 +5,7 @@ import { ACHIEVEMENT_CATALOG, ACHIEVEMENT_RULES_VERSION } from "./achievement-ca
 import { evaluateCalendarAchievements } from "./achievement-evaluate-calendar.js";
 import { evaluateCumulativeAchievements } from "./achievement-evaluate-cumulative.js";
 import { evaluateMetaAchievements, evaluateOperationAchievements } from "./achievement-evaluate-operations.js";
+import { supportsAchievementRuleDirectory } from "./achievement-format-descriptor.js";
 
 const catalog = new Map(ACHIEVEMENT_CATALOG.map((row) => [row.id, row]));
 const catalogHash = createHash("sha256").update(JSON.stringify(ACHIEVEMENT_CATALOG)).digest("hex");
@@ -133,11 +134,14 @@ export function commitAchievementEvaluation(archive, input) {
   const previous = archive.readSnapshot();
   if (
     !previous ||
-    ["profileId", "enabledAt", "timeZone", "rulesVersion", "catalogHash"].some(
-      (key) => previous[key] !== input.profile?.[key],
-    )
+    !supportsAchievementRuleDirectory(previous) ||
+    ["profileId", "enabledAt", "timeZone"].some((key) => previous[key] !== input.profile?.[key])
   )
     throw new Error("Achievement input belongs to a different profile");
   const result = evaluateAchievements(input, previous.awards);
-  return archive.commitBatch({ ...result, expectedProgressRevision: input.profile.progressRevision });
+  return archive.commitBatch({
+    ...result,
+    expectedProgressRevision: input.profile.progressRevision,
+    useCurrentRules: true,
+  });
 }

@@ -13,18 +13,19 @@
  * run.json / assessments.json / selections.json，不进入候选 JSON。
  *
  * 生产 token 键从 public/skins.js 读取（PALETTE_TOKEN_KEYS），不另维护
- * 可漂移列表；十套 ID 同样取自注册表并排除 classic。
+ * 可漂移列表；角色 ID 同样取自注册表并排除 classic。
  */
 
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { CLASSIC_SKIN_ID, PALETTE_TOKEN_KEYS, listSkinIds } from "../../public/skins.js";
+import { CLASSIC_SKIN_ID, CHARACTER_VIEWS, PALETTE_TOKEN_KEYS, SKIN_MODES, listSkinIds } from "../../public/skins.js";
 import { BASE_COLORS, ROLE_CATALOG, ROLES_VERSION, STATE_CATALOG } from "./roles.mjs";
 
 export const SCHEMA_VERSION = 1;
 
-/** 十套角色皮肤（注册表顺序，排除 classic）。classic 是回归对象，不参与候选。 */
+/** 角色皮肤（注册表顺序，排除 classic）。classic 是回归对象，不参与候选。 */
 export const SKIN_IDS = Object.freeze(listSkinIds().filter((id) => id !== CLASSIC_SKIN_ID));
+export const SOURCE_ASSET_COUNT = SKIN_IDS.length * SKIN_MODES.length * CHARACTER_VIEWS.length;
 export const MODES = Object.freeze(["light", "dark"]);
 export const VARIANTS = Object.freeze(["a", "b", "c"]);
 
@@ -244,7 +245,7 @@ export function validateTokens(value, pathPrefix = "") {
 }
 
 /**
- * profiles 的字段与单位以 M5.1 为准；本版只锁信封：恰好十套 ID 的
+ * profiles 的字段与单位以 M5.1 为准；本版只锁信封：当前全部角色 ID 的
  * plain-object 映射，每套 profile 为可 JSON 化的非空对象（无时间字段）。
  */
 export function validateProfiles(value) {

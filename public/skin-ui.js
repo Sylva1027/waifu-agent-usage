@@ -15,8 +15,10 @@ import {
   DEFAULT_SKIN_PREFERENCE,
   PALETTE_CSS_VAR_NAMES,
   SKIN_PREFERENCE_KEY,
+  SKIN_PREFERENCE_VERSION,
   SKINS,
   clampOpacity,
+  isRetiredCharacterSkin,
   normalizeSkinPreference,
   paletteDeclarations,
   serializeSkinPreference,
@@ -56,7 +58,7 @@ function currentTheme() {
   return document.documentElement.dataset.theme === "dark" ? "dark" : "light";
 }
 
-export function createSkinRuntime({ registry, onChange } = {}) {
+export function createSkinRuntime({ registry, onChange, persistChanges = true } = {}) {
   const byId = new Map(registry.map((skin) => [skin.id, skin]));
   const classicId = registry.find((skin) => skin.isClassic)?.id || registry[0]?.id;
 
@@ -152,7 +154,9 @@ export function createSkinRuntime({ registry, onChange } = {}) {
     const raw = storageRead(SKIN_STORAGE_KEY);
     if (raw === null || raw === "") return preference;
     try {
-      preference = normalize(JSON.parse(raw));
+      const saved = JSON.parse(raw);
+      preference = normalize(saved);
+      if (saved?.version === SKIN_PREFERENCE_VERSION && isRetiredCharacterSkin(saved.skinId)) persist();
     } catch {
       // Corrupt JSON falls back to the no-skin default rather than throwing.
       preference = normalize(null);
@@ -360,7 +364,7 @@ export function createSkinRuntime({ registry, onChange } = {}) {
   function setPreference(patch) {
     const previous = preference.skinId;
     preference = normalize({ ...preference, ...patch });
-    persist();
+    if (persistChanges) persist();
     apply();
     if (onChange) onChange(preference, { previousSkinId: previous });
     return preference;

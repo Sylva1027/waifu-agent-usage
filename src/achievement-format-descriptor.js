@@ -1,6 +1,14 @@
 // Generated from achievement-catalog.js; parity is checked by achievement-backup-format.test.js.
-export const ACHIEVEMENT_FORMAT_RULES_VERSION = "R7-production-1";
-export const ACHIEVEMENT_FORMAT_CATALOG_HASH = "75e83543b974ff9245c0222a01ffab5a50e4c9cb6276054a12ed16518ea30b4c";
+export const ACHIEVEMENT_FORMAT_RULES_VERSION = "R7-production-2";
+export const ACHIEVEMENT_FORMAT_CATALOG_HASH = "e23dc3e34c58fd24df5045c6e92417518788437ba61b25a36e60b60968092f39";
+
+export function supportsAchievementRuleDirectory({ rulesVersion, catalogHash }) {
+  return (
+    (rulesVersion === ACHIEVEMENT_FORMAT_RULES_VERSION && catalogHash === ACHIEVEMENT_FORMAT_CATALOG_HASH) ||
+    (rulesVersion === "R7-production-1" &&
+      catalogHash === "75e83543b974ff9245c0222a01ffab5a50e4c9cb6276054a12ed16518ea30b4c")
+  );
+}
 export const ACHIEVEMENT_FORMAT_CATALOG = Object.freeze(
   [
     { id: "A01", tiers: ["bronze", "silver", "gold"] },

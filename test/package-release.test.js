@@ -48,12 +48,12 @@ test("Lite closure binds all canonical entries and retains the exact common runt
   assert.doesNotMatch(Object.keys(inputs).join("\n"), /^public\/(?:assets|i18n|share|skin|achievement)|^src\/waifu/m);
 });
 
-test("Waifu closure keeps 42 achievement families / 96 original badge bytes and 40 skin assets", async () => {
+test("Waifu closure keeps 42 achievement families / 96 original badge bytes and 32 skin assets", async () => {
   const files = await releaseFiles("waifu");
   const badges = files.filter((file) => file.startsWith("public/assets/achievements/"));
   assert.equal(badges.length, 96);
   assert.equal(new Set(badges.map((file) => file.split("/")[3])).size, 42);
-  assert.equal(files.filter((file) => file.startsWith("public/assets/skins/")).length, 40);
+  assert.equal(files.filter((file) => file.startsWith("public/assets/skins/")).length, 32);
   for (const file of [
     "src/achievement-runtime.js",
     "src/achievement-restore.js",

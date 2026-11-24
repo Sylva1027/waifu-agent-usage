@@ -9,7 +9,7 @@
  * 参数固定为 --skins / --seed / --out；profiles、policy 默认读固定模块目录
  * （scripts/skin-palette/profiles.json 与 policy.json），需要覆盖时只接受显式
  * --profiles <path> / --policy <path> 并保存其内容摘要；未知参数报错。
- * --skins all = 注册表全部十套（排除 classic）。roles 无覆盖参数——角色清单属
+ * --skins all = 注册表全部现役角色（排除 classic）。roles 无覆盖参数——角色清单属
  * M0 契约，本 CLI 只消费 ./roles.mjs。
  *
  * 行为（M2.4 卡面 + 总计划 §3/§4.1）：
@@ -138,7 +138,7 @@ export function parseGenerateArgs(argv) {
     throw new GenerateCliError(
       "MISSING_SKINS",
       GENERATE_EXIT_CODES.input,
-      "--skins 必填：逗号分隔的注册表皮肤 ID，或 all（全部十套）。",
+      "--skins 必填：逗号分隔的注册表皮肤 ID，或 all（全部现役角色）。",
     );
   }
   let skins;
@@ -154,7 +154,7 @@ export function parseGenerateArgs(argv) {
         throw new GenerateCliError(
           "UNKNOWN_SKIN",
           GENERATE_EXIT_CODES.input,
-          `未知皮肤 "${skinId}"：--skins 只接受注册表十套（排除 classic）或 all。`,
+          `未知皮肤 "${skinId}"：--skins 只接受注册表的角色皮肤（排除 classic）或 all。`,
         );
       }
     }

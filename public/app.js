@@ -106,6 +106,7 @@ const QUOTA_UI_COPY = Object.freeze({
   asOf: "统计数据截至",
 });
 const THEME_STORAGE_KEY = "codexUsageTheme";
+const paletteStudioPreview = globalThis.window?.frameElement?.id === "studioFrame";
 const AUTO_REFRESH_STORAGE_KEY = "codexUsageAutoRefresh";
 const DISPLAY_CURRENCY_STORAGE_KEY = "codexUsageDisplayCurrency";
 const PRICING_SEEN_MODELS_STORAGE_KEY = "codexUsagePricingSeenModelsV1";
@@ -236,7 +237,7 @@ function setLanguage(locale) {
 function setTheme(theme, { persist = true } = {}) {
   state.theme = theme === "dark" ? "dark" : "light";
   document.documentElement.dataset.theme = state.theme;
-  if (persist) {
+  if (persist && !paletteStudioPreview) {
     try {
       localStorage.setItem(THEME_STORAGE_KEY, state.theme);
     } catch {
@@ -1647,7 +1648,7 @@ const dashboardRuntime = createDashboardRuntime(
       shareSummary = data.summary;
       shareAchievementReceipt = data.achievementShareReceipt || null;
       refreshAchievements();
-      if (document.documentElement.dataset.edition === "waifu")
+      if (document.documentElement.dataset.edition === "waifu" && !paletteStudioPreview)
         void import("./achievement-events.js").then((events) => events.retryAchievementOperations()).catch(() => {});
       sharePricingModels = data.pricingCatalog?.models || {};
       const costEstimate = data.summary?.costEstimate;
@@ -2985,6 +2986,7 @@ async function bootDashboard() {
     const { createSkinPicker, createSkinRuntime, installSkinTestHook, SKINS } = await import("./skin-ui.js");
     state.skinRuntime = createSkinRuntime({
       registry: SKINS,
+      persistChanges: !paletteStudioPreview,
       onChange: (preference, meta) => {
         state.skinPicker?.syncOpacityControl();
         // Canvas charts read CSS colours at draw time, so a palette change (the
@@ -2992,7 +2994,7 @@ async function bootDashboard() {
         // visibility recolour nothing, and re-rendering per slider tick would be
         // wasteful.
         if (!meta || meta.previousSkinId !== preference.skinId) render();
-        if (meta?.previousSkinId !== preference.skinId)
+        if (!paletteStudioPreview && meta?.previousSkinId !== preference.skinId)
           void import("./achievement-events.js")
             .then((events) => events.recordAchievementSkin(preference.skinId))
             .catch(() => {});
@@ -3000,9 +3002,10 @@ async function bootDashboard() {
     });
     state.skinRuntime.restore();
     state.skinRuntime.apply();
-    void import("./achievement-events.js")
-      .then((events) => events.recordAchievementSkin(state.skinRuntime.getPreference().skinId))
-      .catch(() => {});
+    if (!paletteStudioPreview)
+      void import("./achievement-events.js")
+        .then((events) => events.recordAchievementSkin(state.skinRuntime.getPreference().skinId))
+        .catch(() => {});
     state.skinPicker = createSkinPicker({
       runtime: state.skinRuntime,
       translate: (key) => localizeText(key, getLocale()),

@@ -2170,7 +2170,7 @@ test("extra chartSeries is ignored and neither input is modified or frozen", () 
   assert.equal(Object.isFrozen(source.chatgpt.light), false);
 });
 
-test("builds the selected palette by replacing exactly 240 source literal spans and is idempotent", () => {
+test("builds the selected palette by replacing exactly all selected source literal spans and is idempotent", () => {
   const sourcePath = path.join(REPO_ROOT, "public", "skin-palettes.js");
   const beforeSource = fs.readFileSync(sourcePath);
   const fileBefore = Buffer.from(beforeSource);
@@ -2355,15 +2355,15 @@ test("picker preview values come from the shared palette derivation for the requ
     );
   };
 
-  const light = productionPickerPreviewTokens(runtime, "mimo", "light");
-  const dark = productionPickerPreviewTokens(runtime, "mimo", "dark");
+  const light = productionPickerPreviewTokens(runtime, "grok", "light");
+  const dark = productionPickerPreviewTokens(runtime, "grok", "dark");
 
   assert.deepEqual(light, expected("light"));
   assert.deepEqual(dark, expected("dark"));
   assert.notDeepEqual(light, dark, "light and dark previews use only their own mode tokens");
   assert.deepEqual(calls, [
-    ["mimo", "light"],
-    ["mimo", "dark"],
+    ["grok", "light"],
+    ["grok", "dark"],
   ]);
   assert.deepEqual(Object.keys(light), Object.keys(EXPECTED_PICKER_PREVIEW_CSS_VARS));
   assert.ok(light.chartLine, "chartLine is the official derived value, not a guessed raw token");
@@ -2465,7 +2465,7 @@ test("picker source construction preserves CRLF and emits the same function sour
   );
 });
 
-test("bootstrap builder emits ten explicit selected palettes through the canonical emitter", () => {
+test("bootstrap builder emits eight explicit selected palettes through the canonical emitter", () => {
   const { verifiedModel, selections } = makeProductionSourceInputs();
   const overrides = selectedBootstrapOverrides(verifiedModel, selections);
   const modelBefore = JSON.stringify(verifiedModel);
@@ -2980,7 +2980,7 @@ test("a complete synthetic selection returns the selected candidate and exact in
   );
 });
 
-test("final ten-candidate selections feed the palette builder without retaining unused variants", () => {
+test("final eight-candidate selections feed the palette builder without retaining unused variants", () => {
   const verifiedModel = makeVerifiedModel();
   const candidateSet = verifiedModel.candidateSet;
   candidateSet.candidates = candidateSet.candidates.filter(
@@ -3010,7 +3010,7 @@ test("final ten-candidate selections feed the palette builder without retaining 
     recordedAt: "2026-10-19T00:00:00.000Z",
   });
   const candidateId = candidateSet.candidates[0].id;
-  assert.equal(candidateSet.candidates.length, 10);
+  assert.equal(candidateSet.candidates.length, SKIN_IDS.length);
   const beforeSource = fs.readFileSync(path.join(REPO_ROOT, "public/skin-palettes.js"));
   const output = buildProductionPaletteSource({
     beforeSource,
@@ -3019,7 +3019,7 @@ test("final ten-candidate selections feed the palette builder without retaining 
   });
   assertExactPaletteReplacement(beforeSource, output, verifiedModel, selections);
   const missingChoice = structuredClone(selections);
-  delete missingChoice.choices[SKIN_IDS[9]];
+  delete missingChoice.choices[SKIN_IDS.at(-1)];
   assertRejectedWithoutMutation({ verifiedModel, selections: missingChoice, candidateId });
   const missingMode = structuredClone(verifiedModel);
   delete missingMode.candidateSet.candidates[0].modes.dark;
@@ -3061,7 +3061,7 @@ test("stale summaries and malformed or draft selection records are rejected with
   }
 
   const missingSkin = structuredClone(goodSelections);
-  delete missingSkin.choices[SKIN_IDS[9]];
+  delete missingSkin.choices[SKIN_IDS.at(-1)];
   assertRejectedWithoutMutation({ verifiedModel, selections: missingSkin, candidateId: selected.id });
 
   for (const malformed of [
@@ -3080,7 +3080,7 @@ test("the model must contain every selected candidate and a container summary bo
 
   const incompleteSet = structuredClone(baseModel);
   incompleteSet.candidateSet.candidates = incompleteSet.candidateSet.candidates.filter(
-    (candidate) => candidate.skinId !== SKIN_IDS[9],
+    (candidate) => candidate.skinId !== SKIN_IDS.at(-1),
   );
   incompleteSet.candidateSet.candidateSetHash = hashCandidateSet(incompleteSet.candidateSet);
   incompleteSet.container.candidateSetHash = incompleteSet.candidateSet.candidateSetHash;
@@ -3673,7 +3673,7 @@ test("formal result identity, output path, matrix modes, and metadata shape are 
   });
 });
 
-test("production bindings and indexes accept the final ten selected candidates without unused variants", async () => {
+test("production bindings and indexes accept the final eight selected candidates without unused variants", async () => {
   await withProductionRun(async ({ candidate, outDir, runDir, verifiedModel }) => {
     const candidateSet = verifiedModel.candidateSet;
     candidateSet.candidates = candidateSet.candidates.filter((entry) => entry.variant === "a");
@@ -5064,7 +5064,7 @@ test("reads the fixed generated asset, tool, and raw manifest bytes from a valid
     const sourceRoot = path.join(testRoot, "generated-assets-root");
     const manifestBytes = Buffer.from("../../manifest-path-must-not-be-read.bin\n", "utf8");
     const fixture = await writeGeneratedAssetFixture(sourceRoot, manifestBytes);
-    assert.equal(fixture.assets.length, 40);
+    assert.equal(fixture.assets.length, 32);
 
     const first = await readProductionGeneratedAssets({ rootDir: sourceRoot });
     assert.deepEqual(Object.keys(first).sort(), [
@@ -5123,7 +5123,7 @@ test("reads all registered generated assets and fixed tool hashes from the defau
   const assets = enumerateSourceAssets();
   const result = await readProductionGeneratedAssets();
   assert.deepEqual(verifyProductionGeneratedAssets({ snapshot: result }), { status: "pass", errors: [], gaps: [] });
-  assert.equal(assets.length, 40);
+  assert.equal(assets.length, 32);
   assert.equal(result.rootDir, await fs.promises.realpath(REPO_ROOT));
   assert.deepEqual(
     Object.keys(result.sourceAssetHashes),
@@ -5249,7 +5249,7 @@ test("rejects tool and manifest file symlinks when Windows permits creating them
   });
 });
 
-test("D6b: validates 40 registered records and lossless declarations without mutating the snapshot", async () => {
+test("D6b: validates 32 registered records and lossless declarations without mutating the snapshot", async () => {
   await withProductionRun(async ({ testRoot }) => {
     const sourceRoot = path.join(testRoot, "generated-verify-root");
     await writeGeneratedAssetFixture(sourceRoot);
@@ -8166,7 +8166,7 @@ test("D7b accepts the fixed two-candidate manifest shape without mutation or fil
   const before = structuredClone({ manifest, candidateSet });
 
   assert.equal(SOURCE_FILES.length, 31);
-  assert.equal(assets.length, 40);
+  assert.equal(assets.length, 32);
   assert.equal(GENERATED_ASSET_TOOL_FILES.length, 4);
   assert.equal(Object.keys(manifest.after.sourceHashes).length, SOURCE_FILES.length);
   assert.ok(Object.hasOwn(manifest.after.sourceHashes, "public/timeline-utils.js"));
@@ -8182,8 +8182,8 @@ test("D7b accepts the fixed two-candidate manifest shape without mutation or fil
     delete missingFocus.after.sourceHashes[file];
     assert.throws(() => assertProductionSourceManifest({ manifest: missingFocus, candidateSet }), TypeError);
   }
-  assert.equal(Object.keys(manifest.after.generatedAssets.sourceAssetHashes).length, 40);
-  assert.equal(Object.keys(manifest.after.generatedAssets.publicAssetHashes).length, 40);
+  assert.equal(Object.keys(manifest.after.generatedAssets.sourceAssetHashes).length, 32);
+  assert.equal(Object.keys(manifest.after.generatedAssets.publicAssetHashes).length, 32);
   assert.equal(Object.keys(manifest.after.toolHashes).length, 4);
   assert.equal(assertProductionSourceManifest({ manifest, candidateSet }), undefined);
   assert.deepEqual({ manifest, candidateSet }, before);
@@ -8322,8 +8322,8 @@ test("D7b hash-map accessors and mixed source/public asset keys are rejected wit
   const assets = enumerateSourceAssets();
   const sourcePaths = assets.map(({ sourcePath }) => sourcePath);
   const publicPaths = assets.map(({ publicPath }) => publicPath);
-  assert.equal(new Set(sourcePaths).size, 40);
-  assert.equal(new Set(publicPaths).size, 40);
+  assert.equal(new Set(sourcePaths).size, 32);
+  assert.equal(new Set(publicPaths).size, 32);
   assert.ok(sourcePaths.every((file) => !publicPaths.includes(file)));
 
   const sourcePublicSwap = structuredClone(manifest);
@@ -10044,9 +10044,9 @@ test("D9c gates the full historical selection, reads the default current root, a
   }
 
   const assets = enumerateSourceAssets();
-  assert.equal(assets.length, 40);
-  assert.equal(Object.keys(result.currentAssets.sourceAssetHashes).length, 40);
-  assert.equal(Object.keys(result.currentAssets.publicAssetHashes).length, 40);
+  assert.equal(assets.length, 32);
+  assert.equal(Object.keys(result.currentAssets.sourceAssetHashes).length, 32);
+  assert.equal(Object.keys(result.currentAssets.publicAssetHashes).length, 32);
   for (const asset of assets) {
     assert.equal(
       result.currentAssets.sourceAssetHashes[asset.sourcePath],
@@ -10067,7 +10067,7 @@ test("D9c gates the full historical selection, reads the default current root, a
   assert.equal(JSON.stringify(fixture), before, "the supplied evidence and historical context must remain unchanged");
 });
 
-test("D9c allows an unselected readiness failure while the selected ten remain eligible", async (t) => {
+test("D9c allows an unselected readiness failure while all selected skins remain eligible", async (t) => {
   if (releaseArchiveSkip) {
     t.skip(releaseArchiveSkip);
     return;

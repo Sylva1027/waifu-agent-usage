@@ -102,7 +102,7 @@ export const englishAchievements = {
   },
   A44: {
     name: "I'll Take Them All!",
-    description: "Use 10 character skins.",
+    description: "Use 8 character skins.",
   },
   A46: {
     name: "Gift of the Bronze Dragonflight",

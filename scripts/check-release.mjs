@@ -14,7 +14,7 @@ import {
 } from "../test-support/skin-palette-fixture.mjs";
 import { createLiteBoundaryProbe, installLiteBoundaryProbe } from "../test-support/lite-boundary-probe.mjs";
 import { resolveBrowserRuntime } from "./skin-palette/capture.mjs";
-import { SKIN_PREFERENCE_KEY, SKINS } from "../public/skins.js";
+import { enumerateSourceAssets, SKIN_PREFERENCE_KEY, SKINS } from "../public/skins.js";
 import {
   ROOT,
   commonHashes,
@@ -408,7 +408,7 @@ async function checkWaifuPage(browser, url, edition, locale, viewport) {
     if (edition === "waifu") {
       await page.locator("#skinToggle").click();
       await page.locator("#skinDialog").waitFor({ state: "visible" });
-      assert.equal(await page.locator(".skin-card[data-skin-id]").count(), 10);
+      assert.equal(await page.locator(".skin-card[data-skin-id]").count(), SKINS.filter((skin) => !skin.isClassic).length);
       await page.keyboard.press("Tab");
       assert.ok(await page.locator("#skinDialog").evaluate((dialog) => dialog.contains(document.activeElement)));
       await page.keyboard.press("Escape");
@@ -504,7 +504,7 @@ export async function checkRelease(output = "output/releases", { browserRequeste
           Object.keys(variant.files).filter((file) => file.startsWith("public/assets/achievements/")).length,
           96,
         );
-        assert.equal(Object.keys(variant.files).filter((file) => file.startsWith("public/assets/skins/")).length, 40);
+        assert.equal(Object.keys(variant.files).filter((file) => file.startsWith("public/assets/skins/")).length, enumerateSourceAssets().length);
         for (const file of [
           "src/achievement-runtime.js",
           "src/achievement-store.js",

@@ -93,8 +93,6 @@ const IDENTITY_BY_SKIN = Object.freeze({
   kimi: "#8F2F5C",
   qwen: "#6B6FB4",
   grok: "#444444",
-  muse: "#8F6B2F",
-  mimo: "#2F8F8A",
 });
 
 const EXPECTED_ROLE_IDS_BY_STATE = new Map(

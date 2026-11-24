@@ -6,7 +6,7 @@ Character skins are available in **Waifu**. Some character artwork is by [ZipZip
 
 ## Select and configure
 
-Use the clothing icon to open “Waifu” and choose ChatGPT, Claude, GLM, Gemini, DeepSeek, Kimi, Qwen, Grok, Muse, Mimo, or simple mode.
+Use the clothing icon to open “Waifu” and choose ChatGPT, Claude, GLM, Gemini, DeepSeek, Kimi, Qwen, Grok, or simple mode.
 
 Each skin supports light and dark themes. Toggle characters and set opacity from 0–100%, with 50% as the default. Preferences are saved in the local browser and reused on reopening; simple mode retains character visibility and opacity settings too.
 
@@ -21,7 +21,7 @@ Open `/skin-palette-studio.html` in the Waifu service to preview palettes indepe
 - [public/skin-palettes.js](../public/skin-palettes.js): hand-authored palette source.
 - [public/skins.js](../public/skins.js): character registry, assets, and placement.
 - [public/skin-palette-studio.html](../public/skin-palette-studio.html): palette studio.
-- [public/assets/skins/](../public/assets/skins/): 40 runtime WebP images.
+- [public/assets/skins/](../public/assets/skins/): 32 runtime WebP images.
 - [scripts/prepare-skin-assets.mjs](../scripts/prepare-skin-assets.mjs): asset generation and checks.
 
 `public/skin-bootstrap.js` and `public/skin-assets.json` are generated; do not manually maintain a second palette or digest set. Authoring PNGs are optional local inputs and are not distributed with the public repository or packages. Existing WebPs do not require the original images.
