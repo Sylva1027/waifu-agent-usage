@@ -1,0 +1,1099 @@
+:root {
+  --font:
+    Inter, "Noto Sans SC", "Microsoft YaHei UI", "PingFang SC", system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: #f3f6fb;
+  color: #212a38;
+  font: 15px / 1.5 var(--font);
+}
+main {
+  max-width: 960px;
+  margin: auto;
+  padding: 24px clamp(15px, 3.6vw, 50px) 36px;
+}
+header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+h1,
+h2,
+p,
+figure {
+  margin: 0;
+}
+h1 {
+  font-size: clamp(22px, 3vw, 29px);
+  font-weight: 650;
+}
+header small,
+.note {
+  color: #556073;
+  font-size: 13px;
+}
+.page {
+  display: grid;
+  grid-template-columns: minmax(0, 475px) minmax(220px, 1fr);
+  gap: clamp(25px, 5vw, 64px);
+}
+.choices {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+button {
+  cursor: pointer;
+  border: 1px solid #bcc9de;
+  border-radius: 7px;
+  background: #fbfdff;
+  color: #394863;
+  font: inherit;
+  font-size: 14px;
+  padding: 6px 10px;
+}
+button[aria-pressed="true"] {
+  color: white;
+  background: #3252ad;
+  border-color: #3252ad;
+}
+button:focus-visible {
+  outline: 3px solid #7597c9;
+  outline-offset: 2px;
+}
+aside h2,
+legend {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0 0 9px;
+  padding: 0;
+}
+fieldset {
+  min-inline-size: 0;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+aside .note {
+  margin: 12px 0;
+}
+.mini {
+  width: min(240px, 100%);
+  aspect-ratio: 4 / 5;
+  position: relative;
+}
+.mini > .card {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  border-radius: 10.5px;
+}
+.card {
+  --share-right-inset: 3.4cqw;
+  --surface-paint: linear-gradient(
+    115deg,
+    var(--neo-surface),
+    var(--bg) 53%,
+    color-mix(in srgb, var(--bg) 92%, var(--blue))
+  );
+  --bg: #e2ecfc;
+  --neo-surface: #f0f6ff;
+  --control: #f0f6ff;
+  --neo-edge: #e2e6ed;
+  --line: #e2e6ed;
+  --ink: #121212;
+  --muted: #313740;
+  --chart-text: #4a505a;
+  --chart-line: #333436;
+  --control-hover: #dae0ea;
+  --blue: #3252ad;
+  --record: #3252ad;
+  --skin-active-accent: #3252ad;
+  --active-ink: #ffffff;
+  --ceramic-top: #f4f8ff;
+  --ceramic-bottom: #e8f1fd;
+  --ceramic-well: #d7e1f0;
+  --ceramic-light: rgba(252, 253, 255, 0.6);
+  --ceramic-shade: rgba(176, 184, 196, 0.54);
+  --ceramic-rim: rgba(252, 253, 255, 0.6);
+  container-type: inline-size;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: 21px;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  color: var(--ink);
+  font-family: var(--font);
+  background: var(--bg);
+  box-shadow:
+    0 6px 21px #4b668623,
+    0 0 0 1px #596c841c;
+}
+.room {
+  position: absolute;
+  inset: 0 0 23%;
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 27% 33%, #ffffffd4, transparent 43%),
+    linear-gradient(
+      118deg,
+      color-mix(in srgb, var(--bg) 75%, var(--blue)) -13%,
+      var(--bg) 32%,
+      var(--neo-surface) 75%,
+      color-mix(in srgb, var(--blue) 18%, var(--bg)) 112%
+    );
+}
+.light {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(117deg, transparent 28%, #fff4 33%, transparent 36% 48%, #ffffff36 52%, transparent 55%);
+  opacity: 0.8;
+}
+.table {
+  position: absolute;
+  inset: 74% 0 0;
+  background: linear-gradient(179deg, #c5d7ef00, #cadaf15e 42%, var(--bg) 100%);
+}
+.standee {
+  position: absolute;
+  left: 2.2%;
+  bottom: 6.6%;
+  width: 51%;
+  height: 84.2%;
+}
+.standee:before {
+  content: "";
+  position: absolute;
+  left: 19%;
+  right: -3%;
+  bottom: 1%;
+  height: 8%;
+  border-radius: 50%;
+  background: linear-gradient(90deg, #829db24a, #7e9dbd20);
+  filter: blur(1.25cqw);
+  transform: skewX(-27deg);
+}
+.base {
+  position: absolute;
+  left: 5%;
+  bottom: 0;
+  width: 92%;
+  height: 8.6%;
+  border: 0.17cqw solid #a0bad673;
+  border-radius: 50% / 35%;
+  background: linear-gradient(
+    176deg,
+    #fbfdffef 4%,
+    #e9f2ffed 29%,
+    #fafdffe0 38%,
+    #bdd5eda8 49%,
+    #c3daf0e0 74%,
+    #e4f1ff 94%
+  );
+  box-shadow:
+    inset -0.45cqw -0.3cqw 0.65cqw #829ec273,
+    inset 0.4cqw 0.15cqw 0.5cqw #fff,
+    0 0.6cqw 0.75cqw #57749645;
+}
+.base:before {
+  content: "";
+  position: absolute;
+  inset: -0.06cqw 0 31%;
+  border: 0.23cqw solid #f9feff;
+  border-bottom-color: #c2d7e4;
+  border-radius: 50%;
+  background: linear-gradient(115deg, #fbfdffba, #c0d7ec63 50%, #fff9);
+  box-shadow: 0 0.22cqw 0.3cqw #839ab139;
+}
+.standee img {
+  position: absolute;
+  left: 0;
+  bottom: 4.85%;
+  width: 100%;
+  height: 95.2%;
+  object-fit: contain;
+  object-position: center bottom;
+  transform: scaleX(-1);
+}
+
+.award {
+  position: absolute;
+  right: 0;
+  bottom: 14.6%;
+  width: 47%;
+  margin: 0;
+  text-align: right;
+}
+.collectible {
+  position: relative;
+  z-index: 2;
+  width: 33.8cqw;
+  margin: 0 0.06cqw 0.62cqw auto;
+  line-height: 0;
+}
+
+.medal {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.heading,
+.story {
+  background: var(--surface-paint);
+  border-top: 0.25cqw solid #f7fcff;
+}
+.heading {
+  width: max-content;
+  max-width: 100%;
+  min-width: 24cqw;
+  margin-left: auto;
+  text-align: right;
+  padding: 2.1cqw var(--share-right-inset) 2.65cqw 6.5cqw;
+  border-radius: 3.4cqw 0 0 3.4cqw;
+}
+.heading h2 {
+  margin: 0;
+  font-size: var(--title-size, 8.8cqw);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.045em;
+  color: color-mix(in srgb, var(--blue) 33%, var(--ink));
+  text-wrap: balance;
+}
+.date {
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  margin: 2.15cqw var(--share-right-inset) 0 auto;
+  font-size: 2.35cqw;
+  line-height: 1.45;
+  letter-spacing: 0.035em;
+  color: color-mix(in srgb, var(--blue) 34%, var(--muted));
+  font-variant-numeric: tabular-nums;
+}
+.story {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 23%;
+  border-bottom-left-radius: inherit;
+  border-bottom-right-radius: inherit;
+  padding: 3.25cqw 7.3cqw 0;
+  box-shadow:
+    0 -0.28cqw 0.75cqw #718caf22,
+    0 -0.6cqw 2cqw #c9d9ee40;
+}
+.fact {
+  font-size: 6.8cqw;
+  line-height: 1.22;
+  letter-spacing: -0.04em;
+  font-weight: 660;
+  color: color-mix(in srgb, var(--blue) 37%, var(--ink));
+  white-space: nowrap;
+}
+.detail {
+  margin-top: 0.7cqw;
+  font-size: 3.55cqw;
+  line-height: 1.46;
+  color: var(--muted);
+}
+.share-watermark {
+  position: absolute;
+  bottom: 1.9cqw;
+  right: 7.3%;
+  display: flex;
+  align-items: center;
+  gap: 0.7cqw;
+  font-size: 2.3cqw;
+  font-weight: 450;
+  line-height: 1.1;
+  color: color-mix(in srgb, var(--muted) 64%, var(--bg));
+  white-space: nowrap;
+}
+.share-watermark svg {
+  width: 2.7cqw;
+  height: 2.7cqw;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.heading h2 {
+  font-size: 8.8cqw;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+.date {
+  white-space: nowrap;
+}
+
+.story {
+  display: grid;
+  grid-template: minmax(0, 1fr) auto minmax(0, 2.2fr) / minmax(0, 1fr);
+  padding: 2.6cqw 7.3cqw;
+}
+.story-copy {
+  grid-row: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 1.05cqw;
+  min-width: 0;
+}
+.fact,
+.detail {
+  margin: 0;
+  white-space: normal;
+  word-break: normal;
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
+}
+.fact {
+  font-size: var(--fact-size, 6.8cqw);
+  line-height: 1.2;
+}
+.detail {
+  font-size: var(--detail-size, 3.3cqw);
+  line-height: 1.4;
+  font-weight: 350;
+  font-style: italic;
+  color: color-mix(in srgb, var(--muted) 83%, var(--bg));
+  white-space: pre-line;
+}
+.fact:has(.qualifier) {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  column-gap: 2.2cqw;
+  row-gap: 0.25cqw;
+}
+.qualifier {
+  font-size: max(3.45cqw, 0.55em);
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1.4;
+}
+.share-watermark {
+  z-index: 3;
+  top: 2.7cqw;
+  right: var(--share-right-inset);
+  bottom: auto;
+}
+.preview-tools {
+  display: grid;
+  gap: 11px;
+  max-width: 100%;
+  width: 260px;
+}
+.preview-tools label {
+  display: block;
+  font: inherit;
+  font-size: 14px;
+}
+#achievement-select {
+  display: block;
+  margin-top: 4px;
+  padding: 6px 8px;
+  border: 1px solid #bac9df;
+  border-radius: 6px;
+  color: #293653;
+  background: #fbfdff;
+  font: inherit;
+  width: 100%;
+  text-overflow: ellipsis;
+}
+.languages {
+  display: flex;
+  gap: 5px;
+}
+
+@media (max-width: 705px) {
+  main {
+    width: min(520px, 100%);
+    padding: 16px 14px 26px;
+  }
+  .page {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+  }
+  .maincard {
+    width: 100%;
+  }
+  aside {
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    margin-bottom: 14px;
+  }
+}
+/* The original DeepSeek daylight study has its own finished material. */
+.card[data-mode="light"]:not([data-skin="deepseek"]) {
+  --room-edge: color-mix(in srgb, var(--bg) 73%, var(--blue));
+  --room-halo: color-mix(in srgb, white 53%, var(--neo-surface));
+  --room-ray: color-mix(in srgb, white 84%, var(--blue));
+  --floor-tone: color-mix(in srgb, var(--ceramic-well) 88%, var(--blue));
+  --glass-flash: color-mix(in srgb, white 91%, var(--blue));
+  --glass-body: color-mix(in srgb, var(--bg) 84%, var(--blue));
+  --glass-bevel: color-mix(in srgb, var(--bg) 60%, var(--blue));
+  --glass-cut: color-mix(in srgb, white 56%, var(--blue));
+  --material-shadow: color-mix(in srgb, var(--ink) 45%, var(--blue));
+  --slab-rim: color-mix(in srgb, white 65%, var(--neo-surface));
+}
+
+.card[data-mode="dark"] {
+  --room-edge: color-mix(in srgb, var(--bg) 90%, var(--blue));
+  --room-halo: color-mix(in srgb, var(--neo-surface) 86%, var(--blue));
+  --room-ray: color-mix(in srgb, var(--ceramic-top) 65%, var(--blue));
+  --floor-tone: color-mix(in srgb, var(--ceramic-well) 86%, var(--blue));
+  --glass-flash: color-mix(in srgb, var(--ink) 48%, var(--blue));
+  --glass-body: color-mix(in srgb, var(--neo-surface) 90%, var(--blue));
+  --glass-bevel: color-mix(in srgb, var(--ceramic-bottom) 73%, var(--blue));
+  --glass-cut: color-mix(in srgb, var(--ceramic-top) 53%, var(--blue));
+  --material-shadow: color-mix(in srgb, black 80%, var(--bg));
+  --slab-rim: color-mix(in srgb, var(--ceramic-top) 82%, var(--blue));
+  --surface-paint: linear-gradient(
+    115deg,
+    var(--ceramic-top),
+    var(--neo-surface) 53%,
+    color-mix(in srgb, var(--neo-surface) 93%, var(--blue))
+  );
+}
+
+.card:where([data-mode="dark"], [data-mode="light"]:not([data-skin="deepseek"])) {
+  box-shadow:
+    0 6px 21px color-mix(in srgb, var(--material-shadow) 14%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--material-shadow) 14%, transparent);
+
+  & .room {
+    background:
+      radial-gradient(ellipse at 27% 33%, var(--room-halo), transparent 52%),
+      linear-gradient(118deg, var(--room-edge) -13%, var(--bg) 32%, var(--neo-surface) 75%, var(--room-edge) 112%);
+  }
+  & .light {
+    background: linear-gradient(
+      117deg,
+      transparent 28%,
+      color-mix(in srgb, var(--room-ray) 24%, transparent) 33%,
+      transparent 36% 48%,
+      color-mix(in srgb, var(--room-ray) 15%, transparent) 52%,
+      transparent 55%
+    );
+  }
+  & .table {
+    background: linear-gradient(
+      179deg,
+      transparent,
+      color-mix(in srgb, var(--floor-tone) 45%, transparent) 42%,
+      var(--bg)
+    );
+  }
+  & .standee::before {
+    background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--material-shadow) 30%, transparent),
+      color-mix(in srgb, var(--material-shadow) 12%, transparent)
+    );
+  }
+
+  & .base {
+    border-color: color-mix(in srgb, var(--glass-cut) 55%, transparent);
+    background: linear-gradient(
+      176deg,
+      color-mix(in srgb, var(--glass-flash) 93%, transparent) 4%,
+      var(--neo-surface) 29%,
+      color-mix(in srgb, var(--glass-flash) 88%, transparent) 38%,
+      color-mix(in srgb, var(--glass-bevel) 62%, transparent) 49%,
+      color-mix(in srgb, var(--glass-body) 88%, transparent) 74%,
+      var(--bg) 94%
+    );
+    box-shadow:
+      inset -0.45cqw -0.3cqw 0.65cqw color-mix(in srgb, var(--glass-cut) 45%, transparent),
+      inset 0.4cqw 0.15cqw 0.5cqw var(--glass-flash),
+      0 0.6cqw 0.75cqw color-mix(in srgb, var(--material-shadow) 32%, transparent);
+  }
+  & .base::before {
+    border-color: var(--glass-flash);
+    border-bottom-color: color-mix(in srgb, var(--glass-bevel) 70%, transparent);
+    background: linear-gradient(
+      115deg,
+      color-mix(in srgb, var(--glass-flash) 68%, transparent),
+      color-mix(in srgb, var(--glass-body) 38%, transparent) 50%,
+      color-mix(in srgb, var(--glass-flash) 55%, transparent)
+    );
+    box-shadow: 0 0.22cqw 0.3cqw color-mix(in srgb, var(--material-shadow) 24%, transparent);
+  }
+  & .heading,
+  & .story {
+    border-top-color: var(--slab-rim);
+  }
+  & .story {
+    box-shadow:
+      0 -0.28cqw 0.75cqw color-mix(in srgb, var(--material-shadow) 15%, transparent),
+      0 -0.6cqw 2cqw color-mix(in srgb, var(--floor-tone) 28%, transparent);
+  }
+  & .share-watermark {
+    color: color-mix(in srgb, var(--muted) 78%, var(--bg));
+  }
+}
+
+/* Narrow reflecting edges and a translucent, smoked interior under white line art. */
+.card[data-mode="dark"] {
+  & .base {
+    border-color: color-mix(in srgb, var(--glass-cut) 62%, transparent);
+    background: linear-gradient(
+      176deg,
+      var(--glass-bevel) 4%,
+      var(--glass-body) 29%,
+      var(--glass-cut) 38%,
+      color-mix(in srgb, var(--glass-bevel) 65%, transparent) 49%,
+      color-mix(in srgb, var(--glass-body) 78%, transparent) 74%,
+      var(--ceramic-well) 94%
+    );
+    box-shadow:
+      inset -0.45cqw -0.3cqw 0.65cqw var(--material-shadow),
+      inset 0.4cqw 0.15cqw 0.5cqw color-mix(in srgb, var(--glass-cut) 67%, transparent),
+      0 0.6cqw 0.75cqw color-mix(in srgb, var(--material-shadow) 65%, transparent);
+  }
+  & .base::before {
+    border-color: color-mix(in srgb, var(--glass-flash) 53%, transparent);
+    border-bottom-color: var(--glass-bevel);
+    background: linear-gradient(
+      115deg,
+      color-mix(in srgb, var(--glass-cut) 49%, transparent),
+      color-mix(in srgb, var(--glass-body) 68%, transparent) 48%,
+      color-mix(in srgb, var(--glass-cut) 39%, transparent)
+    );
+  }
+}
+
+.preview-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 18px;
+  padding-bottom: 16px;
+  margin-bottom: 17px;
+  border-bottom: 1px solid #dce3ed;
+}
+.select-field {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.select-field span,
+.mode-caption {
+  color: #415269;
+  font-size: 14px;
+  font-weight: 600;
+}
+.preview-bar select {
+  color: #293653;
+  background: #fbfdff;
+  border: 1px solid #bac9df;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 14px;
+  height: 34px;
+  padding: 4px 8px;
+  max-width: 100%;
+}
+#skin-select {
+  min-width: 116px;
+}
+#achievement-select {
+  width: 220px;
+  margin: 0;
+  padding: 4px 7px;
+  height: 34px;
+  font-size: 14px;
+}
+.mode-group,
+.languages {
+  display: flex;
+  gap: 4px;
+}
+.preview-bar button {
+  min-height: 34px;
+  padding: 4px 9px;
+}
+.mode-caption {
+  margin: 0 0 8px 3px;
+}
+.preview-note {
+  margin-top: 15px;
+  color: #556073;
+  font-size: 13px;
+}
+[data-layout="pair"] .page {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(12px, 2.4vw, 28px);
+}
+.primary-sample,
+.dark-sample {
+  min-width: 0;
+}
+[hidden] {
+  display: none !important;
+}
+@media (max-width: 705px) {
+  [data-layout="pair"] main {
+    width: min(680px, 100%);
+  }
+  .preview-bar {
+    gap: 9px 12px;
+  }
+  .mode-caption {
+    margin-bottom: 5px;
+  }
+}
+@media (max-width: 480px) {
+  .preview-bar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 10px;
+  }
+  #skin-select,
+  #achievement-select {
+    width: 100%;
+    min-width: 0;
+  }
+  .preview-bar .languages {
+    align-self: end;
+  }
+  .mode-group {
+    justify-self: end;
+  }
+  .preview-bar button {
+    padding-inline: 7px;
+  }
+  .mode-caption {
+    font-size: 13px;
+  }
+  [data-layout="pair"] .page {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 20px;
+  }
+}
+
+.maincard,
+.paircard {
+  position: relative;
+}
+.card-open {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 21px;
+  background: transparent;
+  cursor: zoom-in;
+  touch-action: manipulation;
+}
+.card-open:focus-visible {
+  outline: 3px solid #3252ad;
+  outline-offset: 3px;
+}
+html.viewing-share {
+  overflow: hidden;
+}
+.share-viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  padding: max(6px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right))
+    max(8px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  background: #111317;
+  color: #fff;
+}
+.viewer-close {
+  justify-self: end;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.viewer-close:hover {
+  background: #ffffff1c;
+}
+.viewer-close:focus-visible {
+  outline: 2px solid #c0d6ff;
+  outline-offset: -3px;
+}
+.viewer-close svg {
+  width: 22px;
+  height: 22px;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  fill: none;
+}
+.viewer-stage {
+  display: grid;
+  place-items: center;
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+  cursor: zoom-out;
+}
+.viewer-stage > .card {
+  box-shadow: none;
+}
+
+/* Keep the printed drawing and the bevel of the solid cutout on separate layers. */
+.figure-glass {
+  position: absolute;
+  left: 0;
+  bottom: 4.85%;
+  width: 100%;
+  height: 95.2%;
+  transform: scaleX(-1);
+  pointer-events: none;
+}
+.standee .ink-density {
+  opacity: 0.24;
+}
+.card[data-mode="dark"] .ink-density {
+  opacity: 0.4;
+}
+.figure-glass > i,
+.figure-glass::before,
+.figure-glass::after {
+  position: absolute;
+  inset: 0;
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center bottom;
+}
+.figure-glass > i {
+  mask-image: var(--figure-mask);
+  background: linear-gradient(
+    128deg,
+    color-mix(in srgb, white 38%, transparent) 0%,
+    color-mix(in srgb, var(--neo-surface) 14%, transparent) 40%,
+    color-mix(in srgb, var(--blue) 7%, transparent) 72%,
+    color-mix(in srgb, var(--neo-surface) 30%, transparent)
+  );
+}
+.figure-glass::before,
+.figure-glass::after {
+  content: "";
+  mask-image: var(--figure-mask), var(--figure-mask);
+  mask-composite: subtract;
+}
+.figure-glass::before {
+  mask-position:
+    calc(50% + 0.17cqw) calc(100% - 0.14cqw),
+    center bottom;
+  background: linear-gradient(145deg, #fff 0%, color-mix(in srgb, white 82%, var(--blue)) 63%, var(--neo-surface));
+}
+.figure-glass::after {
+  mask-position:
+    calc(50% - 0.29cqw) calc(100% + 0.21cqw),
+    center bottom;
+  background: linear-gradient(
+    140deg,
+    color-mix(in srgb, var(--glass-bevel, #b5c8dc) 58%, transparent),
+    color-mix(in srgb, var(--glass-cut, #8aa4bd) 74%, transparent)
+  );
+}
+.card[data-mode="dark"] .figure-glass > i {
+  background: linear-gradient(
+    128deg,
+    color-mix(in srgb, var(--blue) 13%, transparent),
+    color-mix(in srgb, var(--neo-surface) 13%, transparent) 45%,
+    color-mix(in srgb, var(--blue) 6%, transparent)
+  );
+}
+.card[data-mode="dark"] .figure-glass::before {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--glass-flash) 71%, transparent),
+    color-mix(in srgb, var(--blue) 40%, transparent)
+  );
+}
+.card[data-mode="dark"] .figure-glass::after {
+  background: linear-gradient(
+    140deg,
+    color-mix(in srgb, var(--blue) 24%, var(--bg)),
+    color-mix(in srgb, var(--blue) 42%, var(--bg))
+  );
+}
+
+.card[data-skin="gemini"] .figure-glass {
+  --figure-mask: url("./art/gemini/silhouette.webp");
+}
+
+.card[data-skin="grok"] .figure-glass {
+  --figure-mask: url("./art/grok/silhouette.webp");
+}
+.card[data-skin="kimi"] .figure-glass {
+  --figure-mask: url("./art/kimi/silhouette.webp");
+}
+.card[data-skin="mimo"] .figure-glass {
+  --figure-mask: url("./art/mimo/silhouette.webp");
+}
+.card[data-skin="muse"] .figure-glass {
+  --figure-mask: url("./art/muse/silhouette.webp");
+}
+
+.scene-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  flex-basis: 100%;
+  grid-column: 1 / -1;
+}
+.scene-row span {
+  font-size: 14px;
+  font-weight: 600;
+  color: #415269;
+  margin-inline-end: 5px;
+}
+
+.card[data-skin="chatgpt"] .room::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--chatgpt-scene) center / 100% 100% no-repeat;
+  pointer-events: none;
+}
+.card[data-skin="chatgpt"] .light {
+  opacity: 0.15;
+}
+body[data-scene="tide"] .card[data-skin="chatgpt"][data-mode="light"] {
+  --chatgpt-scene: url("./art/chatgpt/background-light.webp");
+}
+body[data-scene="tide"] .card[data-skin="chatgpt"][data-mode="dark"] {
+  --chatgpt-scene: url("./art/chatgpt/background-dark.webp");
+}
+
+.scene-row[hidden],
+.material-options[hidden] {
+  display: none;
+}
+.material-buttons,
+.material-options {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+@media (min-width: 650px) {
+  .material-options {
+    margin-inline-start: 12px;
+  }
+}
+@media (max-width: 649px) {
+  .material-options {
+    flex-basis: 100%;
+  }
+}
+body[data-scene="tide"] .card[data-skin="chatgpt"] :is(.figure-glass, .ink-density) {
+  display: none;
+}
+
+body[data-scene="sea"] .card[data-skin="deepseek"] .room {
+  background: var(--sea-room) center / 100% 100% no-repeat;
+}
+body[data-scene="sea"] .card[data-skin="deepseek"] .light,
+body[data-scene="sea"] .card[data-skin="deepseek"] .table,
+body[data-scene="sea"] .card[data-skin="deepseek"] .figure-glass,
+body[data-scene="sea"] .card[data-skin="deepseek"] .ink-density {
+  display: none;
+}
+body[data-scene="sea"] .card[data-skin="deepseek"] .character {
+  opacity: 0;
+}
+body[data-scene="sea"] .card[data-skin="deepseek"] .room::before {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  inset: auto;
+  left: 17%;
+  top: 81.94805194805195%;
+  width: 25%;
+  height: 10%;
+  background: var(--sea-shoe-back) center / 100% 100% no-repeat;
+}
+body[data-scene="sea"] .card[data-skin="deepseek"] .room::after {
+  content: "";
+  position: absolute;
+  inset: auto;
+  left: 17%;
+  top: 81.94805194805195%;
+  width: 25%;
+  height: 10%;
+  background: var(--sea-shoe-glass) center / 100% 100% no-repeat;
+  pointer-events: none;
+  z-index: 1;
+}
+body[data-scene="sea"] .card[data-skin="deepseek"] .award {
+  z-index: 2;
+}
+body[data-scene="sea"] .card[data-skin="deepseek"][data-mode="light"] {
+  --sea-shoe-back: url("./art/deepseek/shoe-back-light.webp");
+}
+body[data-material="relief"] .card[data-skin="deepseek"][data-mode="light"] {
+  --sea-room: url("./art/deepseek/sea-relief-light.webp");
+  --sea-shoe-glass: url("./art/deepseek/shoe-relief-light.webp");
+}
+body[data-material="flat"] .card[data-skin="deepseek"][data-mode="light"] {
+  --sea-room: url("./art/deepseek/sea-flat-light.webp");
+  --sea-shoe-glass: url("./art/deepseek/shoe-flat-light.webp");
+}
+body[data-scene="sea"] .card[data-skin="deepseek"][data-mode="dark"] {
+  --sea-shoe-back: url("./art/deepseek/shoe-back-dark.webp");
+}
+body[data-material="relief"] .card[data-skin="deepseek"][data-mode="dark"] {
+  --sea-room: url("./art/deepseek/sea-relief-dark.webp");
+  --sea-shoe-glass: url("./art/deepseek/shoe-relief-dark.webp");
+}
+body[data-material="flat"] .card[data-skin="deepseek"][data-mode="dark"] {
+  --sea-room: url("./art/deepseek/sea-flat-dark.webp");
+  --sea-shoe-glass: url("./art/deepseek/shoe-flat-dark.webp");
+}
+
+.card[data-skin="qwen"] .room {
+  background:
+    var(--room-texture, none) center / 100% 100% no-repeat,
+    radial-gradient(ellipse at 27% 33%, var(--room-halo), transparent 52%),
+    linear-gradient(118deg, var(--room-edge) -13%, var(--bg) 32%, var(--neo-surface) 75%, var(--room-edge) 112%);
+}
+.card[data-skin="qwen"] :is(.figure-glass, .ink-density) {
+  display: none;
+}
+body[data-preview-skin="qwen"] .character-frame {
+  position: absolute;
+  left: 0;
+  bottom: 4.85%;
+  width: 100%;
+  height: 95.2%;
+  container-type: size;
+  pointer-events: none;
+}
+body[data-preview-skin="qwen"] .standee .character-frame .character {
+  left: 50%;
+  bottom: 0;
+  width: min(calc(100cqw * 1024 / 941), calc(100cqh * 1024 / 1672));
+  height: auto;
+  max-width: none;
+  transform: translate(-50.048828125%, 3.3482142857%) scaleX(-1);
+}
+body[data-preview-skin="qwen"][data-texture="fan"] .card[data-mode="light"] .room {
+  --room-texture:
+    radial-gradient(
+      ellipse 24% 29% at 29% 19%,
+      rgba(250, 252, 247, 0.59),
+      rgba(248, 252, 246, 0.32) 48%,
+      transparent 100%
+    ),
+    url(./art/qwen/background-light.webp);
+}
+body[data-preview-skin="qwen"][data-texture="fan"] .card[data-mode="dark"] .room {
+  --room-texture: url(./art/qwen/background-dark.webp);
+}
+body[data-preview-skin="qwen"] .optical-plane {
+  display: none;
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: min(calc(100cqw * 1024 / 941), calc(100cqh * 1024 / 1672));
+  aspect-ratio: 948 / 1659;
+  pointer-events: none;
+  transform: translate(-50.048828125%, 3.3482142857%) scaleX(-1);
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+}
+body[data-preview-skin="qwen"][data-texture="fan"][data-material="refraction"] .optical-plane {
+  display: block;
+}
+body[data-preview-skin="qwen"][data-texture="fan"][data-material="lineart"] .optical-plane {
+  display: block;
+  background-image: var(--raw);
+  background-size: 93.2286% 93.3982%;
+  background-position: 54.8% 50.43%;
+  transform: translate(-50.048828125%, 3.3482142857%) scaleX(-1) matrix(1, 0.0005552, 0.0017281, 1, 0, 0);
+}
+body[data-preview-skin="qwen"][data-texture="fan"][data-material="lineart"] .card .character {
+  visibility: hidden;
+}
+body[data-preview-skin="qwen"] .card[data-mode="light"] {
+  --raw: url(../../../assets/skins/light/Qwen-side-lineart.webp);
+}
+body[data-preview-skin="qwen"] .card[data-mode="dark"] {
+  --raw: url(../../../assets/skins/dark/Qwen-side-dark-lineart.webp);
+}
+body[data-preview-skin="qwen"][data-texture="fan"][data-material="refraction"] .card[data-mode="light"] .optical-plane {
+  background-image: url(./art/qwen/relief-light.webp);
+}
+body[data-preview-skin="qwen"][data-texture="fan"][data-material="refraction"] .card[data-mode="light"] .character {
+  filter: url(#qwen-fan-day-etch);
+}
+body[data-preview-skin="qwen"][data-texture="fan"][data-material="refraction"] .card[data-mode="dark"] .optical-plane {
+  background-image: url(./art/qwen/relief-dark.webp);
+}
+body[data-preview-skin="qwen"][data-texture="fan"][data-material="refraction"] .card[data-mode="dark"] .character {
+  filter: url(#qwen-fan-night-etch);
+}
+.card[data-skin="claude"][data-mode="light"] .room {
+  background: center / cover no-repeat url("./art/claude/background-light.png");
+}
+.card[data-skin="claude"][data-mode="dark"] .room {
+  background: center / cover no-repeat url("./art/claude/background-dark.png");
+}
+.card[data-skin="glm"][data-mode="light"] .room {
+  background: center / 100% 100% no-repeat url("./art/glm/background-light.webp");
+}
+.card[data-skin="glm"][data-mode="dark"] .room {
+  background: center / 100% 100% no-repeat url("./art/glm/background-dark.webp");
+}
+.card[data-skin="claude"] :is(.table, .light, .figure-glass, .ink-density) {
+  display: none;
+}
+.card[data-skin="claude"] .character,
+.card[data-skin="glm"] .character {
+  opacity: 1;
+  filter: none;
+  mix-blend-mode: normal;
+}
+.card[data-skin="glm"] :is(.table, .light, .figure-glass, .ink-density),
+.card[data-skin="glm"] .room::before,
+.card[data-skin="glm"] .room::after {
+  display: none;
+}
+.card[data-skin="glm"] .character {
+  transform: none;
+}

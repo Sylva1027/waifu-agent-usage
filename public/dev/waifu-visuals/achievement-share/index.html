@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>成就分享卡预览</title>
+    <link rel="stylesheet" href="./preview.css">
+  </head>
+  <body>
+    <svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute;pointer-events:none">
+      <defs>
+        <filter id="qwen-fan-night-etch" x="0%" y="0%" width="100%" height="100%" color-interpolation-filters="sRGB">
+          <feComponentTransfer>
+            <feFuncR type="gamma" amplitude="1" exponent=".82" offset="0" />
+            <feFuncG type="gamma" amplitude="1" exponent=".82" offset="0" />
+            <feFuncB type="gamma" amplitude="1" exponent=".82" offset="0" />
+            <feFuncA type="identity" />
+          </feComponentTransfer>
+        </filter>
+        <filter id="qwen-fan-day-etch" x="0%" y="0%" width="100%" height="100%" color-interpolation-filters="sRGB">
+          <feComponentTransfer>
+            <feFuncR type="gamma" amplitude="1" offset="0" exponent="1.86" />
+            <feFuncG type="gamma" amplitude="1" offset="0" exponent="1.86" />
+            <feFuncB type="gamma" amplitude="1" offset="0" exponent="1.86" />
+            <feFuncA type="identity" />
+          </feComponentTransfer>
+        </filter>
+      </defs>
+    </svg>
+    <main>
+      <header><h1>成就分享卡预览</h1></header>
+      <div class="preview-bar">
+        <label class="select-field"
+          ><span>角色皮肤</span
+          ><select id="skin-select" aria-label="角色皮肤" title="✓ 已完成玻璃改造 · ○ 待改造"></select></label
+        >
+        <fieldset class="mode-group" aria-label="明暗外观">
+          <button type="button" data-appearance="light">浅色</button
+          ><button type="button" data-appearance="dark">深色</button
+          ><button type="button" data-appearance="pair">深浅对照</button>
+        </fieldset>
+        <label class="select-field achievement-field"
+          ><span>成就示例</span><select id="achievement-select" aria-label="成就示例"></select></label
+        >
+        <fieldset class="languages" aria-label="卡片语言">
+          <button type="button" data-language="zh">中文</button
+          ><button type="button" data-language="en">English</button>
+        </fieldset>
+        <fieldset class="scene-row" aria-label="卡片背景" hidden>
+          <span>背景</span
+          ><span class="fixed-scene"></span>
+          <fieldset class="material-options" aria-label="人物材质">
+            <span>人物</span>
+            <div class="material-buttons"></div>
+          </fieldset>
+        </fieldset>
+      </div>
+      <div class="page">
+        <div class="primary-sample">
+          <p class="mode-caption" hidden>浅色</p>
+          <div class="maincard"></div>
+        </div>
+        <div class="dark-sample" hidden>
+          <p class="mode-caption">深色</p>
+          <div class="paircard"></div>
+        </div>
+        <aside>
+          <h2>聊天缩略图</h2>
+          <div class="mini"></div>
+        </aside>
+      </div>
+      <p class="preview-note">点击卡片可全屏查看。解锁记录为设计示例。</p>
+    </main>
+    <div id="share-viewer" class="share-viewer" role="dialog" aria-modal="true" aria-label="分享卡全屏预览" hidden>
+      <button class="viewer-close" type="button" aria-label="退出全屏看图" title="退出全屏看图（Esc）">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 5 14 14M19 5 5 19" /></svg>
+      </button>
+      <div class="viewer-stage"></div>
+    </div>
+
+    <template
+      ><article class="card">
+        <div class="room">
+          <div class="light"></div>
+          <div class="table"></div>
+          <div class="standee">
+            <div class="base"></div>
+            <div class="figure-glass" aria-hidden="true"><i></i></div>
+            <img class="ink-density" alt="" aria-hidden="true"><img class="character" alt="玻璃人物立牌">
+          </div>
+          <figure class="award">
+            <div class="collectible"><img class="medal" alt=""></div>
+            <figcaption>
+              <div class="heading"><h2>明天见</h2></div>
+              <time class="date" datetime="2026-11-23">2026.11.23 获得</time>
+            </figcaption>
+          </figure>
+        </div>
+        <div class="story">
+          <div class="story-copy">
+            <p class="fact"></p>
+            <p class="detail"></p>
+          </div>
+        </div>
+        <div class="share-watermark">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M8 21v-3c-4 1-4-2-5-2m13 5v-4c0-1-.4-1.7-1-2 3-.4 6-1.4 6-6a5 5 0 0 0-1.5-3.5c.2-1 .2-2-.5-3-1.5 0-3 1-3.5 1.5a13 13 0 0 0-7 0C8 3.5 6.5 2.5 5 2.5c-.7 1-.7 2-.5 3A5 5 0 0 0 3 9c0 4.6 3 5.6 6 6-.6.3-1 1-1 2"
+            />
+          </svg><span>waifu-agent-usage</span>
+        </div>
+      </article></template
+    >
+    <script src="./examples.js"></script>
+    <script src="./preview.js"></script>
+  </body>
+</html>
