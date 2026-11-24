@@ -10509,10 +10509,10 @@ test("M5.2.C-E1c：真实Edge验证五状态浅深输入目标、适用性与恢
   }
 });
 
-async function captureSettledPage(screenshot, attempts, now = () => performance.now()) {
+async function captureSettledPage(screenshot, attempts, { now = () => performance.now(), timeoutMs = 3000 } = {}) {
   // Compositor paint can lag the finished CSS transition under load.
   // Bound elapsed settling time while keeping exact consecutive-frame equality.
-  const deadline = now() + 3000;
+  const deadline = now() + timeoutMs;
   let previous = await screenshot();
   let count = 1;
   while (now() < deadline) {
@@ -10525,7 +10525,7 @@ async function captureSettledPage(screenshot, attempts, now = () => performance.
     }
     previous = current;
   }
-  throw new Error("Screenshot paint did not converge within 3000ms");
+  throw new Error(`Screenshot paint did not converge within ${timeoutMs}ms`);
 }
 
 test("E1d：真实截图基准要求连续相同，短暂重绘有界收敛，持续变化拒绝", async () => {
@@ -10543,7 +10543,7 @@ test("E1d：真实截图基准要求连续相同，短暂重绘有界收敛，�
         return frames.shift();
       },
       attempts,
-      now,
+      { now },
     ),
     b,
   );
@@ -10558,7 +10558,7 @@ test("E1d：真实截图基准要求连续相同，短暂重绘有界收敛，�
         return Buffer.from(String(++changingFrames));
       },
       rejectedAttempts,
-      now,
+      { now },
     ),
     /within 3000ms/,
   );
@@ -10572,7 +10572,7 @@ test("E1d：真实截图基准要求连续相同，短暂重绘有界收敛，�
         return b;
       },
       [],
-      now,
+      { now },
     ),
     /within 3000ms/,
     "预算结束后才得到的相同帧也不能通过",
@@ -10749,7 +10749,7 @@ test("M5.2.C-E1d：真实Edge深色dashboard在聚光淡入稳定后取整页基
         // Verify painted pixels, rather than assuming an ended transition has already rasterized.
         const png =
           options?.fullPage === true
-            ? await captureSettledPage(() => page.screenshot(options), fullPageCaptureAttempts)
+            ? await captureSettledPage(() => page.screenshot(options), fullPageCaptureAttempts, { timeoutMs: 10_000 })
             : await page.screenshot(options);
         if (options?.fullPage === true) fullPageScreenshots.push(png);
         return png;

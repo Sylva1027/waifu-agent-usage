@@ -4,6 +4,7 @@ import test from "node:test";
 import { ACHIEVEMENT_CONTENT, achievementCopy, achievementUi } from "../public/achievement-content.js";
 import { renderAchievementDetail } from "../public/achievement-detail.js";
 import { escapeHtml } from "../public/html-utils.js";
+import { isCharacterSkin, listSkinIds } from "../public/skins.js";
 
 function row(id = "A01", overrides = {}) {
   const content = ACHIEVEMENT_CONTENT.find((entry) => entry.id === id);
@@ -119,8 +120,9 @@ test("a simultaneous cross-grade award retains the API date on all newly earned 
 });
 
 test("stone details ignore grade preview and use the award date rather than updatedAt", () => {
+  const characterCount = String(listSkinIds().filter(isCharacterSkin).length);
   const item = row("A44", {
-    observedValue: "10",
+    observedValue: characterCount,
     nextTarget: null,
     highestEarned: "stone",
     earnedAt: { stone: "2024-03-01T00:15:00Z" },
@@ -130,7 +132,7 @@ test("stone details ignore grade preview and use the award date rather than upda
   assert.match(html, /class="badge is-stone /);
   assert.match(html, /\/A44\/stone\.webp/);
   assert.equal(dateText(html), "Earned Feb 29, 2024");
-  assert.equal(progress(html), "10 / 10");
+  assert.equal(progress(html), `${characterCount} / ${characterCount}`);
   assert.doesNotMatch(html, /tier-ladder|data-preview-grade|\btitle=/);
   assert.match(html, /aria-valuenow="100"/);
 });
