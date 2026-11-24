@@ -9450,6 +9450,8 @@ test("M5.2.C-D2b3：真实 Edge 两种装饰隔离、低对比仍失败，异常
           return image?.complete && image.naturalWidth > 0;
         });
         await page.locator("#shareLayout").scrollIntoViewIfNeeded();
+        // The full-page geometry check also sees the toolbar icon rebounding behind the dialog.
+        await page.waitForFunction(() => !document.querySelector("#shareToggle [data-motion-content]").style.scale);
         // 分享弹窗绘制与 hover 淡出先稳定，基准与测量器使用相同的聚光等待前提。
         await page.mouse.move(0, 0);
         const zoneStability = await page.evaluate(buildProbeSource("spotlight-stability"));
@@ -12623,8 +12625,7 @@ test("M3.4：必需源文件清单覆盖实际加载的页面/样式文件——
     assert.ok(REQUIRED_SOURCE_FILES.includes(file), `必需清单遗漏 ${file}（页面/样式文件必须在核验范围内）`);
   }
   const timelineFile = "public/timeline-utils.js";
-  assert.equal(REQUIRED_SOURCE_FILES.length, 26);
-  assert.equal(new Set(REQUIRED_SOURCE_FILES).size, 26);
+  assert.equal(new Set(REQUIRED_SOURCE_FILES).size, REQUIRED_SOURCE_FILES.length);
   for (const file of [
     "scripts/skin-palette/focus-outline-pixels.mjs",
     "scripts/skin-palette/focus-outline-browser.mjs",

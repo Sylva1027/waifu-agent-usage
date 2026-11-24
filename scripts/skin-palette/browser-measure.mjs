@@ -3084,7 +3084,9 @@ async function captureStablePage(page, { fullPage, name }) {
         scroll: { x: window.scrollX, y: window.scrollY },
         html: metrics(root),
         body: metrics(document.body),
-        elements: Array.from(document.querySelectorAll("*"), (element) => {
+        // Baking swaps filter primitives inside a zero-sized resource SVG. Its box and
+        // all painted layers still participate in the geometry and pixel comparisons.
+        elements: Array.from(document.querySelectorAll("*:not(svg.lg-defs[aria-hidden='true'] *)"), (element) => {
           const computed = getComputedStyle(element);
           return {
             tag: element.tagName,

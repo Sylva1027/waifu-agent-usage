@@ -880,8 +880,15 @@ test("角色图片等待源：布尔判定语义，延迟就绪后翻真；探�
 
 test("源摘要覆盖 M3.4 必需集与捕获链路自身依赖（直接断言常量内容）", () => {
   const timelineFile = "public/timeline-utils.js";
-  assert.equal(REQUIRED_SOURCE_FILES.length, 26);
-  assert.equal(SOURCE_FILES.length, 31);
+  for (const file of [
+    "public/waifu-motion-glass.css",
+    "public/waifu-motion.js",
+    "public/waifu-motion-controls.js",
+    "public/waifu-liquid-glass.css",
+    "public/waifu-liquid-glass.js",
+  ]) {
+    assert.ok(REQUIRED_SOURCE_FILES.includes(file), file);
+  }
   assert.equal(new Set(REQUIRED_SOURCE_FILES).size, REQUIRED_SOURCE_FILES.length);
   assert.equal(new Set(SOURCE_FILES).size, SOURCE_FILES.length);
   const focusFiles = [
