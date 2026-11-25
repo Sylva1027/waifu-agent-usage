@@ -7,7 +7,9 @@
 
 在同一滚动位置切换原图和固定光位，比较亮带有没有沿折面移动，以及织纹和暗花有没有分别显出来。可在 1920×1080、1366×768 和 960×900 的桌面窗口观察弧形包边、立绘和卡片间隙。转光按 12 FPS 更新，重新获得焦点时从停止的位置继续。
 
-预览复用成就分享卡的 Qwen 原图，局部光照图集已随 Demo 提供。需要重烘时，在装有 FFmpeg 的环境运行 `node public/dev/waifu-visuals/qwen-ambient/art/bake.mjs`。
+左侧复用成就分享卡的 Qwen 原图和离线烘焙的光照图集。右侧使用审核过的深浅两张织物图，以无损 WebP 保存。左右素材各自锚定，在中央内容后方渐隐过渡，右侧织物为静帧。
+
+需要重烘左侧光照时，在装有 FFmpeg 的环境运行 `node public/dev/waifu-visuals/qwen-ambient/art/bake.mjs`。
 
 ## Three.js 预览
 

@@ -15,9 +15,12 @@ layer.setAttribute("aria-hidden", "true");
 const stage = document.createElement("div");
 const image = document.createElement("img");
 image.alt = "";
+const rightImage = document.createElement("img");
+rightImage.className = "qwen-ambient-right";
+rightImage.alt = "";
 const canvas = document.createElement("canvas");
 stage.append(image, canvas);
-layer.append(stage);
+layer.append(rightImage, stage);
 document.querySelector("#skinCharacters").before(layer);
 const ctx = canvas.getContext("2d");
 
@@ -79,6 +82,11 @@ function layout() {
   const x = -placement * (0.07 + narrow * 0.1);
   const y = -placement * (0.07 + narrow * 0.015);
   stage.style.cssText = `left:${x}px;top:${y}px;width:${placement}px;height:${placement}px`;
+
+  const rightStart = Math.min(x + placement * 0.77, width * 0.68);
+  const rightWidth = width - rightStart;
+  const overlap = Math.min(x + placement - rightStart, rightWidth * 0.7);
+  rightImage.style.cssText = `width:${rightWidth}px;--qwen-overlap:${overlap}px`;
 
   const scale = placement / sourceSize;
   const left = Math.max(-x, materialBounds.left * scale);
@@ -206,11 +214,15 @@ async function syncMaterial() {
   canvas.height = 0;
   material = undefined;
   showControls();
-  if (!mode) return;
+  if (!mode) {
+    rightImage.removeAttribute("src");
+    return;
+  }
 
   try {
     image.src = `/assets/achievement-share/qwen/background-${mode}.webp`;
-    const [loaded] = await Promise.all([loadMaterial(mode), image.decode()]);
+    rightImage.src = new URL(`./art/right-${mode}.webp`, import.meta.url).href;
+    const [loaded] = await Promise.all([loadMaterial(mode), image.decode(), rightImage.decode()]);
     if (version !== loadVersion) return;
     material = loaded;
     ready = true;

@@ -19,6 +19,20 @@
   height: 100%;
 }
 
+#qwen-ambient .qwen-ambient-right {
+  position: absolute;
+  top: 0;
+  right: 0;
+  object-fit: cover;
+  object-position: right 62%;
+  mask-image: linear-gradient(to right, transparent, #000 var(--qwen-overlap));
+  opacity: 0.86;
+}
+
+#qwen-ambient[data-mode="light"] .qwen-ambient-right {
+  opacity: 0.72;
+}
+
 #qwen-ambient canvas {
   position: absolute;
 }
