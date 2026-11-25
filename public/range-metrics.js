@@ -7,7 +7,9 @@ export function usageHarness(channel, kind) {
   const known = sourceGroup("", kind);
   if (known) return known;
   const legacy = sourceGroup(channel);
-  return ["Codex", "ZCode", "DSH", "OpenCode", "Claude", "WorkBuddy", "Hermes"].includes(legacy) ? legacy : null;
+  return ["Codex", "ZCode", "DSH", "OpenCode", "Claude", "WorkBuddy", "Hermes", "Oh My Pi"].includes(legacy)
+    ? legacy
+    : null;
 }
 
 export function rangeMetricsFromGroups({

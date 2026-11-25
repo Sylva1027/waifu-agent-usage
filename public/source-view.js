@@ -3,7 +3,14 @@ import { localizeText, localizeServerError } from "./locale.js";
 
 export function homeRowsFromMetadata(metadata) {
   // Preserve unsupported stored imports so users can remove or fix them.
-  const homes = [...(metadata.homes || [])];
+  const ompImports = new Map(
+    (metadata.imports || []).filter((entry) => entry.kind === "omp").map((entry) => [entry.id, entry]),
+  );
+  const homes = (metadata.homes || []).map((home) =>
+    ompImports.has(home.id)
+      ? { ...home, approvedScanRoots: ompImports.get(home.id).approvedScanRoots, imported: true }
+      : home,
+  );
   const seen = new Set(homes.map((home) => home.path));
   for (const entry of metadata.imports || []) {
     if (seen.has(entry.path)) {
@@ -12,7 +19,7 @@ export function homeRowsFromMetadata(metadata) {
     homes.push({
       ...entry,
       label: entry.label || entry.path,
-      kind: entry.type,
+      kind: entry.kind || entry.type,
       imported: true,
       status: entry.type === "unsupported" ? "unsupported" : "active",
       eventCount: 0,
@@ -20,6 +27,26 @@ export function homeRowsFromMetadata(metadata) {
     });
   }
   return homes;
+}
+function sourcePaths(home) {
+  return home.kind === "omp" && home.approvedScanRoots?.length ? home.approvedScanRoots : [home.path || ""];
+}
+function pathLines(home, className) {
+  const tag = className === "home-path" ? "div" : "span";
+  return sourcePaths(home)
+    .map((root) => `<${tag} class="${className}" title="${escapeHtml(root)}">${escapeHtml(root)}</${tag}>`)
+    .join("");
+}
+function managedPaths(home, canModify) {
+  const roots = sourcePaths(home);
+  if (!canModify || !home.imported || home.kind !== "omp" || roots.length < 2) return pathLines(home, "home-path");
+  const rows = roots
+    .map((root) => {
+      const text = escapeHtml(root);
+      return `<div class="home-path" title="${text}">${text} <button class="home-remove" type="button" data-import-action="remove" data-import-path="${text}" aria-label="移除 ${text}">移除</button></div>`;
+    })
+    .join("");
+  return `<details class="import-help"><summary>已授权目录</summary>${rows}</details>`;
 }
 export function renderSourceOptionsHtml(homes, excludedIds = []) {
   // 数据来源多选：取消勾选的来源不计入用量统计。文本与路径转义后渲染。
@@ -33,7 +60,6 @@ export function renderSourceOptionsHtml(homes, excludedIds = []) {
       const id = escapeHtml(home.id);
       const label = escapeHtml(home.label || home.path || home.id);
       const kind = escapeHtml((home.kind || home.type) === "main" ? "codex" : home.kind || home.type || "");
-      const pathText = escapeHtml(home.path || "");
       const isExcluded = excluded.has(home.id);
       const checked = isExcluded ? "" : " checked";
       const excludedBadge = isExcluded ? `<span class="home-excluded">不计入统计</span>` : "";
@@ -43,7 +69,7 @@ export function renderSourceOptionsHtml(homes, excludedIds = []) {
           <span class="source-option-text">
             <span class="source-option-label"><strong>${label}</strong><span class="home-kind">${kind}</span></span>
             ${excludedBadge ? `<span class="source-option-meta">${excludedBadge}</span>` : ""}
-            <span class="source-option-path" title="${pathText}">${pathText}</span>
+            ${pathLines(home, "source-option-path")}
           </span>
         </label>
       `;
@@ -53,7 +79,7 @@ export function renderSourceOptionsHtml(homes, excludedIds = []) {
 export function renderHomesHtml(homes, { canModify = false, excludedIds = [] } = {}) {
   // Render paths and labels as escaped text because they may come from imported logs.
   if (!homes.length) {
-    return `<div class="empty">没有发现 Codex、ZCode、DSH、OpenCode、Claude Code 或 WorkBuddy 目录</div>`;
+    return `<div class="empty">没有发现可统计的记录目录</div>`;
   }
   const excluded = new Set(excludedIds || []);
   return homes
@@ -75,7 +101,7 @@ export function renderHomesHtml(homes, { canModify = false, excludedIds = [] } =
             <span class="home-kind">${kind}</span>
           </div>
           ${excludedBadge || removeButton ? `<div class="home-meta">${excludedBadge}${removeButton}</div>` : ""}
-          <div class="home-path" title="${pathText}">${pathText}</div>
+          ${managedPaths(home, canModify)}
           ${reason}
         </div>
       `;
@@ -111,6 +137,7 @@ export function createSourceManager(context) {
     activity: null,
   };
   const EXCLUDED_HOMES_STORAGE_KEY = "codexUsageExcludedHomes";
+  const explicitOmp = new Set();
 
   function renderHomes(homes, options = {}) {
     const container = $("#homeList");
@@ -178,7 +205,9 @@ export function createSourceManager(context) {
   }
 
   function selectedImportPaths() {
-    const selected = [...document.querySelectorAll("#importCandidates input:checked")].map((input) => input.value);
+    const selected = [...document.querySelectorAll("#importCandidates input:checked")].flatMap((input) =>
+      input.dataset.scopePaths ? JSON.parse(input.dataset.scopePaths) : [input.value],
+    );
     const manual = $("#manualImportArea").hidden ? "" : $("#importPath").value.trim();
     return [...new Set([...selected, ...(manual ? [manual] : [])])];
   }
@@ -222,6 +251,7 @@ export function createSourceManager(context) {
       ["WorkBuddy", ".workbuddy-ai"],
       ["OpenCode", ".local/share/opencode"],
       ["Hermes", windows ? "hermes" : ".hermes", windows ? "%LOCALAPPDATA%" : root],
+      ["Oh My Pi", ".omp/agent"],
     ];
     $("#importLocations").innerHTML = locations
       .map(
@@ -229,10 +259,21 @@ export function createSourceManager(context) {
           `<li>${name} · <code>${escapeHtml(directoryRoot + separator + directory.replaceAll("/", separator))}</code></li>`,
       )
       .join("");
+    if (!$("#manualOmpFormat")) {
+      const label = document.createElement("label");
+      label.className = "source-option";
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.id = "manualOmpFormat";
+      label.append(checkbox, " ", localizeText("按 Oh My Pi 导入"));
+      $("#importLocations").after(label);
+    }
     $("#importPath").placeholder = windows ? "%USERPROFILE%\\.codex" : "~/.codex";
   }
 
   async function scanImportDirectories() {
+    explicitOmp.clear();
+    if ($("#manualOmpFormat")) $("#manualOmpFormat").checked = false;
     const sequence = ++importView.scan;
     importView.controller?.abort();
     importView.picker?.abort();
@@ -254,10 +295,12 @@ export function createSourceManager(context) {
       const candidates = data.candidates.filter((source) => !source.confirmed);
       $("#importCandidatesField").hidden = !candidates.length;
       $("#importCandidates").innerHTML = candidates
-        .map(
-          (source) =>
-            `<label class="source-option"><input type="checkbox" value="${escapeHtml(source.path)}" checked /><span class="source-option-text"><span class="source-option-label"><strong>${escapeHtml(source.label)}</strong></span><span class="source-option-path" title="${escapeHtml(source.path)}">${escapeHtml(source.path)}</span></span></label>`,
-        )
+        .map((source) => {
+          const paths = source.selectionPaths || [source.path];
+          const data =
+            source.kind === "omp" ? ` data-scope-paths="${escapeHtml(JSON.stringify(paths))}" data-omp="true"` : "";
+          return `<label class="source-option"><input type="checkbox" value="${escapeHtml(source.path)}"${data}${source.needsOmpConfirmation ? "" : " checked"} /><span class="source-option-text"><span class="source-option-label"><strong>${escapeHtml(source.label)}</strong></span>${pathLines(source, "source-option-path")}</span></label>`;
+        })
         .join("");
       const errors = data.errors || [];
       $("#importDiagnostics").hidden = !errors.length;
@@ -461,14 +504,39 @@ export function createSourceManager(context) {
     updateImportButton();
     setImportMessage("正在识别目录...");
     try {
+      const chosen = [...document.querySelectorAll("#importCandidates input[data-omp]:checked")].flatMap((input) =>
+        JSON.parse(input.dataset.scopePaths),
+      );
+      if (!$("#manualImportArea").hidden && $("#manualOmpFormat")?.checked) chosen.push($("#importPath").value.trim());
+      const ompPaths = paths.filter((value) => explicitOmp.has(value) || chosen.includes(value));
       const response = await fetch("/api/imports", {
         method: "POST",
         headers: { "content-type": "application/json", ...runtimeRequestHeaders(importView.activity) },
-        body: JSON.stringify({ paths }),
+        body: JSON.stringify(ompPaths.length ? { paths, ompPaths } : { paths }),
       });
       const data = await response.json();
-      if (!response.ok)
-        throw new Error(`${localizeServerError(data, response.status)}${data.path ? ` · ${data.path}` : ""}`);
+      if (!response.ok) {
+        const message = `${localizeServerError(data, response.status)}${data.path ? ` · ${data.path}` : ""}`;
+        if (data.code === "OMP_SOURCE_AMBIGUOUS" && paths.includes(data.path)) {
+          setImportMessage(message);
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "panel-action";
+          button.textContent = localizeText("按 Oh My Pi 导入");
+          button.addEventListener("click", () => {
+            if (!selectedImportPaths().includes(data.path)) return;
+            explicitOmp.add(data.path);
+            $("#importForm").requestSubmit();
+          });
+          $("#importMessage").append(" ", button);
+          finishRuntimeTask(importView.activity);
+          importView.activity = null;
+          return;
+        }
+        throw new Error(message);
+      }
+      explicitOmp.clear();
+      if ($("#manualOmpFormat")) $("#manualOmpFormat").checked = false;
       importView.task = data.importTask;
       renderImportProgress();
       void pollImportTask();

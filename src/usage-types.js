@@ -5,8 +5,9 @@
  */
 
 /**
- * A discovered Codex, ZCode, or imported project-log source.
- * @typedef {{ id: string, label: string, path: string, kind: string, usageLogPath?: string }} UsageSource
+ * A discovered or confirmed usage source.
+ * @typedef {{ id: string, label: string, path: string, kind: string, usageLogPath?: string,
+ * approvedScanRoots?: string[], excludedScanRoots?: string[], agentPath?: string }} UsageSource
  */
 
 /**

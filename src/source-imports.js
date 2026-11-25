@@ -3,6 +3,14 @@ import { copyFile, mkdir, readFile, readdir, rename, rm, stat, writeFile } from 
 import os from "node:os";
 import path from "node:path";
 import {
+  addOmpHome,
+  discoverOmpHomes,
+  mergeOmpScopes,
+  ompScanRoots,
+  ompSelectionPaths,
+  validOmpGrant,
+} from "./omp-source.js";
+import {
   classifyImportDirectory,
   discoverClaudeHomes,
   discoverCodexHomes,
@@ -43,8 +51,9 @@ export async function scanImportSources(options = {}, confirmed = []) {
   const candidates = [];
   const errors = [];
   const roots = [];
-  const scanOptions = { ...options, sourceCandidates: roots, discoveryErrors: errors };
+  const scanOptions = { ...options, sourceCandidates: roots, discoveryErrors: errors, ompCandidates: true };
   for (const discover of [
+    discoverOmpHomes,
     discoverCodexHomes,
     discoverZcodeHomes,
     discoverDshHomes,
@@ -77,10 +86,11 @@ export async function scanImportSources(options = {}, confirmed = []) {
       if (error.code !== "ENOENT") errors.push({ path: root, code: error.code || "IMPORT_SCAN_FAILED" });
     }
   }
-  const known = new Set();
+  const known = new Map();
   for (const entry of confirmed) {
     try {
-      known.add(await importPathIdentity(entry.path));
+      known.set(await importPathIdentity(entry.path), entry);
+      if (entry.kind === "omp" && entry.agentPath) known.set(await importPathIdentity(entry.agentPath), entry);
     } catch (error) {
       errors.push({ path: entry.path, code: error.code || "IMPORT_SCAN_FAILED" });
     }
@@ -92,7 +102,17 @@ export async function scanImportSources(options = {}, confirmed = []) {
       const identity = await importPathIdentity(candidate.path);
       if (seen.has(identity)) continue;
       seen.add(identity);
-      sources.push({ ...candidate, confirmed: known.has(identity) });
+      const old = known.get(identity);
+      const covered =
+        candidate.kind === "omp"
+          ? old?.kind === "omp" &&
+            JSON.stringify(ompScanRoots(old)) === JSON.stringify(mergeOmpScopes(old, candidate).approvedScanRoots)
+          : Boolean(old);
+      sources.push({
+        ...candidate,
+        ...(candidate.kind === "omp" ? { selectionPaths: ompSelectionPaths(candidate) } : {}),
+        confirmed: covered,
+      });
     } catch (error) {
       errors.push({ path: candidate.path, code: error.code || "IMPORT_SCAN_FAILED" });
     }
@@ -131,7 +151,8 @@ export function createSourceImports(options, publishedHomes) {
             ![entry.path, entry.id, entry.kind, entry.label].every(
               (field) => typeof field === "string" && field.length > 0,
             ) ||
-            !path.isAbsolute(entry.path),
+            !path.isAbsolute(entry.path) ||
+            (entry.kind === "omp" && !validOmpGrant(entry)),
         )
       )
         throw new Error("Invalid confirmed source identity.");
@@ -158,7 +179,9 @@ export function createSourceImports(options, publishedHomes) {
   }
   async function initialize() {
     const stored = await read();
-    const entries = stored.version === 2 ? [...stored.imports] : await publishedHomes();
+    const originalEntries = JSON.stringify(stored.imports);
+    const entries =
+      stored.version === 2 ? [...stored.imports] : (await publishedHomes()).filter((home) => home.kind !== "omp");
     const configured = await discoverUsageSources({ ...options, onlyConfiguredSources: true });
     const additions = [...configured];
     if (stored.version !== 2) {
@@ -182,15 +205,23 @@ export function createSourceImports(options, publishedHomes) {
         );
       }
     }
-    const known = new Set();
-    for (const entry of entries) known.add(await importPathIdentity(entry.path));
+    const known = new Map();
+    for (const entry of entries) known.set(await importPathIdentity(entry.path), entry);
     for (const entry of additions) {
       const identity = await importPathIdentity(entry.path);
-      if (known.has(identity)) continue;
-      known.add(identity);
-      entries.push(entry);
+      const existing = known.get(identity);
+      if (entry.kind === "omp") {
+        if (existing && existing.kind !== "omp") {
+          if (!["extra", "codex"].includes(existing.kind)) continue;
+          entries.splice(entries.indexOf(existing), 1);
+        }
+        known.set(identity, addOmpHome(entries, entry));
+      } else if (!existing) {
+        known.set(identity, entry);
+        entries.push(entry);
+      }
     }
-    if (stored.version !== 2 || entries.length !== stored.imports.length) {
+    if (stored.version !== 2 || JSON.stringify(entries) !== originalEntries) {
       if (stored.exists && stored.version !== 2)
         await copyFile(file, `${file}.v1-backup`, 1).catch((error) => {
           if (error.code !== "EEXIST") throw error;
@@ -203,11 +234,12 @@ export function createSourceImports(options, publishedHomes) {
     file,
     list: () => serialize(initialize),
     discover: async () => scanImportSources(options, (await read()).imports),
-    add: (paths) =>
+    add: (paths, { ompPaths = [] } = {}) =>
       serialize(async () => {
         const entries = await initialize();
-        const priorCount = entries.length;
-        const scan = await scanImportSources(options, entries);
+        const original = JSON.stringify(entries);
+        const explicit = new Set(ompPaths.map((value) => normalizeImportPath(value, options)));
+        let scan;
         const known = new Map();
         for (const entry of entries) known.set(await importPathIdentity(entry.path), entry);
         const selected = [];
@@ -218,12 +250,32 @@ export function createSourceImports(options, publishedHomes) {
           });
           if (!info.isDirectory())
             throw importError("IMPORT_PATH_NOT_DIRECTORY", "Choose the containing directory, not a file.", directory);
-          const classified = await classifyImportDirectory(directory);
+          const classified = await classifyImportDirectory(directory, {
+            ...options,
+            confirmedSources: entries,
+            ompExplicit: explicit.has(directory),
+          }).catch((error) => {
+            if (error.code === "OMP_SOURCE_AMBIGUOUS") error.path = value;
+            throw error;
+          });
+          if (explicit.has(directory) && classified.type !== "omp-home")
+            throw importError("INVALID_IMPORT_DIRECTORY", "Choose an Oh My Pi session directory.", directory);
           if (classified.type === "unsupported")
             throw importError("INVALID_IMPORT_DIRECTORY", classified.reason, directory);
           const identity = await importPathIdentity(classified.path);
           let entry = known.get(identity);
+          if (classified.type === "omp-home") {
+            if (entry && entry.kind !== "omp") {
+              if (!["extra", "codex"].includes(entry.kind))
+                throw importError("INVALID_IMPORT_DIRECTORY", "Choose the Oh My Pi sessions directory.", directory);
+              entries.splice(entries.indexOf(entry), 1);
+            }
+            const { type: _type, ...source } = classified;
+            entry = addOmpHome(entries, { ...source, imported: true });
+            known.set(identity, entry);
+          }
           if (!entry) {
+            scan ||= await scanImportSources(options, entries);
             for (const candidate of scan.candidates) {
               if ((await importPathIdentity(candidate.path)) === identity) {
                 const { confirmed: _confirmed, ...source } = candidate;
@@ -246,7 +298,7 @@ export function createSourceImports(options, publishedHomes) {
           }
           if (!selected.some((source) => source.id === entry.id)) selected.push(entry);
         }
-        if (entries.length !== priorCount) await write(entries);
+        if (JSON.stringify(entries) !== original) await write(entries);
         return { imports: entries, selected };
       }),
     remove: (directory) =>
@@ -254,7 +306,14 @@ export function createSourceImports(options, publishedHomes) {
         const entries = await initialize();
         const identity = await importPathIdentity(normalizeImportPath(directory, options));
         const remaining = [];
-        for (const entry of entries) if ((await importPathIdentity(entry.path)) !== identity) remaining.push(entry);
+        for (const entry of entries) {
+          if ((await importPathIdentity(entry.path)) === identity) continue;
+          if (entry.kind !== "omp") remaining.push(entry);
+          else {
+            const roots = ompScanRoots(entry).filter((root) => path.relative(root, identity) !== "");
+            if (roots.length) remaining.push({ ...entry, approvedScanRoots: roots });
+          }
+        }
         await write(remaining);
         return remaining;
       }),

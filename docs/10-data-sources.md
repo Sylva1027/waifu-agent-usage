@@ -19,6 +19,7 @@ Waifu 与 Lite 使用相同的来源和 Token 统计规则。费用估算由 Wai
 - [Claude Code](data-sources/claude-code.md)：`~/.claude/projects/` 的主会话和子代理转录。
 - [WorkBuddy](data-sources/workbuddy.md)：`~/.workbuddy-ai/projects/` 的转录；Auto 记录不计入统计。
 - [Hermes](data-sources/hermes.md)：各 home 的 `state.db` 累计用量账本。
+- [Oh My Pi](data-sources/omp.md)：活动会话、子代理和归档日志。
 - 项目用量日志：可导入含 `.codex-usage/usage.jsonl` 的项目目录，读取其中已记录的真实用量。
 
 `~` 表示当前用户主目录。扫描候选还包括 `CODEX_HOME`、`CLAUDE_CONFIG_DIR`、`XDG_DATA_HOME`、`HERMES_HOME` 指向的位置。
@@ -35,11 +36,12 @@ Waifu 与 Lite 使用相同的来源和 Token 统计规则。费用估算由 Wai
 - Claude Code：`CODEX_USAGE_CLAUDE_HOMES`
 - WorkBuddy：`CODEX_USAGE_WORKBUDDY_HOMES`
 - Hermes：`CODEX_USAGE_HERMES_HOMES`
+- Oh My Pi：`CODEX_USAGE_OMP_HOMES`
 - 其他导入目录：`CODEX_USAGE_IMPORT_DIRS`
 
 多个路径使用系统分隔符：Windows 为 `;`，macOS/Linux 为 `:`。这些显式配置视为已确认来源。CLI 汇总会自动发现默认来源。
 
-设置 `CODEX_USAGE_ZCODE=0`、`CODEX_USAGE_DSH=0`、`CODEX_USAGE_OPENCODE=0`、`CODEX_USAGE_CLAUDE=0`、`CODEX_USAGE_WORKBUDDY=0` 或 `CODEX_USAGE_HERMES=0` 可关闭对应自动发现，仍可手动导入。
+设置 `CODEX_USAGE_ZCODE=0`、`CODEX_USAGE_DSH=0`、`CODEX_USAGE_OPENCODE=0`、`CODEX_USAGE_CLAUDE=0`、`CODEX_USAGE_WORKBUDDY=0`、`CODEX_USAGE_HERMES=0` 或 `CODEX_USAGE_OMP=0` 可关闭对应自动发现，仍可手动导入。
 
 既有 `imports.json` 自动迁为 v2，旧清单保留为 `.v1-backup`。
 

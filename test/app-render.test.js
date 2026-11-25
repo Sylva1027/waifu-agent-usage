@@ -74,9 +74,9 @@ import { contrastRatio } from "../scripts/skin-palette/color-math.mjs";
 
 // ---------------------------------------------------------------- harness 归组（DSH）
 
-test("空状态文案包含 DSH、OpenCode、Claude Code 与 WorkBuddy", () => {
+test("未找到来源时显示目录空状态", () => {
   const html = renderHomesHtml([]);
-  assert.match(html, /没有发现 Codex、ZCode、DSH、OpenCode、Claude Code 或 WorkBuddy 目录/);
+  assert.match(html, /没有发现可统计的记录目录/);
 });
 
 test("pricing status gives total coverage and marks each price source", () => {
@@ -1630,11 +1630,11 @@ test("drawTimeline measures the canvas box once, before writing the backing stor
   }
 });
 
-test("WorkBuddy 和 Hermes 使用各自的 Harness 分组", () => {
-  assert.equal(HARNESS_ORDER.length, 7);
-  assert.equal(HARNESS_ORDER.at(-1), "Hermes");
+test("WorkBuddy、Hermes 和 Oh My Pi 使用各自的 Harness 分组", () => {
+  assert.deepEqual(HARNESS_ORDER.slice(-3), ["WorkBuddy", "Hermes", "Oh My Pi"]);
   assert.equal(sourceGroup("Hermes Subagent", "hermes"), "Hermes");
   assert.equal(sourceGroup("WorkBuddy", "workbuddy"), "WorkBuddy");
+  assert.equal(sourceGroup("Oh My Pi", "omp"), "Oh My Pi");
   // channel 归一化兜底：home kind 缺失时也要归到 WorkBuddy。
   assert.equal(sourceGroup("WorkBuddy", ""), "WorkBuddy");
   // Claude 的既有来源归组不变。

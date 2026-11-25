@@ -29,6 +29,7 @@ const CORE_TABLES_BY_SCHEMA_VERSION = Object.freeze({
   23: CORE_TABLES_23,
   24: CORE_TABLES_23,
   25: CORE_TABLES_23,
+  26: Object.freeze([...CORE_TABLES_23, "omp_files", "omp_calls", "omp_aliases", "omp_occurrences"]),
 });
 
 const verifiedTableEvidence = new Set();

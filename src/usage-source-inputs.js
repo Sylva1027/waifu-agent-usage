@@ -49,6 +49,7 @@ export async function readUsageSourceInputs(
   const auxiliaryFiles = new Set(extraFiles);
   const files = new Set([...auxiliaryFiles, options.importStoreFile, codexQuotaFile(options)].filter(Boolean));
   for (const home of homes) {
+    if (home.kind === "omp") continue;
     for (const name of ["config.toml", "settings.json", "config.json", "logs_2.sqlite", "logs_2.sqlite-wal"])
       files.add(path.join(home.path, name));
   }

@@ -26,7 +26,8 @@ export function publishedUsageEventFromRow(row, sourceKind, serviceTierEvidence,
     requestInputTokens: Number(row.request_input_tokens || 0),
     contextLevel: String(row.context_level),
     serviceTier:
-      (sourceKind !== "hermes" && serviceTierEvidence?.resolve(sessionId, timestampMs, String(row.service_tier))) ||
+      (!["hermes", "omp"].includes(sourceKind) &&
+        serviceTierEvidence?.resolve(sessionId, timestampMs, String(row.service_tier))) ||
       String(row.service_tier),
     priceVersion: String(row.price_version),
     total: usageFromRow(row),
@@ -143,5 +144,5 @@ export function canonicalizeKind(kindRaw) {
   if (typeof kindRaw !== "string") return "unsupported";
   const kind = kindRaw.trim().toLowerCase();
   if (["main", "jetbrains", "extra", "codex"].includes(kind)) return "codex";
-  return ["zcode", "dsh", "opencode", "claude", "workbuddy", "hermes"].includes(kind) ? kind : "unsupported";
+  return ["zcode", "dsh", "opencode", "claude", "workbuddy", "hermes", "omp"].includes(kind) ? kind : "unsupported";
 }

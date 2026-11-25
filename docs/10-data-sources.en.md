@@ -19,6 +19,7 @@ Supported sources:
 - [Claude Code](data-sources/claude-code.en.md): main and subagent transcripts under `~/.claude/projects/`.
 - [WorkBuddy](data-sources/workbuddy.en.md): transcripts under `~/.workbuddy-ai/projects/`; Auto records are excluded.
 - [Hermes](data-sources/hermes.en.md): cumulative usage ledgers in each home's `state.db`.
+- [Oh My Pi](data-sources/omp.en.md): active sessions, subagents, and archived logs.
 - **Project usage logs:** import a project directory containing `.codex-usage/usage.jsonl` to read recorded usage.
 
 `~` is the current user's home. Scan candidates also include locations specified by `CODEX_HOME`, `CLAUDE_CONFIG_DIR`, `XDG_DATA_HOME`, and `HERMES_HOME`.
@@ -35,11 +36,12 @@ Use these variables to add source directories:
 - Claude Code: `CODEX_USAGE_CLAUDE_HOMES`
 - WorkBuddy: `CODEX_USAGE_WORKBUDDY_HOMES`
 - Hermes: `CODEX_USAGE_HERMES_HOMES`
+- Oh My Pi: `CODEX_USAGE_OMP_HOMES`
 - Other import directories: `CODEX_USAGE_IMPORT_DIRS`
 
 Separate multiple paths with the system separator: `;` on Windows, `:` on macOS/Linux. Explicitly configured sources are treated as confirmed. CLI summaries automatically discover default sources.
 
-Set `CODEX_USAGE_ZCODE=0`, `CODEX_USAGE_DSH=0`, `CODEX_USAGE_OPENCODE=0`, `CODEX_USAGE_CLAUDE=0`, `CODEX_USAGE_WORKBUDDY=0`, or `CODEX_USAGE_HERMES=0` to disable automatic discovery for the corresponding source; manual import remains available.
+Set `CODEX_USAGE_ZCODE=0`, `CODEX_USAGE_DSH=0`, `CODEX_USAGE_OPENCODE=0`, `CODEX_USAGE_CLAUDE=0`, `CODEX_USAGE_WORKBUDDY=0`, `CODEX_USAGE_HERMES=0`, or `CODEX_USAGE_OMP=0` to disable automatic discovery for the corresponding source. Manual import remains available.
 
 Existing `imports.json` files migrate to v2 automatically; the previous list is retained as `.v1-backup`.
 

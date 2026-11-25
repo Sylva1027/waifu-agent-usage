@@ -744,7 +744,7 @@ test("a schema 24 cold package remains readable after upgrading and importing He
       events.reduce((sum, event) => sum + event.total.total, 0),
       345,
     );
-    assert.equal(Number(store.database.prepare("PRAGMA user_version").get().user_version), 25);
+    assert.equal(Number(store.database.prepare("PRAGMA user_version").get().user_version), 26);
   } finally {
     store.close();
     input.db.close();

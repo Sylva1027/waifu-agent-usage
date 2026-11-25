@@ -106,7 +106,7 @@ test("translated dashboard copy preserves cost and limit semantics", () => {
   );
   assert.equal(
     localizeServerError({ code: "INVALID_IMPORT_DIRECTORY", error: "中文原因" }, 400, "en-US"),
-    "Choose a Codex, ZCode, or DSH home directory, an OpenCode data directory, a Claude Code home, a WorkBuddy home, or a project with a usage log.",
+    "Choose a supported usage directory or a project with a usage log.",
   );
 });
 
@@ -818,15 +818,16 @@ test("runtime status and relative time translate without leaking Chinese", () =>
   }
 });
 
-test("目录提示文案在两种语言里都包含 WorkBuddy", () => {
-  const emptyState = "没有发现 Codex、ZCode、DSH、OpenCode、Claude Code 或 WorkBuddy 目录";
+test("目录空状态和 Oh My Pi 确认操作在两种语言里都有文案", () => {
+  const emptyState = "没有发现可统计的记录目录";
   const english = localizeText(emptyState, "en-US");
-  assert.match(english, /WorkBuddy/);
+  assert.equal(english, "No usage directories found");
   assert.equal(localizeText(emptyState, "zh-CN"), emptyState);
 
   const reason =
-    "目录需要是 Codex home、ZCode home、DSH home、OpenCode 数据目录、Claude Code home、WorkBuddy home，或包含 .codex-usage/usage.jsonl";
+    "目录需要是 Codex home、ZCode home、DSH home、OpenCode 数据目录、Claude Code home、WorkBuddy home、Oh My Pi 会话目录，或包含 .codex-usage/usage.jsonl";
   const reasonEn = localizeText(reason, "en-US");
-  assert.match(reasonEn, /WorkBuddy home/);
+  assert.match(reasonEn, /Oh My Pi session directory/);
   assert.notEqual(reasonEn, reason, "英文文案必须真的翻译过，而不是原样返回中文");
+  assert.equal(localizeText("按 Oh My Pi 导入", "en-US"), "Import as Oh My Pi");
 });

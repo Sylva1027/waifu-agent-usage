@@ -23,11 +23,11 @@ Waifu Agent Usage is a local AI coding usage dashboard independently maintained 
   </tr>
   <tr>
     <td width="50%"><a href="docs/data-sources/hermes.en.md"><img src="docs/images/harnesses/hermes.png" width="20" height="20" align="absmiddle" alt="">&nbsp;Hermes</a></td>
-    <td></td>
+    <td width="50%"><a href="docs/data-sources/omp.en.md">Oh My Pi</a></td>
   </tr>
 </table>
 
-Planned integrations are [Google Antigravity](https://antigravity.google/) and [(Oh My) Pi](https://github.com/can1357/oh-my-pi).
+Planned integration: [Google Antigravity](https://antigravity.google/).
 
 ## Let your agent install it
 

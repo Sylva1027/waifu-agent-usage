@@ -1414,7 +1414,7 @@ function setupUsageTooltip() {
 }
 
 // harness 归组顺序。Codex 优先，便于 gpt 系模型归到最相关一侧。
-export const HARNESS_ORDER = ["Codex", "ZCode", "DSH", "OpenCode", "Claude", "WorkBuddy", "Hermes"];
+export const HARNESS_ORDER = ["Codex", "ZCode", "DSH", "OpenCode", "Claude", "WorkBuddy", "Hermes", "Oh My Pi"];
 
 function currentSummary() {
   return state.summary;
