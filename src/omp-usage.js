@@ -10,7 +10,7 @@ import { USAGE_DETAIL_MASK as MASK, USAGE_DETAIL_INCONSISTENT } from "../public/
 import { createRepositoryResolver } from "./repository-identity.js";
 import { requestInputFacts } from "./usage-event-inputs.js";
 import { UsageSourceRows } from "./usage-source-rows.js";
-import { ompFileIsArchived } from "./omp-source.js";
+import { ompFileIsArchived, ompScanRoots } from "./omp-source.js";
 
 const MAX_LINE_BYTES = 16 * 1024 * 1024;
 const utf8 = new TextDecoder("utf-8", { fatal: true });
@@ -49,27 +49,31 @@ function projectUsage(raw, issue) {
     issue("OMP_INCOMPLETE_USAGE");
     return null;
   }
+  const reason = token(raw.reasoningTokens);
+  const buckets = [uncached, read, write, mainOutput ?? reason, extraInput, extraCached, extraOutput];
   if (total === 0) {
-    if (
-      [uncached, read, write, mainOutput, extraInput, extraCached, extraOutput, token(raw.reasoningTokens)].some(
-        (v) => v > 0,
-      )
-    ) {
+    if (buckets.some((v) => v > 0) || reason > 0) {
       issue("OMP_CONFLICTING_TOTAL");
     }
     return null;
   }
-  if (detailTotal !== null && detailTotal !== total) {
+  let gap = detailTotal === null ? 0 : Math.abs(total - detailTotal);
+  if (detailTotal === null) {
+    // Even incomplete buckets establish a lower bound. Exact arithmetic avoids rounding a one-token excess away.
+    const minimum = buckets.reduce((value, part) => value + BigInt(part ?? 0), 0n);
+    if (minimum > BigInt(total)) gap = Number(minimum - BigInt(total));
+  }
+  if (gap > 0) {
+    if (!Number.isSafeInteger(gap)) issue("OMP_GAP_OVERFLOW");
     return {
       usage: { total, input: 0, cached: 0, output: 0, reasoning: 0 },
       detailMask: USAGE_DETAIL_INCONSISTENT,
-      reconciliationGap: Math.abs(total - detailTotal),
+      reconciliationGap: token(gap) ?? 0,
       cacheWriteTokens: 0,
       cacheWriteKnown: false,
       ...requestInputFacts(false, 0),
     };
   }
-  const reason = token(raw.reasoningTokens);
   const reasonKnown = reason !== null && mainOutput !== null && reason <= mainOutput && extraOutput === 0;
   return {
     usage: { total, input: input ?? 0, cached: cached ?? 0, output: output ?? 0, reasoning: reasonKnown ? reason : 0 },
@@ -206,9 +210,13 @@ function isWithin(root, file) {
 
 async function approvedTarget(filePath, home) {
   const target = await realpath(filePath);
-  for (const root of home.approvedScanRoots ?? [home.path]) {
+  if (home.excludedScanRoots?.some((root) => isWithin(root, filePath) || isWithin(root, target))) {
+    throw new SnapshotError("OMP_OUTSIDE_SCAN_ROOT");
+  }
+  for (const root of ompScanRoots(home)) {
     if (!isWithin(root, filePath)) continue;
-    if (isWithin(await realpath(root), target)) return target;
+    const canonicalRoot = await realpath(root);
+    if (path.relative(root, canonicalRoot) === "" && isWithin(canonicalRoot, target)) return target;
   }
   throw new SnapshotError("OMP_OUTSIDE_SCAN_ROOT");
 }
@@ -217,7 +225,7 @@ async function approvedTarget(filePath, home) {
  * Emit sanitized events only after the descriptor, path and compressed trailer are verified.
  * An incomplete active tail (or unmeterable record) permits additive facts only.
  * @param {string} filePath
- * @param {{id:string,label:string,path:string,approvedScanRoots?:string[]}} home
+ * @param {{id:string,label:string,path:string,approvedScanRoots?:string[],excludedScanRoots?:string[],agentPath?:string}} home
  * @param {{onEvent:Function,repositoryResolver?:Function,maxLineBytes?:number,maxRowsBytes?:number}} options
  */
 export async function readOmpSnapshot(filePath, home, options) {

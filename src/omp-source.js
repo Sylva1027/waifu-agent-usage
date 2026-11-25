@@ -1,5 +1,4 @@
-import { createReadStream } from "node:fs";
-import { lstat, readdir, realpath, stat } from "node:fs/promises";
+import { lstat, open, readdir, realpath } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { createGunzip } from "node:zlib";
@@ -20,7 +19,9 @@ const profileName = (name) =>
   !/^(?:con|prn|aux|nul|com[0-9]|lpt[0-9])(?:\.|$)/i.test(name);
 const eligibleFile = (name) => !name.startsWith(".") && /\.jsonl(?:\.gz)?$/.test(name);
 const eligibleDir = (name) =>
-  !name.startsWith(".") && !["node_modules", "blobs", "tool-results", "backups"].includes(name) && !/\.(?:bak|tmp)$/.test(name);
+  !name.startsWith(".") &&
+  !["node_modules", "blobs", "tool-results", "backups"].includes(name) &&
+  !/\.(?:bak|tmp)$/.test(name);
 
 async function directory(dir) {
   try {
@@ -50,25 +51,98 @@ function configuredRoots(options) {
 
 function minimalRoots(roots) {
   const sorted = [...new Set(roots.map((root) => path.resolve(root)))].sort();
-  return sorted.filter((root, index) => !sorted.some((other, j) => j !== index && within(root, other) && (!same(root, other) || j < index)));
+  return sorted.filter(
+    (root, index) =>
+      !sorted.some((other, j) => j !== index && within(root, other) && (!same(root, other) || j < index)),
+  );
 }
 
 export function ompScanRoots(home) {
   return Array.isArray(home.approvedScanRoots) ? minimalRoots(home.approvedScanRoots) : [];
 }
 
+export function validOmpGrant(home) {
+  const logical = home.agentPath ?? home.path;
+  const absolute = (value) => typeof value === "string" && path.isAbsolute(value);
+  return (
+    absolute(logical) &&
+    within(home.path, logical) &&
+    Array.isArray(home.approvedScanRoots) &&
+    home.approvedScanRoots.length > 0 &&
+    home.approvedScanRoots.every((root) => absolute(root) && within(root, logical)) &&
+    (home.excludedScanRoots === undefined ||
+      (Array.isArray(home.excludedScanRoots) &&
+        home.excludedScanRoots.every((dir) => absolute(dir) && within(dir, logical))))
+  );
+}
+
+export async function ompWatchRoots(home) {
+  const roots = [];
+  for (const root of ompScanRoots(home)) {
+    const excluded = home.excludedScanRoots || [];
+    if (excluded.some((dir) => within(root, dir))) continue;
+    if (await directory(root).catch(() => false))
+      roots.push({ path: root, recursive: !excluded.some((dir) => within(dir, root)) });
+  }
+  return roots;
+}
+
 export function mergeOmpScopes(existing, added) {
   return { ...existing, approvedScanRoots: minimalRoots([...ompScanRoots(existing), ...ompScanRoots(added)]) };
 }
 
-export function ompFileIsArchived(filePath, home) {
-  return filePath.endsWith(".jsonl.gz") || within(filePath, path.join(home.path, archive)) ||
-    ompScanRoots(home).some((root) => within(filePath, root) && root.split(path.sep).some(
-      (part, i, parts) => part === "archive" && parts[i + 1] === sessions,
-    ));
+/** Keep a confirmed owner's identity when a wider grant proves that folders overlap. */
+export function addOmpHome(homes, incoming) {
+  const logical = incoming.agentPath || incoming.path;
+  const roots = ompScanRoots(incoming);
+  const known = homes.filter((home) => home.kind === "omp");
+  const owners = known.filter(
+    (home) =>
+      home.id === incoming.id ||
+      same(home.agentPath || home.path, logical) ||
+      ompScanRoots(home).some((prior) =>
+        roots.some(
+          (root) =>
+            (within(prior, root) || within(root, prior)) &&
+            !(home.excludedScanRoots || []).some((excluded) => within(root, excluded)),
+        ),
+      ),
+  );
+  const primary = owners.find((home) => home.id === incoming.id) || owners[0];
+  if (!primary) {
+    homes.push(incoming);
+    return incoming;
+  }
+  const merged = mergeOmpScopes(primary, incoming);
+  const oldLogical = primary.agentPath || primary.path;
+  if (!same(primary.path, logical) && within(oldLogical, logical)) merged.agentPath = logical;
+  const reserved = owners
+    .filter((home) => home !== primary)
+    .flatMap(ompScanRoots)
+    .filter((root) => merged.approvedScanRoots.some((allowed) => within(root, allowed)));
+  const excluded = minimalRoots([
+    ...(primary.excludedScanRoots || []),
+    ...(incoming.excludedScanRoots || []),
+    ...reserved,
+  ]);
+  if (excluded.length) merged.excludedScanRoots = excluded;
+  return Object.assign(primary, merged);
 }
 
-async function* walk(root, budget = null, recursive = true) {
+export function ompFileIsArchived(filePath, home) {
+  return (
+    filePath.endsWith(".jsonl.gz") ||
+    within(filePath, path.join(home.agentPath || home.path, archive)) ||
+    ompScanRoots(home).some(
+      (root) =>
+        within(filePath, root) &&
+        root.split(path.sep).some((part, i, parts) => part === "archive" && parts[i + 1] === sessions),
+    )
+  );
+}
+
+async function* walk(root, budget = null, depth = Infinity, excluded = []) {
+  if (excluded.some((dir) => within(root, dir))) return;
   if (budget && --budget.directories < 0) return;
   if (!(await directory(root))) return;
   const entries = await readdir(root, { withFileTypes: true });
@@ -79,10 +153,11 @@ async function* walk(root, budget = null, recursive = true) {
       yield path.join(root, entry.name);
     }
   }
-  if (recursive) {
+  if (depth > 0) {
     for (const entry of entries) {
       if (budget && (budget.directories <= 0 || budget.files <= 0)) return;
-      if (entry.isDirectory() && eligibleDir(entry.name)) yield* walk(path.join(root, entry.name), budget);
+      if (entry.isDirectory() && eligibleDir(entry.name))
+        yield* walk(path.join(root, entry.name), budget, depth - 1, excluded);
     }
   }
 }
@@ -92,7 +167,7 @@ export async function ompSessionFiles(home) {
   const files = [];
   const seen = new Set();
   for (const root of ompScanRoots(home)) {
-    for await (const file of walk(root)) {
+    for await (const file of walk(root, null, Infinity, home.excludedScanRoots || [])) {
       const info = await lstat(file, { bigint: true });
       if (!info.isFile()) continue;
       if (info.nlink > 1n && info.ino) {
@@ -108,32 +183,66 @@ export async function ompSessionFiles(home) {
 
 // A plain session header is shared with Pi. Only OMP-specific records or an
 // identified OMP installation let a manual directory be attributed automatically.
-async function probeFile(file) {
+async function probeFile(file, explicit) {
   if (!same(file, await realpath(file))) return null;
-  const input = createReadStream(file, { highWaterMark: 16 * 1024 });
+  const handle = await open(file, "r");
+  try {
+    const [before, current, resolved] = await Promise.all([
+      handle.stat({ bigint: true }),
+      lstat(file, { bigint: true }),
+      realpath(file),
+    ]);
+    if (
+      !before.isFile() ||
+      !current.isFile() ||
+      !same(file, resolved) ||
+      before.dev !== current.dev ||
+      before.ino !== current.ino
+    )
+      return null;
+    return await probeHeader(handle, file, explicit);
+  } finally {
+    await handle.close();
+  }
+}
+
+async function probeHeader(handle, file, explicit) {
+  const input = handle.createReadStream({ highWaterMark: 16 * 1024, autoClose: false });
   const stream = file.endsWith(".gz") ? input.pipe(createGunzip()) : input;
   if (stream !== input) input.on("error", (error) => stream.destroy(error));
   try {
     const chunks = [];
     let bytes = 0;
-    const limit = 64 * 1024;
+    const limit = explicit ? 16 * 1024 * 1024 + 256 : 64 * 1024;
+    let newlines = 0;
     for await (const chunk of stream) {
       chunks.push(chunk.subarray(0, limit - bytes));
       bytes += chunks.at(-1).length;
-      if (bytes === limit) break;
+      if (explicit) {
+        for (let i = chunk.indexOf(10); i >= 0 && newlines < 2; i = chunk.indexOf(10, i + 1)) newlines++;
+      }
+      if (bytes === limit || newlines >= 2) break;
     }
     let header = false;
     let slot = false;
     for (const line of Buffer.concat(chunks).toString("utf8").split("\n")) {
       if (!line.trim()) continue;
       let row;
-      try { row = JSON.parse(line); } catch { break; }
+      try {
+        row = JSON.parse(line);
+      } catch {
+        break;
+      }
       if (!row || typeof row !== "object") break;
       if (!header) {
-        if (!slot && row.type === "title" && row.v === 1) { slot = true; continue; }
+        if (!slot && row.type === "title" && row.v === 1) {
+          slot = true;
+          continue;
+        }
         if (row.type !== "session" || typeof row.id !== "string" || !row.id) break;
         header = true;
-        if (slot || Object.hasOwn(row, "providerPromptCacheKey") || Object.hasOwn(row, "previousSessionFiles")) return "omp";
+        if (slot || Object.hasOwn(row, "providerPromptCacheKey") || Object.hasOwn(row, "previousSessionFiles"))
+          return "omp";
       } else if (row.type === "model_usage") return "omp";
     }
     return header ? "pi" : null;
@@ -155,16 +264,48 @@ function fromSessions(dir) {
 }
 
 function knownAgent(agent, options, configured) {
-  if (configured.agentDirs.some((dir) => same(agent, dir))) return true;
-  if (options.confirmedSources?.some((home) => home.kind === "omp" && same(agent, home.path))) return true;
+  if (options.confirmedSources?.some((home) => home.kind === "omp" && same(agent, home.agentPath || home.path)))
+    return true;
+  const defaultConfig = path.join(options.homeDir || os.homedir(), ".omp");
+  if (same(agent, path.join(defaultConfig, "agent")) || (configured.xdg && same(agent, configured.xdg))) return true;
+  if (path.basename(agent) === "agent") {
+    const parent = path.dirname(agent);
+    if (path.basename(parent) === ".omp") return true;
+    if (
+      profileName(path.basename(parent)) &&
+      path.basename(path.dirname(parent)) === "profiles" &&
+      path.basename(path.dirname(path.dirname(parent))) === ".omp"
+    )
+      return true;
+  }
   const base = path.basename(agent) === "agent" ? path.dirname(agent) : agent;
-  return configured.profiles.some((root) => same(root, path.dirname(base)) && profileName(path.basename(base)));
+  return [defaultConfig, configured.xdg]
+    .filter(Boolean)
+    .some((root) => same(path.join(root, "profiles"), path.dirname(base)) && profileName(path.basename(base)));
 }
 
 function describe(agent, roots) {
   const profileRoot = path.basename(agent) === "agent" ? path.dirname(agent) : agent;
-  const label = path.basename(path.dirname(profileRoot)) === "profiles" ? `Oh My Pi · ${path.basename(profileRoot)}` : "Oh My Pi";
-  return { type: "omp-home", kind: "omp", id: sourceId("omp", agent), path: agent, label, approvedScanRoots: minimalRoots(roots) };
+  const label =
+    path.basename(path.dirname(profileRoot)) === "profiles" ? `Oh My Pi · ${path.basename(profileRoot)}` : "Oh My Pi";
+  return {
+    type: "omp-home",
+    kind: "omp",
+    id: sourceId("omp", agent),
+    path: agent,
+    label,
+    approvedScanRoots: minimalRoots(roots),
+  };
+}
+
+/** A full agent import selects both current and future active/archive directories. */
+export function ompSelectionPaths(home) {
+  const roots = ompScanRoots(home);
+  const logical = home.agentPath || home.path;
+  return roots.length === 2 &&
+    [sessions, archive].every((sub) => roots.some((root) => same(root, path.join(logical, sub))))
+    ? [logical]
+    : roots;
 }
 
 async function agentLayout(agent) {
@@ -175,10 +316,40 @@ async function agentLayout(agent) {
 export async function classifyOmpDirectory(directoryPath, options = {}) {
   const requested = path.resolve(directoryPath);
   let selected;
-  try { selected = await realpath(requested); } catch (error) { if (missing(error)) return null; throw error; }
+  try {
+    selected = await realpath(requested);
+  } catch (error) {
+    if (missing(error)) return null;
+    throw error;
+  }
   if (!(await directory(selected))) return null;
+  // E.g. macOS /var/folders and /private/var/folders designate the same temp home.
+  if (options.homeDir)
+    options = {
+      ...options,
+      homeDir: await realpath(options.homeDir).catch((error) => {
+        if (missing(error)) return options.homeDir;
+        throw error;
+      }),
+    };
   const configured = configuredRoots(options);
   const from = fromSessions(selected);
+  const existing = options.confirmedSources?.find(
+    (home) =>
+      home.kind === "omp" &&
+      ompScanRoots(home).some((root) => within(selected, root)) &&
+      !(home.excludedScanRoots || []).some((root) => within(selected, root)),
+  );
+  if (existing)
+    return {
+      ...describe(existing.path, [selected]),
+      id: existing.id,
+      ...(existing.agentPath ? { agentPath: existing.agentPath } : {}),
+    };
+  for (const home of options.confirmedSources || []) {
+    const reserved = home.kind === "omp" && home.excludedScanRoots?.find((root) => within(selected, root));
+    if (reserved) return describe(reserved, [selected]);
+  }
   const child = path.join(selected, "agent");
   let layout = null;
   if (from) layout = describe(from, [selected]);
@@ -190,18 +361,27 @@ export async function classifyOmpDirectory(directoryPath, options = {}) {
   if (layout && knownAgent(layout.path, options, configured)) return layout;
   const explicit = options.ompExplicit === true;
   const roots = layout ? ompScanRoots(layout) : [selected];
-  const budget = { directories: 40, files: 8 };
+  // A copied project beneath an unrelated directory named "sessions" is not evidence
+  // that its parent owns *other* projects. Keep that selection's independent identity.
+  const envAgent = (options.env || process.env).PI_CODING_AGENT_DIR;
+  const standalone = from && path.basename(from) !== "agent" && !(envAgent && same(from, envAgent));
+  const candidate = !layout || standalone ? describe(selected, [selected]) : layout;
+  const budget = explicit ? null : { directories: 40, files: 8 };
   let compatible = false;
   for (const root of roots) {
-    for await (const file of walk(root, budget, Boolean(layout) || explicit || options.ompSessionDir === true)) {
-      const signature = await probeFile(file);
-      if (signature === "omp" || (signature && explicit)) return layout || describe(selected, [selected]);
+    for await (const file of walk(root, budget, layout || explicit || options.ompSessionDir ? Infinity : 1)) {
+      const signature = await probeFile(file, explicit);
+      if (signature === "omp" || (signature && explicit)) return candidate;
       if (signature) compatible = true;
     }
   }
-  if (compatible) throw Object.assign(new Error("Confirm this Pi-compatible source as Oh My Pi."), {
-    code: "OMP_SOURCE_AMBIGUOUS", statusCode: 400, path: requested,
-  });
+  if (compatible)
+    throw Object.assign(new Error("Confirm this Pi-compatible source as Oh My Pi."), {
+      code: "OMP_SOURCE_AMBIGUOUS",
+      statusCode: 400,
+      path: requested,
+      ompCandidate: candidate,
+    });
   return null;
 }
 
@@ -209,7 +389,7 @@ export async function discoverOmpHomes(options = {}) {
   const env = options.env || process.env;
   if (env.CODEX_USAGE_OMP === "0") return [];
   const configured = configuredRoots(options);
-  const homes = new Map();
+  const homes = [];
   const report = (error, dir) => {
     if (missing(error) || error.code === "OMP_SOURCE_AMBIGUOUS") return;
     options.discoveryErrors?.push({ path: dir, code: error.code || "IMPORT_SCAN_FAILED" });
@@ -217,30 +397,43 @@ export async function discoverOmpHomes(options = {}) {
   };
   async function add(dir, extra = {}) {
     if (!dir) return;
+    options.sourceCandidates?.push(path.resolve(dir));
     try {
       const home = await classifyOmpDirectory(dir, { ...options, ...extra });
-      if (home) {
-        const existing = homes.get(home.id);
-        homes.set(home.id, existing ? mergeOmpScopes(existing, home) : home);
-      }
-    } catch (error) { report(error, dir); }
+      if (home) addOmpHome(homes, home);
+    } catch (error) {
+      if (
+        options.ompCandidates &&
+        error.code === "OMP_SOURCE_AMBIGUOUS" &&
+        !homes.some((home) => home.id === error.ompCandidate.id)
+      )
+        addOmpHome(homes, { ...error.ompCandidate, needsOmpConfirmation: true });
+      else report(error, dir);
+    }
   }
   if (!options.onlyConfiguredSources) {
     for (const agent of configured.agentDirs) await add(agent);
     for (const root of configured.profiles) {
+      options.sourceCandidates?.push(root);
       try {
         if (!(await directory(root))) continue;
         const entries = await readdir(root, { withFileTypes: true });
         for (const entry of entries) {
           if (entry.isDirectory() && profileName(entry.name))
-            await add(root === path.join(configured.config, "profiles") ? path.join(root, entry.name, "agent") : path.join(root, entry.name));
+            await add(
+              root === path.join(configured.config, "profiles")
+                ? path.join(root, entry.name, "agent")
+                : path.join(root, entry.name),
+            );
         }
-      } catch (error) { report(error, root); }
+      } catch (error) {
+        report(error, root);
+      }
     }
     await add(env.PI_CODING_AGENT_DIR);
     await add(env.PI_CODING_AGENT_SESSION_DIR, { ompSessionDir: true });
   }
   const explicit = options.extraOmpHomes || env.CODEX_USAGE_OMP_HOMES || "";
   for (const dir of explicit.split(path.delimiter).filter(Boolean)) await add(dir, { ompExplicit: true });
-  return [...homes.values()].sort((a,b) => a.path.localeCompare(b.path));
+  return homes.sort((a, b) => a.path.localeCompare(b.path));
 }

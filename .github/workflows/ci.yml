@@ -103,6 +103,10 @@ jobs:
             "test/lite-server.test.js"
             "test/lite-cross-edition-store.test.js"
             "test/three-path-parity.test.js"
+            "test/omp-usage.test.js"
+            "test/omp-source.test.js"
+            "test/omp-ledger.test.js"
+            "test/omp-integration.test.js"
             "test/jsonl-source-bounded.test.js"
             "test/usage-record-connection.test.js"
             "test/history-archive-api.test.js"
@@ -164,6 +168,10 @@ jobs:
             test/source-wake.test.js \
             test/lite-server.test.js \
             test/three-path-parity.test.js \
+            test/omp-usage.test.js \
+            test/omp-source.test.js \
+            test/omp-ledger.test.js \
+            test/omp-integration.test.js \
             test/history-archive-api.test.js
       - name: Run refresh delivery tests
         run: npm test -- --test-reporter=spec --test-concurrency=1 --test-timeout=120000 test/q5-refresh-delivery.test.js
@@ -175,4 +183,5 @@ jobs:
             test/achievement-dialog-browser.test.js \
             test/achievement-notification-browser.test.js \
             test/source-imports-browser.test.js \
+            test/omp-source.test.js \
             test/local-calendar-browser.test.js

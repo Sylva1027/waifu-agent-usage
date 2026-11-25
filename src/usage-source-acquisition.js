@@ -133,6 +133,11 @@ export class UsageSourceAcquisition {
     if (!(await native.journal(options.homeDir || os.homedir()))) return null;
     const candidates = [];
     const homes = await discoverUsageSources({ ...options, sourceCandidates: candidates });
+    if (homes.some((home) => home.kind === "omp")) {
+      // OMP atomically rewrites session files and moves them between active and archived roots.
+      this.invalidate();
+      return null;
+    }
     const auxiliary = await this.readInputs(options, homes, "");
     const scopes = [...new Set([...candidates, ...homes.map((h) => h.path), ...auxiliary.files].map(normal))];
     if (!scopes.length || scopes.length > 256 || scopes.some((root) => within(normal(this.store.databaseFile), root)))

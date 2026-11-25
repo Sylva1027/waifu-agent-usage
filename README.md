@@ -23,11 +23,11 @@ Waifu Agent Usage 是由 Sylva1027 独立维护的本地 AI 编程用量看板�
   </tr>
   <tr>
     <td width="50%"><a href="docs/data-sources/hermes.md"><img src="docs/images/harnesses/hermes.png" width="20" height="20" align="absmiddle" alt="">&nbsp;Hermes</a></td>
-    <td></td>
+    <td width="50%"><a href="docs/data-sources/omp.md">Oh My Pi</a></td>
   </tr>
 </table>
 
-计划适配 [Google Antigravity](https://antigravity.google/) 和 [(Oh My) Pi](https://github.com/can1357/oh-my-pi)。
+计划适配 [Google Antigravity](https://antigravity.google/)。
 
 ## 让 Agent 帮你安装
 

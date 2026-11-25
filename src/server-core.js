@@ -22,6 +22,7 @@ import { publishedSummarySource } from "./usage-summary-cache-core.js";
 import { calendarContext } from "./calendar-context.js";
 import { recoverCodexQuota } from "./codex-quota-cache.js";
 import { createUsageSourceWatcher } from "./usage-source-watch.js";
+import { ompScanRoots, ompWatchRoots } from "./omp-source.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.resolve(__dirname, "..", "public");
@@ -133,6 +134,7 @@ export async function describeImportEntry(importPath) {
   if (classified.type === "unsupported") {
     return classified;
   }
+  if (classified.type === "omp-home") return classified;
   const name = path.basename(classified.path) || classified.path;
   const label =
     classified.type === "project-log"
@@ -369,6 +371,7 @@ export function createUsageServer(options = {}, definition) {
   // `DatabaseSync` 的执行器；主线程只保留读侧快照与轻量端点（`/api/status` 就地扫 fs）。
   const importContext = options.importContext ?? null;
   let importTask = null;
+  let importRequestIdentity = "";
   let directoryPicker = null;
   const activityContext = new AsyncLocalStorage();
   const activityEpoch = randomUUID();
@@ -496,7 +499,11 @@ export function createUsageServer(options = {}, definition) {
   async function listImportEntries() {
     if (importContext) return [];
     return Promise.all(
-      (await sourceImports.list()).map(async (entry) => ({ ...(await describeImportEntry(entry.path)), ...entry })),
+      (await sourceImports.list()).map(async (entry) =>
+        entry.kind === "omp"
+          ? { ...entry, type: "omp-home" }
+          : { ...(await describeImportEntry(entry.path)), ...entry },
+      ),
     );
   }
   const runtimeSummaryCacheFile = path.resolve(summaryCache.file);
@@ -709,6 +716,18 @@ export function createUsageServer(options = {}, definition) {
       };
       const hints = sourceHints;
       sourceHints = { paths: [], unknown: false };
+      const ompRoots = (currentUsageOptions.confirmedSources || [])
+        .filter((source) => source.kind === "omp")
+        .flatMap(ompScanRoots);
+      const recheckOmp =
+        ompRoots.length > 0 &&
+        (hints.unknown ||
+          hints.paths.some(({ path: changed }) =>
+            ompRoots.some((root) => {
+              const relative = path.relative(root, changed);
+              return relative !== ".." && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative);
+            }),
+          ));
       let startupRetained = null;
       if (!storeStatus) {
         startupRetained = await summaryCache.retainedState();
@@ -718,7 +737,12 @@ export function createUsageServer(options = {}, definition) {
         }
       }
       // A crashed executor needs a full publication before unchanged-source checks can serve its state.
-      if (sourceAcquisitionAvailable && usageStore.status && (startupRetained || storeStatus?.acquisition)) {
+      if (
+        !recheckOmp &&
+        sourceAcquisitionAvailable &&
+        usageStore.status &&
+        (startupRetained || storeStatus?.acquisition)
+      ) {
         const checked = await usageStore.checkSources(sourceOptions);
         const source = checked && (await summaryCache.readCertifiedSourceState(sourceOptions, checked));
         if (source && (!startupRetained || (await summaryCache.stateFor(source)))) {
@@ -731,7 +755,7 @@ export function createUsageServer(options = {}, definition) {
           return checked;
         }
       }
-      if (sourceAcquisitionAvailable) {
+      if (!recheckOmp && sourceAcquisitionAvailable) {
         const certified = await usageStore.sync({ options: sourceOptions, certifiedOnly: true, sourceHints: hints });
         sourceAcquisitionAvailable = Boolean(certified?.acquisition);
         const source = certified && (await summaryCache.readCertifiedSourceState(sourceOptions, certified));
@@ -753,6 +777,7 @@ export function createUsageServer(options = {}, definition) {
       });
       // Acquisition can be complete before a dashboard response has been cached.
       if (
+        !recheckOmp &&
         before.publication &&
         !before.publication.pending &&
         before.routingFingerprint === synchronizedSource?.routingFingerprint &&
@@ -769,7 +794,7 @@ export function createUsageServer(options = {}, definition) {
         synchronizedSource = publishedSource;
         return storeStatus;
       }
-      const retained = await summaryCache.stateFor(before);
+      const retained = !recheckOmp && (await summaryCache.stateFor(before));
       if (retained) {
         usageStore.restoreState(retained);
         storeStatus = { ...retained.status, checkedAt: before.checkedAt };
@@ -854,6 +879,10 @@ export function createUsageServer(options = {}, definition) {
       (await discoverUsageSources(currentOptions));
     const roots = [];
     for (const source of sources) {
+      if (source.kind === "omp") {
+        roots.push(...(await ompWatchRoots(source)));
+        continue;
+      }
       const sourceRoot = path.resolve(source.path);
       roots.push({ path: sourceRoot, recursive: true });
       if (source.usageLogPath) {
@@ -1314,29 +1343,38 @@ export function createUsageServer(options = {}, definition) {
           if (!body || typeof body !== "object")
             throw httpError(400, "Select directory paths.", "INVALID_IMPORT_PATHS");
           const paths = body.paths ?? (body.path !== undefined ? [body.path] : []);
+          const ompPaths = body.ompPaths ?? [];
           if (
             (body.paths !== undefined && body.path !== undefined) ||
             !Array.isArray(paths) ||
             !paths.length ||
             paths.length > 64 ||
-            paths.some((value) => typeof value !== "string" || !value.trim())
+            paths.some((value) => typeof value !== "string" || !value.trim()) ||
+            !Array.isArray(ompPaths) ||
+            ompPaths.length > paths.length ||
+            ompPaths.some((value) => !paths.includes(value))
           )
             throw httpError(400, "Select between 1 and 64 directory paths.", "INVALID_IMPORT_PATHS");
           const result = await admitImport(async () => {
+            const identity = async (values) => {
+              const keys = await Promise.all(
+                values.map((value) => importPathIdentity(normalizeImportPath(value, options))),
+              );
+              return [...new Set(keys)].sort();
+            };
+            const requestIdentity = JSON.stringify([await identity(paths), await identity(ompPaths)]);
             if (["running", "ready"].includes(importTask?.status)) {
-              const selected = new Set();
-              for (const value of paths) {
-                const directory = normalizeImportPath(value, options);
-                const classified = await classifyImportDirectory(directory);
-                selected.add(await importPathIdentity(classified.path || directory));
-              }
-              const active = await Promise.all(importTask.paths.map(importPathIdentity));
-              if (selected.size !== active.length || active.some((directory) => !selected.has(directory)))
+              if (requestIdentity !== importRequestIdentity)
                 throw httpError(409, "Import is in progress.", "IMPORT_IN_PROGRESS");
               return { imports: await listImportEntries(), importTask };
             }
             if (syncPromise) await syncPromise.catch(() => {});
-            const added = await sourceImports.add(paths);
+            const added = await sourceImports.add(paths, { ompPaths });
+            importRequestIdentity = requestIdentity;
+            for (const source of added.selected) {
+              if (source.kind !== "omp") continue;
+              for (const root of ompScanRoots(source)) sourceHints.paths.push({ root, path: root, event: "import" });
+            }
             await usageOptions();
             await summaryCache.invalidate();
             storeStatus = null;
@@ -1358,7 +1396,10 @@ export function createUsageServer(options = {}, definition) {
             void runImport(importTask);
             void usageSourceWatcher.refresh();
             return {
-              import: await describeImportEntry(added.selected[0].path),
+              import:
+                added.selected[0].kind === "omp"
+                  ? { ...added.selected[0], type: "omp-home" }
+                  : await describeImportEntry(added.selected[0].path),
               imports: await listImportEntries(),
               importTask,
             };
@@ -1484,15 +1525,24 @@ export function createUsageServer(options = {}, definition) {
             const indexedStatus = await loadUsageStore({ check });
             const currentUsageOptions = await usageOptions();
             const status = await buildUsageFingerprint(currentUsageOptions);
-            const fullReport = await buildUsageReport({
-              ...currentUsageOptions,
-              quotaSourceEvidenceSnapshot: usageStore.quotaSourceEvidenceSnapshot,
-            });
             const missingSources = indexedStatus.missingSources ?? [];
-            let usePublishedHistory = missingSources.length > 0;
+            let usePublishedHistory =
+              missingSources.length > 0 ||
+              currentUsageOptions.confirmedSources?.some((source) => source.kind === "omp") ||
+              indexedStatus.acquisition?.homes?.some((source) => source.kind === "omp");
             if (!usePublishedHistory) {
               const archives = await usageStore.historyArchives();
               usePublishedHistory = (archives.authority?.segmentIds?.length ?? 0) > 0;
+            }
+            const fullReport = await buildUsageReport({
+              ...currentUsageOptions,
+              quotaSourceEvidenceSnapshot: usageStore.quotaSourceEvidenceSnapshot,
+              skipOmpRead: usePublishedHistory,
+            });
+            if (usePublishedHistory) {
+              fullReport.warnings.push(
+                ...(usageStore.warnings || []).filter((warning) => warning.startsWith("Oh My Pi:")),
+              );
             }
             if (usePublishedHistory) {
               const publishedReport = await usageStore.publishedUsageReport();

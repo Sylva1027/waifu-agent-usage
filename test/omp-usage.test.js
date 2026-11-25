@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -51,7 +51,7 @@ function jsonl(records, trailing = true) {
 }
 
 async function setup(t) {
-  const dir = await mkdtemp(path.join(tmpdir(), "usage-omp-test-"));
+  const dir = await realpath(await mkdtemp(path.join(tmpdir(), "usage-omp-test-")));
   t.after(() => rm(dir, { recursive: true, force: true }));
   const home = { id: "omp:fixture", label: "Oh My Pi", path: dir, approvedScanRoots: [dir] };
   const resolve = async () => ({ key: "directory:demo", path: "/omp-example", kind: "directory" });
@@ -118,6 +118,10 @@ test("OMP detail known bits distinguish zero, missing, malformed and conflicting
       side("gap", { usage: { ...usage, totalTokens: 102 } }),
       side("bad-extra", { usage: { ...usage, orchestration: null } }),
       side("invalid-reason", { usage: { ...usage, reasoningTokens: 14 } }),
+      side("partial-conflict", { usage: { totalTokens: 5, output: 8, cacheRead: 100, cacheWrite: 0 } }),
+      side("partial-overflow", {
+        usage: { totalTokens: Number.MAX_SAFE_INTEGER, input: Number.MAX_SAFE_INTEGER, cacheRead: 1 },
+      }),
       side("missing", { usage: null }),
       side("cannot-sum", { usage: { input: true, output: 0 } }),
       side("zero-conflict", { usage: { ...usage, totalTokens: 0 } }),
@@ -127,8 +131,8 @@ test("OMP detail known bits distinguish zero, missing, malformed and conflicting
   );
   assert.equal(result.status, "partial");
   assert.deepEqual(result.diagnostics, { OMP_MISSING_USAGE: 1, OMP_INCOMPLETE_USAGE: 2, OMP_CONFLICTING_TOTAL: 1 });
-  assert.equal(result.events.length, 4);
-  const [partial, gap, extra, reasoning] = result.events;
+  assert.equal(result.events.length, 6);
+  const [partial, gap, extra, reasoning, partialConflict, partialOverflow] = result.events;
   assert.deepEqual(partial.usage, { total: 100, input: 0, cached: 20, output: 13, reasoning: 5 });
   assert.equal(partial.contextLevel, "unknown");
   assert.equal(partial.cacheWriteKnown, false);
@@ -139,6 +143,11 @@ test("OMP detail known bits distinguish zero, missing, malformed and conflicting
   assert.equal(extra.detailMask, 32);
   assert.equal(reasoning.usage.reasoning, 0);
   assert.equal(reasoning.detailMask, 39);
+  assert.equal(partialConflict.detailMask, 16);
+  assert.deepEqual(partialConflict.usage, { total: 5, input: 0, cached: 0, output: 0, reasoning: 0 });
+  assert.equal(partialConflict.reconciliationGap, 103);
+  assert.equal(partialOverflow.detailMask, 16);
+  assert.equal(partialOverflow.reconciliationGap, 1);
 });
 
 test("OMP recognizes only the explicit sibling marker and preserves native and response identity across copies", async (t) => {
@@ -209,4 +218,28 @@ test("OMP decodes UTF-8 split across chunks without treating Unicode separators 
   const result = await read(`${prefix + padding}雪\u2028线\u2029"}\r\n${jsonl([assistant()])}`);
   assert.equal(result.status, "complete");
   assert.equal(result.events.length, 1);
+});
+
+test("OMP opens files only beneath a present approved root and rejects redirected roots", async (t) => {
+  const read = await setup(t);
+  const confirmed = await read(jsonl([header, assistant()]));
+  const event = confirmed.events[0];
+  const dir = path.dirname(event.sourcePath);
+  const link = path.join(event.homePath, "redirect");
+  async function blocked(file, roots) {
+    const home = { id: event.homeId, label: event.homeLabel, path: event.homePath, approvedScanRoots: roots };
+    const result = await readOmpSnapshot(file, home, { onEvent: () => assert.fail("unexpected event") });
+    assert.equal(result.status, "error");
+    assert.equal(result.diagnostics.OMP_OUTSIDE_SCAN_ROOT, 1);
+  }
+  await blocked(event.sourcePath, undefined);
+  await blocked(event.sourcePath, []);
+  try {
+    await symlink(dir, link, process.platform === "win32" ? "junction" : "dir");
+  } catch (error) {
+    if (error.code !== "EPERM") throw error;
+    t.diagnostic("The test filesystem disallows directory links.");
+    return;
+  }
+  await blocked(path.join(link, "main.jsonl"), [link]);
 });

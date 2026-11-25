@@ -21,6 +21,7 @@ export function sourceGroup(channel, kind = "") {
   if (homeKind === "claude") return "Claude";
   if (homeKind === "workbuddy") return "WorkBuddy";
   if (homeKind === "hermes") return "Hermes";
+  if (homeKind === "omp") return "Oh My Pi";
   const name = String(channel || "Unknown");
   const normalized = name.toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
   if (["zcode", "zcode subagent"].includes(normalized)) return "ZCode";
@@ -29,6 +30,7 @@ export function sourceGroup(channel, kind = "") {
   if (["claude", "claude code", "claude code subagent"].includes(normalized)) return "Claude";
   if (normalized === "workbuddy") return "WorkBuddy";
   if (["hermes", "hermes subagent"].includes(normalized)) return "Hermes";
+  if (normalized === "oh my pi") return "Oh My Pi";
   if (
     [
       "codex",
@@ -241,6 +243,7 @@ const NON_CODEX_SOURCE_KINDS = Object.freeze([
   "claude",
   "workbuddy",
   "hermes",
+  "omp",
   "project-log",
   "unsupported",
 ]);

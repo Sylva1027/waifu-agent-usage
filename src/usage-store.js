@@ -20,7 +20,7 @@ import { createUsageFactStoreClass } from "./usage-fact-store.js";
 import { createEventPricing } from "./pricing.js";
 import { createWaifuAllSummaryExtension, WAIFU_ALL_SUMMARY_TABLE_NAMES } from "./waifu/usage-all-summary.js";
 export { STORE_SCHEMA_VERSION } from "./usage-fact-store.js";
-const HARNESS_MODEL_NAMES = ["Codex", "ZCode", "DSH", "OpenCode", "Claude", "WorkBuddy", "Hermes"];
+const HARNESS_MODEL_NAMES = ["Codex", "ZCode", "DSH", "OpenCode", "Claude", "WorkBuddy", "Hermes", "Oh My Pi"];
 function metadataFromHistoryEvents(events, carrier, asOf) {
   const asOfMs = asOf.getTime();
   const sessions = new Set();
@@ -55,7 +55,7 @@ function metadataFromHistoryEvents(events, carrier, asOf) {
     return {
       model: row.model,
       timestamp: row.lastSeen,
-      harness: ["ZCode", "DSH", "OpenCode", "Claude", "WorkBuddy", "Hermes"].includes(group) ? group : "Codex",
+      harness: HARNESS_MODEL_NAMES.includes(group) ? group : "Codex",
     };
   });
   return {
