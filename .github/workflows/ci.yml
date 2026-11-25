@@ -121,10 +121,20 @@ jobs:
           npm.cmd test -- --test-reporter=spec --test-concurrency=1 test/q5-refresh-delivery.test.js
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           npm.cmd test -- --test-reporter=spec '--test-name-pattern=^ZCode 1000-event history' test/usage-source-prefix-publication.test.js
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm.cmd test -- --test-reporter=spec --test-concurrency=1 '--test-name-pattern=E1d' test/skin-palette-quality.test.js
       - name: Run full Windows suite
         if: github.event_name != 'pull_request' && needs.changes.outputs.docs-only != 'true'
         timeout-minutes: 30
         run: npm.cmd test -- --test-reporter=spec --test-concurrency=4 --test-timeout=720000
+      - name: Upload failed E1d screenshot comparison
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e1d-screenshot-failure
+          path: docs/validation/2026-10-03-skin-palette-redesign/20261003T185748/integration/m52-c-d8u7-restoration/browser/e1d/dark-dashboard-*/failure/
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Run explicit Windows native acceptance
         if: needs.changes.outputs.docs-only != 'true' && (github.event_name != 'pull_request' || needs.changes.outputs.native == 'true')
         timeout-minutes: 10
