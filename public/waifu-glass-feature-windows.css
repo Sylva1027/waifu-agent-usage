@@ -1,0 +1,80 @@
+/* The bitmap and badge canvas are presented at their original contrast inside a glass frame. */
+:where(html[data-skin="classic"]) #achievementDialog,
+:where(html[data-skin="classic"]) :is(#achievementDialog, #shareDialog) .recent-range-menu,
+:where(html[data-skin="classic"]) .share-hint {
+  background: var(--glass-window);
+  border-color: var(--glass-window-rim);
+  box-shadow: var(--glass-window-depth);
+}
+
+:where(html[data-skin="classic"]) #shareDialog .share-preview-well,
+:where(html[data-skin="classic"]) #achievementDialog :is(.segmented-well, .search, .progress-track),
+:where(html[data-skin="classic"]) #achievementDialog .surface.detail-panel {
+  background: var(--glass-well);
+  border-color: var(--glass-rim-shade);
+  box-shadow: none;
+}
+
+:where(html[data-skin="classic"]) #achievementDialog .list-well {
+  background: var(--glass-table);
+}
+
+:where(html[data-skin="classic"]) #achievementDialog .achievement-list-frame::after {
+  box-shadow: inset 0 0 0 1px var(--glass-rim-shade);
+}
+
+:where(html[data-skin="classic"]) #achievementDialog :is(.detail-date, .is-locked h3, .achievement-row.is-locked p) {
+  color: var(--muted);
+}
+
+:where(html[data-skin="classic"]) #achievementDialog .achievement-row.is-locked:is([aria-pressed="true"], :hover) h3 {
+  color: var(--accent);
+}
+
+:where(html[data-skin="classic"]) #shareDialog .recent-combobox,
+:where(html[data-skin="classic"]) #achievementShareToggle,
+:where(html[data-skin="classic"]) #shareShowCost:not(:checked),
+:where(html[data-skin="classic"]) #achievementDialog .category-tabs > button[aria-pressed="true"] {
+  background: var(--glass-lens);
+  border-color: var(--glass-rim-light) var(--glass-rim-shade) var(--glass-rim-shade);
+  box-shadow: inset 0 -1px 0 var(--glass-rim-shade);
+}
+
+:where(html[data-skin="classic"]) #achievementDialog :is(.category-tabs > button + button, .search-slot)::before {
+  width: 1px;
+  background: linear-gradient(transparent, var(--glass-rim-shade), transparent);
+  box-shadow: none;
+}
+
+:where(html[data-skin="classic"]) #shareDialog .recent-range-menu button {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+:where(html[data-skin="classic"]) #shareDialog .recent-range-menu button[aria-selected="true"] {
+  background: var(--glass-lens);
+  border-color: var(--glass-rim-shade);
+  box-shadow: none;
+}
+
+:where(html[data-skin="classic"]) #shareDialog .recent-range-menu button:is(:hover, :focus-visible),
+:where(html[data-skin="classic"]) #shareDialog .recent-combobox[aria-expanded="true"] {
+  background: var(--glass-well);
+  border-color: var(--glass-rim-shade);
+}
+
+:where(html[data-skin="classic"]) #shareDialog .recent-range-menu button:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: -2px;
+}
+
+:where(html[data-skin="classic"]) #shareStatus:not(:empty) {
+  background: var(--glass-table);
+  border-radius: var(--radius-inner);
+}
+
+:where(html[data-skin="classic"]) #achievementNotice {
+  background:
+    linear-gradient(to right, transparent, var(--glass-rim-light), transparent) center bottom / 100% 1px no-repeat;
+}

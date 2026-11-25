@@ -7,7 +7,7 @@ type FrameGlass = {
   setOptics(press: number, velocity: number): void;
   destroy(): void;
 };
-const mounted = new WeakMap<Document, { shell: HTMLElement; material: FrameGlass }>();
+const mounted = new WeakMap<Document, { root: HTMLElement; material: FrameGlass }>();
 
 function filterMarkup(id: string, active: boolean) {
   // The source PNG stores vertical displacement in grey. A neutral red channel leaves x unchanged.
@@ -19,10 +19,10 @@ function filterMarkup(id: string, active: boolean) {
   </filter>`;
 }
 
-export function mountFrameGlass(shell: HTMLElement): FrameGlass {
-  const doc = shell.ownerDocument;
+export function mountFrameGlass(root: HTMLElement): FrameGlass {
+  const doc = root.ownerDocument;
   const previous = mounted.get(doc);
-  if (previous?.shell === shell) return previous.material;
+  if (previous?.root === root) return previous.material;
   previous?.material.destroy();
 
   const svg = doc.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -56,7 +56,7 @@ export function mountFrameGlass(shell: HTMLElement): FrameGlass {
     if (destroyed) return;
     if (
       next &&
-      (!shell.contains(next) ||
+      (!root.contains(next) ||
         !next.isConnected ||
         !next.matches(
           "[data-glass-frame], [data-glass-frame-list] > .comparison-item, .topbar-actions > [data-glass-control], [data-motion-indicator]",
@@ -93,7 +93,7 @@ export function mountFrameGlass(shell: HTMLElement): FrameGlass {
       svg.remove();
     },
   };
-  mounted.set(doc, { shell, material });
+  mounted.set(doc, { root, material });
   doc.documentElement.setAttribute("data-frame-refraction", "");
   return material;
 }

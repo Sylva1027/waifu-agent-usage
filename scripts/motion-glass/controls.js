@@ -125,10 +125,9 @@ export function mountControls(onOptics, timelineIndicator, presetIndicator) {
   return {
     syncTimeline: () => timeline?.sync(),
     syncPreset: () => presets?.sync(),
-    attachFrames(shell, material) {
-      if (!frames && material) frames = bindFrameInput(shell, material, events.signal, spring);
+    attachFrames(root, material) {
+      if (!frames && material) frames = bindFrameInput(root, material, events.signal, spring);
     },
-    clearFrame: () => frames?.clear(),
     refreshFrame: () => frames?.refresh(),
     syncOptics() {
       const value = values.get(glassButton);

@@ -59,6 +59,7 @@ function metricHtml(id, english, data) {
  * Render the approved portrait or R04 landscape from the same dashboard snapshot.
  * Palettes and optional artwork come from the caller, so standard releases never
  * import skin modules. cacheHitRate is a fraction; unavailable metrics are null.
+ * glassPalette captures Classic's material at click time, including the wallpaper behind the panes.
  */
 export async function renderShareCard({
   data,
@@ -69,6 +70,7 @@ export async function renderShareCard({
   metrics = layout === "landscape" ? ["cached", "output", "input", "cacheHit"] : ["cacheHit", "output"],
   showCost = false,
   palette = [],
+  glassPalette = null,
   character = null,
   landscapeCharacter = character,
 }) {
@@ -91,7 +93,7 @@ export async function renderShareCard({
     character ? resource(character.url, true) : null,
     layout === "landscape" ? resource(landscapeStylesUrl) : CARD_CSS,
   ]);
-  const colours = palette.map(([key, value]) => `${key}:${value}`).join(";");
+  const colours = (glassPalette ?? palette).map(([key, value]) => `${key}:${value}`).join(";");
   const total = tokenParts(data.totals.total);
   const rows = data.models.slice(0, 5);
   const maximum = Math.max(0, ...rows.map((row) => row.total));
@@ -132,7 +134,8 @@ export async function renderShareCard({
     layout === "landscape"
       ? landscapeCardHtml({ data, english, theme, metrics, showCost, colours, artwork, chart })
       : `<article class="p-card skin-preview-scope${character ? "" : " no-character classic-hybrid"}" data-preview-theme="${theme}" style="${escapeHtml(colours)}" lang="${english ? "en" : "zh-CN"}">${artwork}<section class="p-hero p-panel v05"><div class="p-heading">${heading}</div>${periodLabel}<div class="p-hero-display"><div class="p-number"><strong>${total[0]}</strong><span>${total[1]}</span></div></div>${fee}</section><div class="p-lower"><div class="p-data">${rows.length ? `<section class="p-models p-panel"><div class="p-model-tray">${bars}</div></section>` : ""}${metrics.map((id) => metricHtml(id, english, data)).join("")}</div></div></article>`;
-  const html = `<div xmlns="http://www.w3.org/1999/xhtml"><style>${productionCss}${SURFACE_CSS}${layoutCss}</style>${card.replace("</article>", `${WATERMARK_HTML}</article>`)}</div>`;
+  const cardCss = glassPalette ? layoutCss + GLASS_CSS : SURFACE_CSS + layoutCss;
+  const html = `<div xmlns="http://www.w3.org/1999/xhtml"><style>${productionCss}${WATERMARK_CSS}${cardCss}</style>${card.replace("</article>", `${WATERMARK_HTML}</article>`)}</div>`;
   const [width, height] = layout === "landscape" ? [1440, 1080] : [1080, 1440];
   const wrapper = new DOMParser().parseFromString(html, "text/html").body.firstElementChild;
   const xml = new XMLSerializer().serializeToString(wrapper);
@@ -149,16 +152,55 @@ export async function renderShareCard({
   });
 }
 
-// Both orientations use the portrait's material; layout CSS only sets geometry.
-const SURFACE_CSS = `
+const WATERMARK_CSS = `
 .share-watermark{position:absolute;left:50%;transform:translateX(-50%);z-index:2;display:flex;align-items:center;gap:10px;height:28px;font-size:24px;font-weight:450;line-height:28px;letter-spacing:.15px;white-space:nowrap;color:color-mix(in srgb,var(--muted) 32%,var(--bg));pointer-events:none}
 .share-watermark svg{width:28.75px;height:28.75px;flex:none;stroke:currentColor;stroke-width:1.6;fill:none;stroke-linecap:round;stroke-linejoin:round}
 .p-card .share-watermark,.s-card .share-watermark{bottom:18px}
+`;
+
+const SURFACE_CSS = `
 .p-panel,.s-panel{background:linear-gradient(135deg,var(--ceramic-top),var(--neo-surface) 45%,var(--ceramic-bottom));box-shadow:14px 18px 36px var(--ceramic-shade),-8px -10px 28px var(--ceramic-light),inset 2px 2px 2px var(--ceramic-rim)}
 .p-readout,.s-readout{background:var(--ceramic-well);box-shadow:inset 4px 5px 10px var(--ceramic-shade),inset -1px -1px 2px var(--ceramic-rim)}
 .p-card .bar-track,.s-track,.s-stack,.h-ribbon{border:1px solid transparent;background:var(--ceramic-well);box-shadow:inset 3px 4px 7px var(--ceramic-shade),inset -1px -1px 2px var(--ceramic-rim)}
 .p-card .bar-fill,.s-fill,.s-stack>span,.h-ribbon>span{box-shadow:inset 0 2px 2px color-mix(in srgb,var(--ceramic-rim) 40%,transparent)}
 .v05 .p-hero-display::before,.s-heading::after,.s-chart-title::after{content:"";position:absolute;height:3px;border-radius:3px;background:linear-gradient(to bottom,var(--ceramic-top),var(--ceramic-bottom));box-shadow:0 2px 3px var(--ceramic-shade),inset 0 1px 0 var(--ceramic-rim)}
+`;
+
+// The PNG is a separate SVG document. Paint the clicked dashboard's resting material from its captured CSS values.
+const GLASS_CSS = `
+.p-card, .s-card {
+  background-color: var(--glass-wallpaper-base, var(--bg));
+  background-image: var(--glass-wallpaper, none);
+}
+.share-watermark { color: color-mix(in srgb, var(--ink) 38%, transparent); }
+.p-panel, .s-panel {
+  background: var(--glass-face);
+  box-shadow: inset 0 1px 0 var(--glass-rim-light), inset 0 0 0 1px var(--glass-rim-shade),
+    0 8px 20px -14px var(--glass-cast);
+}
+.p-panel::before, .s-panel::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  inset-inline: 9%;
+  height: 2px;
+  background: var(--glass-window-reflection);
+}
+.p-readout, .s-readout {
+  background: var(--glass-table);
+  box-shadow: inset 0 0 0 1px var(--glass-rim-shade);
+}
+.p-card .bar-track, .s-track, .s-stack, .h-ribbon {
+  background: var(--glass-well);
+  box-shadow: none;
+}
+.v05 .p-heading { text-shadow: none; }
+.v05 .p-hero-display::before, .s-heading::after, .s-chart-title::after {
+  content: "";
+  position: absolute;
+  height: 1px;
+  background: var(--glass-divider);
+}
 `;
 
 const CARD_CSS = `

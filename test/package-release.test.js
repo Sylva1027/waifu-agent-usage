@@ -78,6 +78,8 @@ test("Waifu closure keeps all achievement badges, share artwork, and dashboard s
     "public/waifu-motion.js",
     "public/waifu-motion-controls.js",
     "public/waifu-motion-glass.css",
+    "public/waifu-glass-dialogs.css",
+    "public/waifu-glass-feature-windows.css",
     "public/waifu-liquid-glass.js",
     "public/waifu-frame-glass.js",
     "public/waifu-liquid-glass.css",

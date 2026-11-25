@@ -41,6 +41,8 @@
     <link rel="stylesheet" href="/achievement-detail.css" />
     <link rel="stylesheet" href="/achievement-notice.css" />
     <link rel="stylesheet" href="/waifu-motion-glass.css" />
+    <link rel="stylesheet" href="/waifu-glass-dialogs.css" />
+    <link rel="stylesheet" href="/waifu-glass-feature-windows.css" />
     <!-- waifu:end -->
   </head>
   <body>
@@ -131,7 +133,7 @@
                 >
                 </button>
               </span>
-              <div id="recentRangeMenu" class="recent-range-menu" role="listbox" hidden>
+              <div id="recentRangeMenu" class="recent-range-menu" data-glass-window role="listbox" hidden>
                 <button type="button" role="option" data-recent-option="上一个5h" aria-selected="false">上一个5h</button>
                 <button type="button" role="option" data-recent-option="上周" aria-selected="false">上一个7d</button>
                 <button type="button" role="option" data-recent-option="上个月" aria-selected="true">上个月</button>
@@ -155,7 +157,7 @@
               <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2" /><path d="M4 9h16M8 3v4M16 3v4" /></svg>
             </span>
           </button>
-          <div id="dateRangePicker" class="date-picker-popover" role="dialog" aria-label="日期范围日历" hidden></div>
+          <div id="dateRangePicker" class="date-picker-popover" data-glass-window role="dialog" aria-label="日期范围日历" hidden></div>
         </div>
         <div id="autoRefreshStatus" class="control-group auto-refresh-status" data-glass-frame>
           <div class="range-heading auto-refresh-heading"><button id="autoRefreshToggle" type="button" aria-pressed="true">自动刷新</button><span id="lastSuccessfulCheck">上次：尚无</span><span id="autoRefreshSpinner" class="auto-refresh-spinner" aria-hidden="true"></span></div>
@@ -324,7 +326,7 @@
     </main>
     <span id="quotaPresetStatus" class="quota-preset-status" role="status" aria-live="polite" hidden></span>
     <div id="importDialog" class="dialog-backdrop" hidden>
-      <section class="dialog" role="dialog" aria-modal="true" aria-labelledby="importDialogTitle">
+      <section class="dialog" data-glass-window role="dialog" aria-modal="true" aria-labelledby="importDialogTitle">
         <form id="importForm">
           <div class="dialog-heading">
             <h2 id="importDialogTitle" tabindex="-1">数据来源</h2>
@@ -366,7 +368,7 @@
       </section>
     </div>
     <div id="pricingDialog" class="dialog-backdrop" hidden>
-      <section class="dialog pricing-dialog" role="dialog" aria-modal="true" aria-labelledby="pricingDialogTitle">
+      <section class="dialog pricing-dialog" data-glass-window role="dialog" aria-modal="true" aria-labelledby="pricingDialogTitle">
         <form id="pricingForm">
           <div class="dialog-heading">
             <h2 id="pricingDialogTitle" tabindex="-1">更新计价标准</h2>
@@ -400,7 +402,7 @@
         </form>
       </section>
     </div>
-    <dialog id="providerPricingDialog" class="dialog provider-pricing-dialog" aria-labelledby="providerPricingTitle">
+    <dialog id="providerPricingDialog" class="dialog provider-pricing-dialog" data-glass-window aria-labelledby="providerPricingTitle">
       <div class="dialog-heading">
         <h2 id="providerPricingTitle" tabindex="-1">模型计价</h2>
       </div>
@@ -413,7 +415,7 @@
         <button id="closeProviderPricingButton" type="button">返回</button>
       </div>
     </dialog>
-    <dialog id="modelPricingDialog" class="dialog model-pricing-dialog" aria-labelledby="modelPricingTitle">
+    <dialog id="modelPricingDialog" class="dialog model-pricing-dialog" data-glass-window aria-labelledby="modelPricingTitle">
       <div class="dialog-heading">
         <h2 id="modelPricingTitle" tabindex="-1">模型计价</h2>
       </div>
@@ -431,7 +433,7 @@
     <!-- Skin picker. A sibling of #importDialog / #pricingDialog, never nested
          inside them, and reusing the same backdrop, material and dialog shell. -->
     <div id="skinDialog" class="dialog-backdrop" hidden>
-      <section class="dialog skin-dialog" role="dialog" aria-modal="true" aria-labelledby="skinDialogTitle">
+      <section class="dialog skin-dialog" data-glass-window role="dialog" aria-modal="true" aria-labelledby="skinDialogTitle">
         <div class="dialog-heading">
           <h2 id="skinDialogTitle">界面风格</h2>
           <button id="resetSkinClassicButton" class="ceramic-toggle" type="button" aria-pressed="true">简洁模式</button>
@@ -465,7 +467,7 @@
     <div id="skinCharacters" data-skin-characters="off" aria-hidden="true"></div>
     <!-- waifu:end -->
 
-    <dialog id="shareDialog" class="dialog share-dialog" aria-labelledby="shareTitle" data-i18n-skip>
+    <dialog id="shareDialog" class="dialog share-dialog" data-glass-window aria-labelledby="shareTitle" data-i18n-skip>
       <div class="dialog-heading"><h2 id="shareTitle" tabindex="-1">分享图片</h2></div>
       <div class="share-preview-well">
         <button id="openShareImage" type="button" aria-label="查看原图" title="查看原图" disabled><img id="shareImage" alt="" width="1080" height="1440" /></button>
@@ -475,29 +477,29 @@
         <span class="share-layout-label customize-label">版式</span>
         <div class="calendar-zone share-metric share-layout">
           <button id="shareLayout" class="recent-combobox" type="button" role="combobox" aria-label="图片方向" aria-controls="shareLayoutMenu" aria-expanded="false" aria-haspopup="listbox"><span id="shareLayoutValue">竖版</span><span class="calendar-zone-arrow" aria-hidden="true"></span></button>
-          <div id="shareLayoutMenu" class="recent-range-menu" role="listbox" aria-label="图片方向" hidden></div>
+          <div id="shareLayoutMenu" class="recent-range-menu" data-glass-window role="listbox" aria-label="图片方向" hidden></div>
         </div>
         <span class="share-chart-label customize-label" hidden>图形</span>
         <div class="calendar-zone share-metric share-chart-control" hidden>
           <button id="shareChart" class="recent-combobox" type="button" role="combobox" aria-label="图形" aria-controls="shareChartMenu" aria-expanded="false" aria-haspopup="listbox"><span id="shareChartValue"></span><span class="calendar-zone-arrow" aria-hidden="true"></span></button>
-          <div id="shareChartMenu" class="recent-range-menu" role="listbox" aria-label="图形" hidden></div>
+          <div id="shareChartMenu" class="recent-range-menu" data-glass-window role="listbox" aria-label="图形" hidden></div>
         </div>
         <span class="share-metrics-label customize-label">辅助指标</span>
         <div class="calendar-zone share-metric">
           <button id="shareMetricFirst" class="recent-combobox" type="button" role="combobox" aria-label="第一个辅助指标" aria-controls="shareMetricFirstMenu" aria-expanded="false" aria-haspopup="listbox"><span id="shareMetricFirstValue"></span><span class="calendar-zone-arrow" aria-hidden="true"></span></button>
-          <div id="shareMetricFirstMenu" class="recent-range-menu" role="listbox" aria-label="第一个辅助指标" hidden></div>
+          <div id="shareMetricFirstMenu" class="recent-range-menu" data-glass-window role="listbox" aria-label="第一个辅助指标" hidden></div>
         </div>
         <div class="calendar-zone share-metric">
           <button id="shareMetricSecond" class="recent-combobox" type="button" role="combobox" aria-label="第二个辅助指标" aria-controls="shareMetricSecondMenu" aria-expanded="false" aria-haspopup="listbox"><span id="shareMetricSecondValue"></span><span class="calendar-zone-arrow" aria-hidden="true"></span></button>
-          <div id="shareMetricSecondMenu" class="recent-range-menu" role="listbox" aria-label="第二个辅助指标" hidden></div>
+          <div id="shareMetricSecondMenu" class="recent-range-menu" data-glass-window role="listbox" aria-label="第二个辅助指标" hidden></div>
         </div>
         <div class="calendar-zone share-metric" hidden>
           <button id="shareMetricThird" class="recent-combobox" type="button" role="combobox" aria-controls="shareMetricThirdMenu" aria-expanded="false" aria-haspopup="listbox"><span id="shareMetricThirdValue"></span><span class="calendar-zone-arrow" aria-hidden="true"></span></button>
-          <div id="shareMetricThirdMenu" class="recent-range-menu" role="listbox" hidden></div>
+          <div id="shareMetricThirdMenu" class="recent-range-menu" data-glass-window role="listbox" hidden></div>
         </div>
         <div class="calendar-zone share-metric" hidden>
           <button id="shareMetricFourth" class="recent-combobox" type="button" role="combobox" aria-controls="shareMetricFourthMenu" aria-expanded="false" aria-haspopup="listbox"><span id="shareMetricFourthValue"></span><span class="calendar-zone-arrow" aria-hidden="true"></span></button>
-          <div id="shareMetricFourthMenu" class="recent-range-menu" role="listbox" hidden></div>
+          <div id="shareMetricFourthMenu" class="recent-range-menu" data-glass-window role="listbox" hidden></div>
         </div>
         <label class="share-cost-toggle"><input id="shareShowCost" type="checkbox" /><span>显示费用</span></label>
       </fieldset>
@@ -510,7 +512,7 @@
       </div>
       <p id="shareCopyHint" class="share-hint" role="status" hidden></p>
     </dialog>
-    <dialog id="shareOriginalDialog" class="dialog original-dialog" aria-label="图片原图" tabindex="-1" data-i18n-skip><img alt="" /><p id="shareOriginalHint" class="share-hint" role="status" hidden></p></dialog>
+    <dialog id="shareOriginalDialog" class="dialog original-dialog" data-glass-window aria-label="图片原图" tabindex="-1" data-i18n-skip><img alt="" /><p id="shareOriginalHint" class="share-hint" role="status" hidden></p></dialog>
     <script src="/app.js" type="module"></script>
   </body>
 </html>

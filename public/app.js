@@ -23,7 +23,6 @@ export {
 };
 
 import { createDashboardRuntime } from "./dashboard-runtime.js";
-import { setupMotionGlass } from "./waifu-motion.js";
 import { createSourceManager, homeRowsFromMetadata } from "./source-view.js";
 export { renderSourceOptionsHtml, renderHomesHtml } from "./source-view.js";
 import {
@@ -95,6 +94,26 @@ let achievementDialog = null;
 let achievementUnread = null;
 let achievementNotice = null;
 let motionGlass;
+let loadingMotionGlass = false;
+
+function updateMotionGlass() {
+  const classic = () => document.documentElement.dataset.skin === "classic";
+  if (!classic()) {
+    motionGlass?.destroy();
+    motionGlass = undefined;
+  } else if (!motionGlass && !loadingMotionGlass) {
+    loadingMotionGlass = true;
+    void import("./waifu-motion.js")
+      .then(({ setupMotionGlass }) => {
+        if (classic()) motionGlass = setupMotionGlass();
+      })
+      .catch(() => {})
+      .finally(() => {
+        loadingMotionGlass = false;
+      });
+  }
+}
+
 function refreshAchievements() {
   void achievementUnread?.refresh().catch(() => {});
 }
@@ -1434,6 +1453,38 @@ function updateShareAvailability() {
     button.disabled = !shareSummary || shareSummary !== state.summary || !canShareSummary(shareSummary, state);
 }
 
+function snapshotGlassPalette() {
+  if (document.documentElement.dataset.skin !== "classic") return undefined;
+  const style = getComputedStyle(document.body);
+  const names = [
+    "--bg",
+    "--ink",
+    "--muted",
+    "--blue",
+    "--neo-surface",
+    "--ceramic-top",
+    "--ceramic-bottom",
+    "--ceramic-well",
+    "--glass-halo",
+    "--glass-ambient",
+    "--glass-face",
+    "--glass-well",
+    "--glass-table",
+    "--glass-cast",
+    "--glass-rim-light",
+    "--glass-rim-shade",
+    "--glass-divider",
+    "--glass-window",
+    "--glass-window-rim",
+    "--glass-window-reflection",
+  ];
+  return [
+    ...names.map((name) => [name, style.getPropertyValue(name).trim()]),
+    ["--glass-wallpaper", style.backgroundImage],
+    ["--glass-wallpaper-base", style.backgroundColor],
+  ];
+}
+
 async function openShareImageDialog() {
   if (openingShare || $("#shareToggle").disabled) return;
   openingShare = true;
@@ -1453,6 +1504,7 @@ async function openShareImageDialog() {
       achievementReceipt: shareAchievementReceipt,
       locale: getLocale(),
       theme: state.theme,
+      glassPalette: snapshotGlassPalette(),
     };
     const preference = state.skinRuntime?.getPreference();
     const { openShareDialog } = await import("./share-dialog.js");
@@ -2328,6 +2380,22 @@ function closeModelPricing() {
   if (dialog.open) dialog.close();
 }
 
+function bindPricingBackdrop(dialog, close) {
+  const outside = (event) => {
+    if (event.target !== dialog) return false;
+    const { left, top, right, bottom } = dialog.getBoundingClientRect();
+    return event.clientX < left || event.clientX > right || event.clientY < top || event.clientY > bottom;
+  };
+  let downOutside = false;
+  dialog.addEventListener("pointerdown", (event) => {
+    downOutside = event.isPrimary && event.button === 0 && outside(event);
+  });
+  dialog.addEventListener("click", (event) => {
+    if (downOutside && outside(event)) close();
+    downOutside = false;
+  });
+}
+
 function applyModelPricing() {
   const model = state.modelPricingDraft;
   const inputs = $("#modelPricingFields").querySelectorAll("input[data-model]");
@@ -2760,10 +2828,9 @@ function toggleQuotaPreset() {
 // is exempt, including its raised navigation buttons and gaps between dates.
 function setupFrameSpotlight(root) {
   if (!root || typeof window.matchMedia !== "function") return;
-  const glassDashboard = document.documentElement.dataset.edition === "waifu";
   function hasGlassMaterial(node) {
     return (
-      glassDashboard &&
+      document.documentElement.dataset.skin === "classic" &&
       window.__skinPaletteLegacySpotlight !== true &&
       node?.closest("[data-glass-frame], [data-glass-frame-list] > .comparison-item")
     );
@@ -2974,12 +3041,6 @@ function setupFrameSpotlight(root) {
     )
       return;
     if (records.some((record) => record.type === "childList")) motionGlass?.refreshTargets();
-    if (
-      records.some(
-        (record) => record.attributeName === "hidden" && record.target.matches(".dialog-backdrop:not([hidden])"),
-      )
-    )
-      motionGlass?.clearFrame();
     if (active && !active.isConnected) clear();
     invalidate();
   });
@@ -3024,7 +3085,7 @@ async function bootDashboard() {
         // visibility recolour nothing, and re-rendering per slider tick would be
         // wasteful.
         if (!meta || meta.previousSkinId !== preference.skinId) {
-          motionGlass?.updateGlass();
+          updateMotionGlass();
           render();
         }
         if (!paletteStudioPreview && meta?.previousSkinId !== preference.skinId)
@@ -3068,6 +3129,7 @@ async function bootDashboard() {
         const appearance = {
           ...state.skinRuntime.getPreference(),
           mode: state.theme,
+          glassPalette: snapshotGlassPalette(),
         };
         try {
           const { openAchievementShareDialog } = await import("./share-dialog.js");
@@ -3244,9 +3306,7 @@ async function bootDashboard() {
   $("#providerPricingDialog").addEventListener("animationend", (event) => {
     if (event.animationName === "provider-pricing-leave") closeProviderPricing(true);
   });
-  $("#providerPricingDialog").addEventListener("click", (event) => {
-    if (event.target.id === "providerPricingDialog") closeProviderPricing();
-  });
+  bindPricingBackdrop($("#providerPricingDialog"), closeProviderPricing);
   $("#providerPricingDialog").addEventListener("close", () => {
     if (!$("#providerPricingDialog").open) closeProviderPricing(true);
   });
@@ -3272,9 +3332,7 @@ async function bootDashboard() {
   $("#modelPricingFields").addEventListener("input", updateModelPricingApplyState);
   $("#modelPricingFields").addEventListener("change", updateModelPricingApplyState);
   $("#cancelModelPricingButton").addEventListener("click", closeModelPricing);
-  $("#modelPricingDialog").addEventListener("click", (event) => {
-    if (event.target.id === "modelPricingDialog") closeModelPricing();
-  });
+  bindPricingBackdrop($("#modelPricingDialog"), closeModelPricing);
   // cancel（Esc）与 close() 都会走到 close：草稿在这里统一清理。
   $("#modelPricingDialog").addEventListener("close", () => {
     state.modelPricingDraft = null;
@@ -3419,7 +3477,7 @@ async function bootDashboard() {
   });
 
   setTheme(preferredTheme(), { persist: false });
-  if (state.skinRuntime) motionGlass = setupMotionGlass();
+  if (state.skinRuntime) updateMotionGlass();
   state.excludedHomes = readExcludedHomes();
   initializeAutoRefresh();
   updateRecentControls();

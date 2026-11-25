@@ -93,6 +93,8 @@ const SOURCE_FILES = Object.freeze([
   "public/styles.css",
   "public/skins.css",
   "public/waifu-motion-glass.css",
+  "public/waifu-glass-dialogs.css",
+  "public/waifu-glass-feature-windows.css",
   "public/waifu-motion.js",
   "public/waifu-motion-controls.js",
   "public/waifu-liquid-glass.css",

@@ -14,8 +14,10 @@ function loadGlassStyles() {
 }
 
 export function setupMotionGlass() {
-  const shell = document.querySelector("main.shell");
+  const root = document.body;
   const reduced = matchMedia("(prefers-reduced-motion: reduce)");
+  const events = new AbortController();
+  const options = { signal: events.signal };
   // CSS.supports alone also accepts this syntax in engines that never render it.
   const refraction = "userAgentData" in navigator && CSS.supports("backdrop-filter", "url(#glass)");
   let surface;
@@ -32,7 +34,7 @@ export function setupMotionGlass() {
   let controlsLoading = false;
   let glassLoading = false;
 
-  const visible = () => !document.hidden && !pageHidden;
+  const visible = () => !events.signal.aborted && !document.hidden && !pageHidden;
   const wantsMotion = () =>
     visible() && !reduced.matches && (timelineIndicator?.isConnected || presetIndicator?.isConnected);
   const wantsGlass = () =>
@@ -53,7 +55,7 @@ export function setupMotionGlass() {
               timelineIndicator,
               presetIndicator,
             );
-            controls.attachFrames(shell, frameGlass);
+            controls.attachFrames(root, frameGlass);
           }
         })
         .catch(() => {})
@@ -93,7 +95,7 @@ export function setupMotionGlass() {
     }
   }
   function updateFrameGlass() {
-    if (!shell || !refraction) return;
+    if (!refraction) return;
     if (!visible()) {
       frameGlass?.destroy();
       frameGlass = undefined;
@@ -102,8 +104,8 @@ export function setupMotionGlass() {
       import("./waifu-frame-glass.js")
         .then(({ mountFrameGlass }) => {
           if (!visible()) return;
-          frameGlass = mountFrameGlass(shell);
-          controls?.attachFrames(shell, frameGlass);
+          frameGlass = mountFrameGlass(root);
+          controls?.attachFrames(root, frameGlass);
         })
         .catch(() => {})
         .finally(() => {
@@ -144,21 +146,33 @@ export function setupMotionGlass() {
     presetIndicator = nextPreset;
     sync();
   }
-  reduced.addEventListener("change", updateMotion);
-  document.addEventListener("visibilitychange", sync);
-  window.addEventListener("pagehide", () => {
-    pageHidden = true;
-    sync();
-  });
-  window.addEventListener("pageshow", () => {
-    pageHidden = false;
-    sync();
-  });
+  reduced.addEventListener("change", updateMotion, options);
+  document.addEventListener("visibilitychange", sync, options);
+  window.addEventListener(
+    "pagehide",
+    () => {
+      pageHidden = true;
+      sync();
+    },
+    options,
+  );
+  window.addEventListener(
+    "pageshow",
+    () => {
+      pageHidden = false;
+      sync();
+    },
+    options,
+  );
   refreshTargets();
   return {
     updateGlass,
     refreshTargets,
-    clearFrame: () => controls?.clearFrame(),
+    destroy() {
+      events.abort();
+      visibility?.disconnect();
+      sync();
+    },
     syncTimeline: () => controls?.syncTimeline(),
     syncPreset: () => controls?.syncPreset(),
   };

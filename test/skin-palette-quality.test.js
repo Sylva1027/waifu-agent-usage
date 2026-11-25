@@ -8556,6 +8556,15 @@ async function openPaletteDashboard(page, origin) {
   assert.equal(usage.summary.timelineError, null);
   await page.waitForFunction(USAGE_RENDER_READY_WAIT_SOURCE, undefined, { timeout: 20000 });
   await page.waitForSelector("#detailList .bar-row", { timeout: 20000 });
+  // The geometry comparison must start after the range selection spring has reached its endpoint.
+  await page.waitForFunction(() => {
+    if (document.documentElement.dataset.skin !== "classic" || matchMedia("(prefers-reduced-motion: reduce)").matches)
+      return true;
+    const rail = document.querySelector("#presetButtons[data-motion-ready]");
+    const target = rail?.querySelector(":scope > .active");
+    const plate = rail?.querySelector(":scope > [data-motion-indicator]");
+    return target && plate?.style.transform === "translateX(" + target.offsetLeft + "px)";
+  });
 }
 
 test("M3.2：真实浏览器集成——纯色/渐变/placeholder/聚光/Canvas 五样例、raw token 达标但真实叠加必须失败、状态不变", async (t) => {

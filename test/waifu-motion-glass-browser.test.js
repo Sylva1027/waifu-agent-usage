@@ -12,6 +12,62 @@ const ready = "#timelineModes[data-motion-ready]";
 const glassRequest = /\/waifu-liquid-glass\.(?:js|css)(?:\?|$)/;
 const frameSelector = "[data-glass-frame], [data-glass-frame-list] > .comparison-item";
 const topbarIds = ["achievementToggle", "languageToggle", "shareToggle", "skinToggle", "themeToggle"];
+const liveGlass =
+  "#mg-frame-static, #mg-frame-active, [data-glass-frame-active], [data-frame-refraction], [data-motion-ready], .lg-host, .lg-cover, .lg-defs";
+
+async function checkCharacter(page) {
+  await page.waitForSelector('html[data-skin="deepseek"]');
+  await page.waitForFunction((selector) => !document.querySelector(selector), liveGlass);
+  await page.locator('#presetButtons [data-preset="all"]').click();
+  await page.waitForSelector("#detailList .bar-row");
+  const model = page.locator('#timelineModes [data-timeline-mode="model"]');
+  await model.press("Enter");
+  assert.equal(await model.getAttribute("aria-pressed"), "true");
+  await page.locator(".metrics .metric").first().hover();
+  assert.equal(await page.locator(liveGlass).count(), 0);
+  assert.equal(await page.locator("#timelineModes > [data-motion-indicator]").isVisible(), false);
+  const skin = await page.evaluate(() => {
+    const sheets = [
+      ...document.querySelectorAll(
+        'link[rel="stylesheet"]:is([href*="waifu-motion-glass"], [href*="waifu-liquid-glass"], [href*="waifu-glass-"])',
+      ),
+    ].filter((s) => !s.disabled);
+    const read = () =>
+      [
+        ".topbar > h1",
+        ".metrics .metric",
+        "#themeToggle",
+        "#timelineModes [aria-pressed=true]",
+        "#skinDialog .dialog",
+        "#recentRangeMenu",
+      ].map((selector) => {
+        const n = document.querySelector(selector);
+        const s = getComputedStyle(n);
+        return [
+          s.color,
+          s.backgroundImage,
+          s.boxShadow,
+          s.textShadow,
+          s.borderRadius,
+          s.backdropFilter,
+          getComputedStyle(n, "::before").backdropFilter,
+        ];
+      });
+    const actual = read();
+    for (const s of sheets) s.disabled = true;
+    try {
+      return { actual, original: read() };
+    } finally {
+      for (const s of sheets) s.disabled = false;
+    }
+  });
+  assert.deepEqual(
+    skin.actual,
+    skin.original,
+    "Classic styles must leave the character's controls and title untouched",
+  );
+  await page.locator('#timelineModes [data-timeline-mode="channel"]').press("Enter");
+}
 
 async function assertPaintChanges(page, before, after, label) {
   const changed = await page.evaluate(
@@ -81,7 +137,7 @@ async function checkActionGlass(page, scenario) {
   for (const id of topbarIds) {
     const selector = `#${id}`,
       button = page.locator(selector);
-    const fullShirt = id === "skinToggle" && scenario !== "character" && supported;
+    const fullShirt = id === "skinToggle" && supported;
     if (fullShirt) {
       await page.locator(`${selector} .lg-pane`).waitFor({ state: "attached" });
       if (scenario === "classic") await checkPaintedControl(page, selector, `${selector} .lg-pane`);
@@ -101,7 +157,7 @@ async function checkActionGlass(page, scenario) {
         (id) => getComputedStyle(document.getElementById(id), "::before").backdropFilter.includes("#mg-frame-active"),
         id,
       );
-      if (scenario === "classic" || id === "skinToggle") {
+      if (scenario === "classic") {
         await page.waitForTimeout(450);
         await checkPaintedControl(page, selector, `${selector}::before`);
       }
@@ -360,6 +416,17 @@ test("Waifu motion follows native input and classic glass owns the active filter
         }, scenario);
         await page.goto(url);
         await page.waitForFunction(() => !!window.__skinTestHook);
+        if (scenario === "character") {
+          await checkCharacter(page);
+          assert.deepEqual(
+            requests.filter((url) =>
+              /\/waifu-(?:motion(?:-controls)?\.js|(?:frame-glass|liquid-glass)\.(?:js|css))(?:\?|$)/.test(url),
+            ),
+            [],
+          );
+          assert.deepEqual(errors, []);
+          return;
+        }
         const button = page.locator("#skinToggle");
         if (scenario !== "reduced") await page.locator(ready).waitFor({ state: "attached" });
         await checkDashboardFrames(page, scenario);
@@ -416,7 +483,7 @@ test("Waifu motion follows native input and classic glass owns the active filter
           await page.keyboard.up("Space");
           await page.waitForSelector("#skinDialog:not([hidden])");
           assert.equal(
-            await page.locator("[data-glass-frame-active]").count(),
+            await page.locator(".shell [data-glass-frame-active]").count(),
             0,
             "background frame pauses while the dialog owns focus",
           );
@@ -465,18 +532,16 @@ test("Waifu motion follows native input and classic glass owns the active filter
           await page.waitForFunction(
             () => !Number(document.querySelector(".lg-cover").style.getPropertyValue("--lg-press-highlight")),
           );
-          await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent("pagehide", { persisted: true })));
-          await page.locator(host).waitFor({ state: "detached" });
-          await page.locator(ready).waitFor({ state: "detached" });
-          await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent("pageshow", { persisted: true })));
+          await button.click();
+          await page.locator('#skinGrid [data-skin-id="deepseek"]').click();
+          await page.locator("#closeSkinDialogButton").click();
+          await checkCharacter(page);
+          await button.click();
+          await page.locator("#resetSkinClassicButton").click();
+          await page.locator("#closeSkinDialogButton").click();
           await page.locator(host).waitFor({ state: "attached" });
           await page.locator(ready).waitFor({ state: "attached" });
-
-          await page.evaluate(() => window.__skinTestHook.selectSkin("deepseek"));
-          await page.locator(host).waitFor({ state: "detached" });
-          assert.equal(await page.locator(".lg-cover, .lg-defs, .lg-tick").count(), 0);
-          await page.evaluate(() => window.__skinTestHook.selectSkin("classic"));
-          await page.locator(host).waitFor({ state: "attached" });
+          assert.equal(await page.locator("#mg-frame-static").count(), 1);
           await page.evaluate(() => {
             const surface = document.querySelector("#skinToggle [data-glass-surface]");
             const fresh = document.createElement("span");
@@ -534,6 +599,15 @@ test("Waifu motion follows native input and classic glass owns the active filter
             const target = document.querySelector('#timelineModes [aria-pressed="true"]').getBoundingClientRect();
             return Math.abs(indicator.left - target.left) < 1 && Math.abs(indicator.width - target.width) < 1;
           });
+        }
+        if (scenario === "classic") {
+          // A real pagehide also disposes the dashboard data runtime. Exercise it after the data-driven interactions.
+          await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent("pagehide", { persisted: true })));
+          await page.locator(host).waitFor({ state: "detached" });
+          await page.locator(ready).waitFor({ state: "detached" });
+          await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent("pageshow", { persisted: true })));
+          await page.locator(host).waitFor({ state: "attached" });
+          await page.locator(ready).waitFor({ state: "attached" });
         }
         assert.deepEqual(errors, []);
       } finally {

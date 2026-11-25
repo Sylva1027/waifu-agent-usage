@@ -1,7 +1,7 @@
 import { springValue } from "motion";
 
-// One optical spring follows the current card. Content, layout and scroll stay native.
-export function bindFrameInput(shell, glass, signal, spring) {
+// One optical spring follows the current surface. Window rims only refract statically.
+export function bindFrameInput(root, glass, signal, spring) {
   const value = springValue(0, spring);
   let current = null;
   let hover = null;
@@ -11,6 +11,11 @@ export function bindFrameInput(shell, glass, signal, spring) {
   const observer = new IntersectionObserver((entries) => {
     for (const entry of entries) if (entry.target === current && !entry.isIntersecting) clear();
   });
+  const windows = new MutationObserver((entries) => {
+    if (current && entries.some(({ target }) => target.matches("dialog, .dialog-backdrop, [data-glass-window]")))
+      clear();
+  });
+  windows.observe(root, { subtree: true, attributes: true, attributeFilter: ["hidden", "open"] });
 
   function setFrame(next) {
     if (current === next) return;
@@ -34,7 +39,8 @@ export function bindFrameInput(shell, glass, signal, spring) {
     else value.set(pressed ? 1 : next ? 0.55 : 0);
   }
   function frameOf(node) {
-    if (!(node instanceof Element) || !shell.contains(node)) return null;
+    if (!(node instanceof Element) || !root.contains(node)) return null;
+    if (node.closest("[data-glass-window], .dialog-backdrop")) return null;
     const control = node.closest(".topbar-actions > [data-glass-control]");
     if (control) return control.disabled || control.querySelector(".lg-host") ? null : control;
     const rail = node.closest(":is(#presetButtons, #timelineModes)[data-motion-ready]");
@@ -51,7 +57,7 @@ export function bindFrameInput(shell, glass, signal, spring) {
     else glass.setOptics(value.get(), 0);
   });
   const options = { passive: true, signal };
-  shell.addEventListener(
+  root.addEventListener(
     "pointerover",
     (event) => {
       if (!event.isPrimary || event.pointerType === "touch") return;
@@ -62,7 +68,7 @@ export function bindFrameInput(shell, glass, signal, spring) {
     },
     options,
   );
-  shell.addEventListener(
+  root.addEventListener(
     "pointerleave",
     () => {
       hover = null;
@@ -70,7 +76,7 @@ export function bindFrameInput(shell, glass, signal, spring) {
     },
     options,
   );
-  shell.addEventListener(
+  root.addEventListener(
     "pointerdown",
     (event) => {
       if (!event.isPrimary || event.button !== 0) return;
@@ -92,14 +98,14 @@ export function bindFrameInput(shell, glass, signal, spring) {
   document.addEventListener(
     "focusin",
     (event) => {
-      if (!shell.contains(event.target)) return clear();
+      if (!root.contains(event.target)) return clear();
       focus = event.target.matches(":focus-visible") ? frameOf(event.target) : null;
       if (focus) hover = null;
       sync();
     },
     options,
   );
-  shell.addEventListener(
+  root.addEventListener(
     "focusout",
     () => {
       focus = null;
@@ -113,12 +119,12 @@ export function bindFrameInput(shell, glass, signal, spring) {
     () => {
       clear();
       observer.disconnect();
+      windows.disconnect();
       value.destroy();
     },
     { once: true },
   );
   return {
-    clear,
     refresh: () => {
       if (current && !current.isConnected) clear();
     },
