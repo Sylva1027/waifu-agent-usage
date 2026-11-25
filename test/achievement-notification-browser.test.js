@@ -149,8 +149,8 @@ async function viewRecent(page, fixture, shown) {
   assert.equal(await page.evaluate(() => document.activeElement.id), "achievementToggle");
 }
 
-// Pause actual production requests/responses; award JSON always comes from the real server.
-async function hold(t, page, path, { response = false } = {}) {
+// Pause an actual production request.
+async function hold(t, page, path) {
   const entered = Promise.withResolvers();
   const release = Promise.withResolvers();
   const finished = Promise.withResolvers();
@@ -159,11 +159,9 @@ async function hold(t, page, path, { response = false } = {}) {
     if (held) return route.continue();
     held = true;
     try {
-      const upstream = response ? await route.fetch() : null;
-      entered.resolve(response ? await upstream.json() : route.request().postDataJSON());
+      entered.resolve(route.request().postDataJSON());
       await release.promise;
-      if (upstream) await route.fulfill({ response: upstream });
-      else await route.continue();
+      await route.continue();
     } finally {
       finished.resolve();
     }
@@ -406,25 +404,55 @@ test("a delayed real GET cannot roll back a newer event or acknowledge an unseen
   const { fixture, newPage } = await setup(t);
   const initial = await fixture.snapshot();
   await acknowledge(fixture, initial);
-  const { page } = await newPage();
+  const { page, requests } = await newPage();
   await visit(page, fixture);
   await notice(page, false);
-  const gate = await hold(t, page, "/api/achievements", { response: true });
+  // Hold the real response at the page's fetch boundary. The follow-up GET then
+  // uses the normal browser transport even if it starts as the stale read returns.
+  await page.evaluate(() => {
+    const networkFetch = window.fetch;
+    const captured = Promise.withResolvers();
+    const release = Promise.withResolvers();
+    window.achievementTestHeldRead = { snapshot: captured.promise, release: release.resolve };
+    window.fetch = async (resource, options) => {
+      if (resource !== "/api/achievements") return networkFetch(resource, options);
+      window.fetch = networkFetch;
+      try {
+        const response = await networkFetch(resource, options);
+        captured.resolve(await response.clone().json());
+        await release.promise;
+        return response;
+      } catch (error) {
+        captured.reject(error);
+        throw error;
+      }
+    };
+  });
   await page.locator("#achievementToggle").click();
-  const stale = await gate.entered;
+  const stale = await page.evaluate(() => window.achievementTestHeldRead.snapshot);
   assert.equal(stale.awardRevision, initial.awardRevision);
   await page.keyboard.press("Escape");
   await page.locator("#achievementDialog").waitFor({ state: "hidden" });
-  const published = page.waitForResponse(async (response) => {
-    if (new URL(response.url()).pathname !== "/api/achievements" || !response.ok()) return false;
-    const snapshot = await response.json();
-    return snapshot.profileId === stale.profileId && snapshot.awardRevision > stale.awardRevision;
+  const requestMark = requests.length;
+  const [published, newer] = await Promise.all([
+    page.waitForResponse(async (response) => {
+      if (new URL(response.url()).pathname !== "/api/achievements" || !response.ok()) return false;
+      const snapshot = await response.json();
+      return snapshot.profileId === stale.profileId && snapshot.awardRevision > stale.awardRevision;
+    }),
+    (async () => {
+      const upgrade = await fixture.addGold();
+      assert.ok(upgrade.awardRevision > stale.awardRevision);
+      await eventAt(page, upgrade);
+      await page.evaluate(() => window.achievementTestHeldRead.release());
+      return upgrade;
+    })(),
+  ]).catch((error) => {
+    const reads = requests.slice(requestMark).filter(({ path }) => path === "/api/achievements");
+    t.diagnostic(`Achievement GETs after the held response: ${reads.length}`);
+    throw error;
   });
-  const newer = await fixture.addGold();
-  assert.ok(newer.awardRevision > stale.awardRevision);
-  await eventAt(page, newer);
-  await gate.release();
-  const delivered = await (await published).json();
+  const delivered = await published.json();
   assert.equal(delivered.awardRevision, newer.awardRevision);
   assert.equal(delivered.seenAwardRevision, initial.awardRevision);
   await notice(page, true);

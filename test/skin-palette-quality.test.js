@@ -10520,7 +10520,11 @@ test("M5.2.C-E1c：真实Edge验证五状态浅深输入目标、适用性与恢
   }
 });
 
-async function captureSettledPage(screenshot, attempts, { now = () => performance.now(), timeoutMs = 3000 } = {}) {
+async function captureSettledPage(
+  screenshot,
+  attempts,
+  { now = () => performance.now(), timeoutMs = 3000, matchesBaseline } = {},
+) {
   // Compositor paint can lag the finished CSS transition under load.
   // Bound elapsed settling time while keeping exact consecutive-frame equality.
   const deadline = now() + timeoutMs;
@@ -10530,13 +10534,17 @@ async function captureSettledPage(screenshot, attempts, { now = () => performanc
     const current = await screenshot();
     count += 1;
     if (now() > deadline) break;
-    if (previous.equals(current)) {
+    if (previous.equals(current) && (!matchesBaseline || (await matchesBaseline(current)))) {
+      if (now() > deadline) break;
       attempts.push(count);
       return current;
     }
     previous = current;
   }
-  throw new Error(`Screenshot paint did not converge within ${timeoutMs}ms`);
+  const reason = matchesBaseline
+    ? "Restored screenshot did not match the baseline"
+    : "Screenshot paint did not converge";
+  throw new Error(`${reason} within ${timeoutMs}ms`);
 }
 
 test("E1d：真实截图基准要求连续相同，短暂重绘有界收敛，持续变化拒绝", async () => {
@@ -10590,18 +10598,48 @@ test("E1d：真实截图基准要求连续相同，短暂重绘有界收敛，�
   );
   const changed = [b, b];
   assert.notDeepEqual(await captureSettledPage(async () => changed.shift(), []), a, "稳定的真实变化不能变回原基准");
+
+  elapsed = 0;
+  const restoring = [b, b, a, a];
+  assert.equal(
+    await captureSettledPage(
+      async () => {
+        elapsed += 400;
+        return restoring.shift();
+      },
+      [],
+      { now, matchesBaseline: (frame) => a.equals(frame) },
+    ),
+    a,
+    "恢复截图不能把连续两帧尚未恢复的绘制当作最终结果",
+  );
+  elapsed = 0;
+  await assert.rejects(
+    captureSettledPage(
+      async () => {
+        elapsed += 500;
+        return b;
+      },
+      [],
+      { now, matchesBaseline: (frame) => a.equals(frame) },
+    ),
+    /did not match the baseline within 3000ms/,
+    "持续存在的恢复差异继续失败",
+  );
 });
 
-test("M5.2.C-E1d：真实Edge深色dashboard在聚光淡入稳定后取整页基准", async () => {
+test("M5.2.C-E1d：真实Edge深色dashboard在聚光淡入稳定后取整页基准", async (t) => {
   const browserRuntime = await resolveBrowserRuntime();
   assert.ok(browserRuntime, "E1d 必须使用真实 Edge/Chromium，不得跳过或以 Node 替代");
   const fixture = await createPaletteFixture();
   const server = createUsageServer(createPaletteServerOptions(fixture));
   let browser = null;
   let context = null;
+  let page = null;
   let animationInspection = null;
   const blockedRemoteRequests = [];
   const fullPageScreenshots = [];
+  let lastFullPageScreenshot;
   const runId = `dark-dashboard-${new Date().toISOString().replaceAll(":", "").replaceAll("-", "").replaceAll(".", "")}`;
   const evidenceRoot = path.resolve(
     "docs/validation/2026-10-03-skin-palette-redesign/20261003T185748/integration/m52-c-d8u7-restoration/browser/e1d",
@@ -10611,6 +10649,8 @@ test("M5.2.C-E1d：真实Edge深色dashboard在聚光淡入稳定后取整页基
   mkdirSync(evidenceDir, { recursive: false });
   let measurementStates = null;
   const fullPageCaptureAttempts = [];
+  const compareScreenshots = (before, after) =>
+    page.evaluate(buildProbeSource("compare-images", before.toString("base64"), after.toString("base64")));
   const writeEvidence = (result, metadata) => {
     writeFileSync(path.join(evidenceDir, "before.png"), fullPageScreenshots[0]);
     writeFileSync(path.join(evidenceDir, "after.png"), fullPageScreenshots[1]);
@@ -10656,7 +10696,8 @@ test("M5.2.C-E1d：真实Edge深色dashboard在聚光淡入稳定后取整页基
     await context.addInitScript(
       buildPreferenceSeedSource({ theme: "light", skinId: "chatgpt", showCharacters: false }),
     );
-    const page = await context.newPage();
+    page = await context.newPage();
+    await page.clock.setFixedTime(new Date());
     installBrowserColorObserver(page);
     await openPaletteDashboard(page, origin);
     await page.waitForSelector("#timelineChart", { timeout: 20000 });
@@ -10667,6 +10708,9 @@ test("M5.2.C-E1d：真实Edge深色dashboard在聚光淡入稳定后取整页基
     await page.waitForFunction(
       () => document.documentElement.dataset.theme === "dark" && !document.documentElement.dataset.themeTransition,
     );
+    await page.evaluate(async () => {
+      await document.fonts.ready;
+    });
     assert.equal(await page.locator("html").getAttribute("data-skin"), "chatgpt");
     assert.equal(
       await page.locator("#detailPanel").evaluate((panel) => getComputedStyle(panel, "::before").backdropFilter),
@@ -10773,9 +10817,22 @@ test("M5.2.C-E1d：真实Edge深色dashboard在聚光淡入稳定后取整页基
       }),
       screenshot: async (options) => {
         // Verify painted pixels, rather than assuming an ended transition has already rasterized.
+        const baseline = fullPageScreenshots[0];
         const png =
           options?.fullPage === true
-            ? await captureSettledPage(() => page.screenshot(options), fullPageCaptureAttempts, { timeoutMs: 10_000 })
+            ? await captureSettledPage(
+                async () => {
+                  lastFullPageScreenshot = await page.screenshot(options);
+                  return lastFullPageScreenshot;
+                },
+                fullPageCaptureAttempts,
+                {
+                  timeoutMs: 10_000,
+                  matchesBaseline:
+                    baseline &&
+                    (async (frame) => baseline.equals(frame) || (await compareScreenshots(baseline, frame)).identical),
+                },
+              )
             : await page.screenshot(options);
         if (options?.fullPage === true) fullPageScreenshots.push(png);
         return png;
@@ -10870,6 +10927,20 @@ test("M5.2.C-E1d：真实Edge深色dashboard在聚光淡入稳定后取整页基
       placeholderRecord.ratio < placeholderRecord.threshold,
       `低对比placeholder ratio ${placeholderRecord.ratio} 必须小于实际threshold ${placeholderRecord.threshold}`,
     );
+  } catch (error) {
+    const failureDir = path.join(evidenceDir, "failure");
+    mkdirSync(failureDir);
+    const baseline = fullPageScreenshots[0];
+    if (baseline) writeFileSync(path.join(failureDir, "before.png"), baseline);
+    if (lastFullPageScreenshot) writeFileSync(path.join(failureDir, "last.png"), lastFullPageScreenshot);
+    const comparison =
+      baseline && lastFullPageScreenshot
+        ? await compareScreenshots(baseline, lastFullPageScreenshot).catch(() => null)
+        : null;
+    const failure = { message: error.message, comparison, fullPageCaptureAttempts, measurementStates };
+    writeFileSync(path.join(failureDir, "diagnostic.json"), JSON.stringify(failure, null, 2));
+    t.diagnostic(JSON.stringify({ message: error.message, comparison, fullPageCaptureAttempts }));
+    throw error;
   } finally {
     await context?.close();
     await browser?.close();
