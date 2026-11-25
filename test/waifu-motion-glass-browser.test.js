@@ -186,8 +186,22 @@ test("Waifu motion follows native input and classic glass owns the active filter
           }
         }
         const model = page.locator('#timelineModes [data-timeline-mode="model"]');
+        await model.hover();
+        const hover = await model.evaluate((node) => {
+          const style = getComputedStyle(node);
+          return { border: style.borderColor, glow: style.textShadow };
+        });
+        assert.equal(hover.border, "rgba(0, 0, 0, 0)");
+        assert.notEqual(hover.glow, "none");
         await model.press("Enter");
         assert.equal(await model.getAttribute("aria-pressed"), "true");
+        await page.keyboard.press("Tab");
+        const cost = page.locator('#timelineModes [data-timeline-mode="cost"]');
+        assert.ok(
+          await cost.evaluate(
+            (node) => node.matches(":focus-visible") && getComputedStyle(node).outlineStyle === "solid",
+          ),
+        );
         if (scenario !== "reduced") {
           await page.waitForFunction(() => {
             const indicator = document.querySelector("[data-motion-indicator]").getBoundingClientRect();
