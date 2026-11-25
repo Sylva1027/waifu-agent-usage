@@ -21,3 +21,7 @@ The project code uses the [MIT License](LICENSE). The original author's copyrigh
 部分角色形象来自 [ZipZipPipe](https://space.bilibili.com/4168597)，感谢其创作。第三方角色形象及素材的权利归各自权利人所有，其许可不因本项目代码采用 MIT 而改变。
 
 Some character artwork is by [ZipZipPipe](https://space.bilibili.com/4168597). Thank you for the artwork. Rights to third-party characters and assets belong to their respective rights holders; the code's MIT license does not change those assets' licenses.
+
+## 工具标识 / Tool logos
+
+- Oh My Pi · [官方图标 / Official icon](https://github.com/can1357/oh-my-pi/blob/d1d9269b9a7134bc5cda24365120382a9b7412df/packages/collab-web/public/favicon.png) · [MIT License](docs/images/harnesses/omp.LICENSE.txt)
