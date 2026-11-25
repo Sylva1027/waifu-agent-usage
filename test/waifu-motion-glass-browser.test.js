@@ -10,6 +10,180 @@ import { createPaletteFixture, createPaletteServerOptions } from "../test-suppor
 const host = "#skinToggle [data-glass-surface].lg-host";
 const ready = "#timelineModes[data-motion-ready]";
 const glassRequest = /\/waifu-liquid-glass\.(?:js|css)(?:\?|$)/;
+const frameSelector = "[data-glass-frame], [data-glass-frame-list] > .comparison-item";
+
+async function assertPaintChanges(page, before, after, label) {
+  const changed = await page.evaluate(
+    async ([a, b]) => {
+      async function decode(png) {
+        const img = new Image();
+        img.src = `data:image/png;base64,${png}`;
+        await img.decode();
+        const canvas = document.createElement("canvas");
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0);
+        return new Uint32Array(ctx.getImageData(0, 0, img.width, img.height).data.buffer);
+      }
+      const [first, second] = await Promise.all([decode(a), decode(b)]);
+      return first.reduce((count, color, i) => count + Number(color !== second[i]), 0);
+    },
+    [before.toString("base64"), after.toString("base64")],
+  );
+  assert.ok(changed > 0, label);
+}
+
+async function checkDashboardFrames(page, scenario) {
+  const supported = scenario !== "fallback";
+  if (supported) await page.locator("html[data-frame-refraction]").waitFor({ state: "attached" });
+  await page.waitForSelector("#homeList .home-row");
+  const frames = await page.evaluate((selector) => {
+    const areas = [
+      ".topbar",
+      ".toolbar > .control-group",
+      ".metrics > .metric",
+      "#comparisonSummary > .comparison-item",
+      ".shell .panel",
+    ];
+    return areas.map((area) =>
+      [...document.querySelectorAll(area)].map((node) => ({
+        marked: node.matches(selector),
+        edge: getComputedStyle(node, "::before").backdropFilter,
+      })),
+    );
+  }, frameSelector);
+  assert.deepEqual([frames[0].length, frames[1].length, frames[2].length, frames[4].length], [1, 3, 12, 6]);
+  assert.ok(frames[3].length > 0, "fixture renders comparison cards");
+  for (const part of frames.flat()) {
+    assert.ok(part.marked);
+    assert.equal(part.edge.includes("#mg-frame-"), supported);
+  }
+  assert.equal(await page.locator("#mg-frame-active, #mg-frame-static").count(), supported ? 2 : 0);
+  const title = page.getByRole("heading", { name: "Agent Usage", exact: true });
+  const assertTitle = async () => {
+    const [fill, stroke, rim] = await title.evaluate((node) => {
+      const style = getComputedStyle(node);
+      return [style.webkitTextFillColor, style.webkitTextStrokeWidth, style.filter];
+    });
+    assert.equal(fill, "rgba(0, 0, 0, 0)");
+    assert.ok(parseFloat(stroke) > 0);
+    assert.match(rim, /drop-shadow/);
+  };
+  await assertTitle();
+  if (scenario === "classic") {
+    const edged = await title.screenshot();
+    await title.evaluate((n) => {
+      n.style.webkitTextStrokeWidth = "0";
+    });
+    const clear = await title.screenshot();
+    await title.evaluate((n) => {
+      n.style.removeProperty("-webkit-text-stroke-width");
+    });
+    await assertPaintChanges(page, edged, clear, "the incised title must paint an actual outline");
+    await page.locator("#themeToggle").click();
+    await page.waitForFunction(
+      () => document.documentElement.dataset.theme === "dark" && !document.documentElement.dataset.themeTransition,
+    );
+    await assertTitle();
+    await page.locator("#themeToggle").click();
+    await page.waitForFunction(
+      () => document.documentElement.dataset.theme === "light" && !document.documentElement.dataset.themeTransition,
+    );
+  }
+  const first = page.locator(".metrics .metric").first();
+  const second = page.locator(".metrics .metric").nth(1);
+  await page.mouse.move(0, 0);
+  await page.waitForFunction(() => !document.querySelector("[data-glass-frame-active]"));
+  // Compare the browser's actual composited rim, excluding text, badges and the mouse cursor.
+  const bounds = await first.boundingBox();
+  const clip = {
+    x: Math.ceil(bounds.x + 13),
+    y: Math.ceil(bounds.y + 1),
+    width: Math.floor(bounds.width - 26),
+    height: 12,
+  };
+  const before = await page.screenshot({ clip });
+  if (scenario === "classic") {
+    const staticScale = page.locator("#mg-frame-static feDisplacementMap");
+    const original = await staticScale.getAttribute("scale");
+    await staticScale.evaluate((node) => node.setAttribute("scale", "0"));
+    const withoutBend = await page.screenshot({ clip });
+    await staticScale.evaluate((node, scale) => node.setAttribute("scale", scale), original);
+    await assertPaintChanges(page, before, withoutBend, "static displacement must bend actual dashboard pixels");
+  }
+  await first.hover();
+  if (scenario === "reduced" || !supported) {
+    await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
+    assert.equal(await page.locator("[data-glass-frame-active]").count(), 0);
+  } else {
+    await page.waitForFunction(() =>
+      document.querySelector(".metrics .metric")?.hasAttribute("data-glass-frame-active"),
+    );
+    await page.waitForFunction(
+      () =>
+        document.querySelector("#mg-frame-active feDisplacementMap")?.getAttribute("scale") !==
+        document.querySelector("#mg-frame-static feDisplacementMap")?.getAttribute("scale"),
+    );
+    await assertPaintChanges(
+      page,
+      before,
+      await page.screenshot({ clip }),
+      "hover must visibly change the composited rim",
+    );
+    if (scenario === "classic") {
+      await page.mouse.down();
+      await page.waitForTimeout(650);
+      const pressed = await page.screenshot({ clip });
+      const activeScale = page.locator("#mg-frame-active feDisplacementMap");
+      const original = await activeScale.getAttribute("scale");
+      const neutral = await page.locator("#mg-frame-static feDisplacementMap").getAttribute("scale");
+      assert.notEqual(original, neutral);
+      // Hold the highlight and the real press still. Only neutralize the displacement amplitude.
+      await activeScale.evaluate((node, scale) => node.setAttribute("scale", scale), neutral);
+      const fixedScale = await page.screenshot({ clip });
+      await activeScale.evaluate((node, scale) => node.setAttribute("scale", scale), original);
+      await page.mouse.up();
+      await assertPaintChanges(
+        page,
+        pressed,
+        fixedScale,
+        "press refraction must contribute visible pixels beyond highlight",
+      );
+    }
+    await second.hover();
+    await page.waitForFunction(() =>
+      document.querySelectorAll(".metrics .metric")[1].hasAttribute("data-glass-frame-active"),
+    );
+    assert.equal(await page.locator("[data-glass-frame-active]").count(), 1);
+    assert.match(await first.evaluate((n) => getComputedStyle(n, "::before").backdropFilter), /#mg-frame-static/);
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    await page.waitForFunction(() => {
+      const card = document.querySelectorAll(".metrics .metric")[1];
+      return card.getBoundingClientRect().bottom < 0 && !card.hasAttribute("data-glass-frame-active");
+    });
+    await page.evaluate(() => window.scrollTo(0, 0));
+  }
+  await page.mouse.move(0, 0);
+  await page.waitForFunction(() => !document.querySelector("[data-glass-frame-active]"));
+  if (scenario === "classic") {
+    const response = page.waitForResponse(
+      (r) => new URL(r.url()).pathname === "/api/usage" && new URL(r.url()).searchParams.get("preset") === "all",
+    );
+    await page.locator('#presetButtons [data-preset="all"]').click();
+    assert.ok((await response).ok());
+    await page.waitForSelector("#detailList .bar-row");
+    const cards = page.locator("[data-glass-frame-list] > .comparison-item");
+    assert.ok(await cards.count());
+    assert.ok(
+      await cards.evaluateAll((nodes) =>
+        nodes.every((n) => getComputedStyle(n, "::before").backdropFilter.includes("#mg-frame-static")),
+      ),
+    );
+    await page.locator('#presetButtons [data-preset="today"]').click();
+    await page.mouse.move(0, 0);
+  }
+}
 
 test("Waifu motion follows native input and classic glass owns the active filter", async (t) => {
   const runtime = await resolveBrowserRuntime();
@@ -41,6 +215,7 @@ test("Waifu motion follows native input and classic glass owns the active filter
       try {
         await page.addInitScript((scenario) => {
           localStorage.setItem("codexUsageAutoRefresh", "off");
+          localStorage.setItem("codexUsageTheme", "light");
           if (scenario === "fallback") delete Navigator.prototype.userAgentData;
           if (scenario === "character")
             localStorage.setItem("codexUsageSkinV1", JSON.stringify({ version: 1, skinId: "deepseek" }));
@@ -49,6 +224,11 @@ test("Waifu motion follows native input and classic glass owns the active filter
         await page.waitForFunction(() => !!window.__skinTestHook);
         const button = page.locator("#skinToggle");
         if (scenario !== "reduced") await page.locator(ready).waitFor({ state: "attached" });
+        await checkDashboardFrames(page, scenario);
+        assert.equal(
+          requests.some((address) => address.includes("/waifu-frame-glass.js")),
+          scenario !== "fallback",
+        );
         if (scenario === "classic") {
           const active = await page.waitForFunction(() => {
             const pane = document.querySelector(".lg-pane");
@@ -96,6 +276,11 @@ test("Waifu motion follows native input and classic glass owns the active filter
           }, id);
           await page.keyboard.up("Space");
           await page.waitForSelector("#skinDialog:not([hidden])");
+          assert.equal(
+            await page.locator("[data-glass-frame-active]").count(),
+            0,
+            "background frame pauses while the dialog owns focus",
+          );
           assert.equal(
             await page.evaluate(() => window.dialogOpticalWrites),
             0,
@@ -231,7 +416,16 @@ test("Waifu motion follows native input and classic glass owns the active filter
         requests.some((address) => /\/waifu-(?:motion|liquid-glass)/.test(address)),
         false,
       );
-      assert.equal(await page.locator("[data-glass-surface], [data-motion-indicator], .lg-defs").count(), 0);
+      assert.equal(
+        requests.some((address) => address.includes("/waifu-frame-glass")),
+        false,
+      );
+      assert.equal(
+        await page
+          .locator(`${frameSelector}, #mg-frame-static, [data-glass-surface], [data-motion-indicator], .lg-defs`)
+          .count(),
+        0,
+      );
     } finally {
       await page.close();
       if (liteServer.listening) await new Promise((resolve) => liteServer.close(resolve));
