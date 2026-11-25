@@ -1,28 +1,36 @@
 import { drawLight, loadMaterial, materialBounds } from "./art.js";
+import { drawRightLight, loadRightLight, rightLightBounds, rightLightWindow } from "./right-light.js";
 
 const root = document.documentElement;
 const sourceSize = 1254;
 const frameInterval = 1000 / 12;
-const sweepDuration = 7200;
-const holdDuration = 1000;
-const returnDuration = 2700;
-const totalDuration = sweepDuration + holdDuration + returnDuration;
-const turn = 0.72;
+const rightStartTime = 6200;
+const rightGlideDuration = 7200;
+const fadeDuration = 4100;
+const fadeStartTime = rightStartTime + rightGlideDuration;
+const totalDuration = fadeStartTime + fadeDuration;
+const fadeStartPhase = 0.86;
+const rightFocusY = 0.62;
 
 const layer = document.createElement("div");
 layer.id = "qwen-ambient";
 layer.setAttribute("aria-hidden", "true");
 const stage = document.createElement("div");
+stage.className = "qwen-ambient-left";
 const image = document.createElement("img");
 image.alt = "";
+const rightStage = document.createElement("div");
+rightStage.className = "qwen-ambient-right";
 const rightImage = document.createElement("img");
-rightImage.className = "qwen-ambient-right";
 rightImage.alt = "";
 const canvas = document.createElement("canvas");
+const rightCanvas = document.createElement("canvas");
 stage.append(image, canvas);
-layer.append(rightImage, stage);
+rightStage.append(rightImage, rightCanvas);
+layer.append(rightStage, stage);
 document.querySelector("#skinCharacters").before(layer);
 const ctx = canvas.getContext("2d");
+const rightCtx = rightCanvas.getContext("2d");
 
 const controls = document.createElement("details");
 controls.id = "qwen-ambient-controls";
@@ -34,17 +42,21 @@ controls.insertAdjacentHTML(
     '<button type="button" id="qwen-ambient-entry" data-phase="0.24">织纹</button>' +
     '<button type="button" id="qwen-ambient-satin" data-phase="0.46">素缎</button>' +
     '<button type="button" id="qwen-ambient-jacquard" data-phase="0.72">暗花</button>' +
+    '<button type="button" id="qwen-ambient-right-pose" data-phase="0.82">右侧折光</button>' +
     "</div>" +
     '<div class="qwen-ambient-actions">' +
-    '<button type="button" id="qwen-ambient-play">播放转光</button></div>',
+    '<button type="button" id="qwen-ambient-play">播放转光</button>' +
+    '<button type="button" id="qwen-ambient-play-right">从右侧播放</button></div>',
 );
 document.body.append(controls);
 
 const poses = Array.from(controls.querySelectorAll("button[data-phase]"));
 const play = controls.querySelector("#qwen-ambient-play");
+const playRight = controls.querySelector("#qwen-ambient-play-right");
 let mode;
 let ready = false;
 let material;
+let rightMaterial;
 let loadVersion = 0;
 let active = false;
 let phase = 0;
@@ -55,22 +67,50 @@ let timer = 0;
 let nextTick = 0;
 let placement;
 let canvasRect;
+let rightRect;
+let rightCrop;
 let drawnPhase;
+let drawnRightPhase;
+
+function prepareCanvas(context, { left, top, width, height }) {
+  const target = context.canvas;
+  context.resetTransform();
+  context.clearRect(0, 0, target.width, target.height);
+  const scaleX = target.width / width;
+  const scaleY = target.height / height;
+  context.setTransform(scaleX, 0, 0, scaleY, -left * scaleX, -top * scaleY);
+}
 
 function paint() {
-  if (!ready || !canvasRect || drawnPhase === phase) return;
-  const { left, top, width, height } = canvasRect;
-  ctx.resetTransform();
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  if (phase > 0 && phase < 1) {
-    const scaleX = canvas.width / width;
-    const scaleY = canvas.height / height;
-    ctx.setTransform(scaleX, 0, 0, scaleY, -left * scaleX, -top * scaleY);
-    drawLight(ctx, material, 0, 0, placement, phase);
+  if (!ready || !(canvasRect || rightRect) || drawnPhase === phase) return;
+  if (canvasRect) {
+    prepareCanvas(ctx, canvasRect);
+    if (phase > 0 && phase < 1) drawLight(ctx, material, 0, 0, placement, phase);
+  }
+
+  const rightPhase = phase > rightLightWindow.start && phase < rightLightWindow.end ? phase : 0;
+  if (rightRect && drawnRightPhase !== rightPhase) {
+    rightCanvas.hidden = rightPhase === 0;
+    if (rightPhase) {
+      prepareCanvas(rightCtx, rightRect);
+      drawRightLight(rightCtx, rightMaterial, rightCrop.x, rightCrop.y, rightCrop.width, rightPhase);
+    }
+    drawnRightPhase = rightPhase;
   }
   drawnPhase = phase;
   layer.dataset.phase = String(phase);
   layer.dataset.draws = String(++draws);
+}
+
+function placeCanvas(target, left, top, right, bottom) {
+  const width = right - left;
+  const height = bottom - top;
+  target.hidden = width <= 0 || height <= 0;
+  if (target.hidden) return undefined;
+  target.style.cssText = `left:${left}px;top:${top}px;width:${width}px;height:${height}px`;
+  target.width = Math.ceil(width * window.devicePixelRatio);
+  target.height = Math.ceil(height * window.devicePixelRatio);
+  return { left, top, width, height };
 }
 
 function layout() {
@@ -86,26 +126,31 @@ function layout() {
   const rightStart = Math.min(x + placement * 0.77, width * 0.68);
   const rightWidth = width - rightStart;
   const overlap = Math.min(x + placement - rightStart, rightWidth * 0.7);
-  rightImage.style.cssText = `width:${rightWidth}px;--qwen-overlap:${overlap}px`;
+  rightStage.style.cssText = `width:${rightWidth}px;--qwen-overlap:${overlap}px;--qwen-right-position:${rightFocusY * 100}%`;
+  // Match the image's object-fit cover crop so light stays registered to the fold.
+  const rightScale = Math.max(rightWidth / rightImage.naturalWidth, height / rightImage.naturalHeight);
+  const rightImageWidth = rightImage.naturalWidth * rightScale;
+  const rightX = rightWidth - rightImageWidth;
+  const rightY = (height - rightImage.naturalHeight * rightScale) * rightFocusY;
+  rightCrop = { x: rightX, y: rightY, width: rightImageWidth };
+  rightRect = placeCanvas(
+    rightCanvas,
+    Math.max(0, rightX + rightLightBounds.left * rightScale),
+    Math.max(0, rightY + rightLightBounds.top * rightScale),
+    Math.min(rightWidth, rightX + rightLightBounds.right * rightScale),
+    Math.min(height, rightY + rightLightBounds.bottom * rightScale),
+  );
 
   const scale = placement / sourceSize;
-  const left = Math.max(-x, materialBounds.left * scale);
-  const top = Math.max(-y, materialBounds.top * scale);
-  const right = Math.min(width - x, materialBounds.right * scale);
-  const bottom = Math.min(height - y, materialBounds.bottom * scale);
-  const patchWidth = right - left;
-  const patchHeight = bottom - top;
-  if (patchWidth <= 0 || patchHeight <= 0) {
-    canvas.hidden = true;
-    canvasRect = undefined;
-    return;
-  }
-  canvas.hidden = false;
-  canvasRect = { left, top, width: patchWidth, height: patchHeight };
-  canvas.style.cssText = `left:${left}px;top:${top}px;width:${patchWidth}px;height:${patchHeight}px`;
-  canvas.width = Math.ceil(patchWidth * window.devicePixelRatio);
-  canvas.height = Math.ceil(patchHeight * window.devicePixelRatio);
+  canvasRect = placeCanvas(
+    canvas,
+    Math.max(-x, materialBounds.left * scale),
+    Math.max(-y, materialBounds.top * scale),
+    Math.min(width - x, materialBounds.right * scale),
+    Math.min(height - y, materialBounds.bottom * scale),
+  );
   drawnPhase = undefined;
+  drawnRightPhase = undefined;
   paint();
 }
 
@@ -126,6 +171,7 @@ function freeze() {
 function showControls() {
   const unavailable = !ready;
   play.disabled = unavailable;
+  playRight.disabled = unavailable;
   play.textContent = active ? "停止播放" : "播放转光";
   for (const pose of poses) {
     pose.disabled = unavailable;
@@ -142,11 +188,14 @@ function tick() {
   if (!canRun()) return freeze();
   const time = performance.now() - started;
   if (time < nextTick) return scheduleTick();
-  const turnEnd = sweepDuration + holdDuration;
-  phase = time < sweepDuration ? (time / sweepDuration) * turn : turn;
-  if (time > turnEnd) {
-    const blend = Math.min(1, (time - turnEnd) / returnDuration);
-    phase = turn + (1 - turn) * blend;
+  if (time < rightStartTime) {
+    phase = (time / rightStartTime) * rightLightWindow.start;
+  } else if (time < fadeStartTime) {
+    const blend = (time - rightStartTime) / rightGlideDuration;
+    phase = rightLightWindow.start + (fadeStartPhase - rightLightWindow.start) * blend;
+  } else {
+    const blend = Math.min(1, (time - fadeStartTime) / fadeDuration);
+    phase = fadeStartPhase + (1 - fadeStartPhase) * blend;
   }
   if (time >= totalDuration) phase = 0;
   paint();
@@ -156,11 +205,7 @@ function tick() {
     showControls();
     return;
   }
-  // Sleep through the hold, then resume the 12 FPS schedule.
-  nextTick =
-    time >= sweepDuration && time < turnEnd
-      ? turnEnd
-      : Math.min(totalDuration, (Math.floor(time / frameInterval) + 1) * frameInterval);
+  nextTick = Math.min(totalDuration, (Math.floor(time / frameInterval) + 1) * frameInterval);
   scheduleTick();
 }
 
@@ -182,17 +227,25 @@ for (const pose of poses) {
   });
 }
 
+function startPlayback(startTime, startPhase) {
+  freeze();
+  active = true;
+  elapsed = startTime;
+  nextTick = startTime;
+  phase = startPhase;
+  paint();
+  syncPlayback();
+  showControls();
+}
+
 play.addEventListener("click", () => {
-  active = !active;
-  if (active) {
-    elapsed = 0;
-    nextTick = 0;
-    phase = 0;
-    paint();
-  }
+  if (!active) return startPlayback(0, 0);
+  active = false;
   syncPlayback();
   showControls();
 });
+
+playRight.addEventListener("click", () => startPlayback(rightStartTime, rightLightWindow.start));
 
 async function syncMaterial() {
   const next = root.dataset.skin === "qwen" ? root.dataset.theme || "light" : "";
@@ -212,7 +265,10 @@ async function syncMaterial() {
   image.removeAttribute("src");
   canvas.width = 0;
   canvas.height = 0;
+  rightCanvas.width = 0;
+  rightCanvas.height = 0;
   material = undefined;
+  rightMaterial = undefined;
   showControls();
   if (!mode) {
     rightImage.removeAttribute("src");
@@ -222,9 +278,15 @@ async function syncMaterial() {
   try {
     image.src = `/assets/achievement-share/qwen/background-${mode}.webp`;
     rightImage.src = new URL(`./art/right-${mode}.webp`, import.meta.url).href;
-    const [loaded] = await Promise.all([loadMaterial(mode), image.decode(), rightImage.decode()]);
+    const [loaded, loadedRight] = await Promise.all([
+      loadMaterial(mode),
+      loadRightLight(mode),
+      image.decode(),
+      rightImage.decode(),
+    ]);
     if (version !== loadVersion) return;
     material = loaded;
+    rightMaterial = loadedRight;
     ready = true;
     layout();
     layer.hidden = false;

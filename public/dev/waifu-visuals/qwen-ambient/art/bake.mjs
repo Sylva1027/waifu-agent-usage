@@ -66,7 +66,8 @@ function makeAtlas(mode) {
     for (let py = 0; py < tileH; py++) {
       const y = top + (py + 0.5) / sampleScale;
       const occlusion = smooth(5, 37, y - edge) * (1 - smooth(852, bottom - 2, y));
-      if (!occlusion) continue;
+      const plainSatin = !dark && y < edge - 8;
+      if (!occlusion && !plainSatin) continue;
       // Oblique joins between the lattice brocade, plain satin, and floral jacquard.
       const edges = [
         165 - (y - 392) * 0.317,
@@ -75,10 +76,15 @@ function makeAtlas(mode) {
         1150 - (y - 431) * 1.263,
       ];
       const face = edges.findIndex((end) => end > x) - 1;
-      if (face < 0) continue;
-      const u = (x - edges[face]) / (edges[face + 1] - edges[face]);
+      if (face < 0 && !plainSatin) continue;
+      const u = plainSatin ? 0 : (x - edges[face]) / (edges[face + 1] - edges[face]);
       const falloff = smooth(0.018, 0.09, u) * (1 - smooth(0.9, 0.982, u));
-      const spot = occlusion * falloff * bell(y - (555 + (x - 450) * 0.06), 186);
+      const spot = plainSatin
+        ? smooth(top, top + 26, y) *
+          (1 - smooth(edge - 28, edge - 8, y)) *
+          (1 - smooth(300, 525, x)) *
+          bell(y - (edge - 64), 66)
+        : occlusion * falloff * bell(y - (555 + (x - 450) * 0.06), 186);
       if (spot < 0.001) continue;
 
       // Recover the actual raised threads from a small neighborhood of the source.
@@ -87,7 +93,11 @@ function makeAtlas(mode) {
       const ridge = smooth(-0.5, dark ? 7 : 9, luma - surround);
       const stitch = smooth(0.2, 5.3, Math.abs(luma - lum(x + 1, y + 2)));
       let angle, spread, response;
-      if (face === 0) {
+      if (plainSatin) {
+        angle = 0.14 + 0.42 * (x / 560) + 0.025 * Math.sin(y / 85);
+        spread = 0.092;
+        response = 0.53 + 0.27 * ridge + 0.1 * stitch;
+      } else if (face === 0) {
         angle = 0.12 + 0.24 * u + 0.02 * Math.sin(y / 108);
         spread = 0.078;
         response = 0.055 + 0.78 * ridge + 0.25 * ridge * stitch;
@@ -106,9 +116,10 @@ function makeAtlas(mode) {
         const t = sample / steps;
         const envelope = smooth(0, 0.16, t) * (1 - smooth(0.8, 1, t));
         const newLight = bell(t - angle, spread);
-        const gain = spot * response * envelope * (newLight - oldSpecular * (1 - newLight));
+        const shadow = plainSatin ? bell(t - angle - 0.12, 0.11) * 0.76 : oldSpecular * (1 - newLight);
+        const gain = spot * response * envelope * (newLight - shadow);
         const tint = gain > 0 ? (dark ? [182, 215, 177] : [255, 253, 238]) : dark ? [2, 6, 5] : [66, 83, 65];
-        const strength = gain > 0 ? (dark ? 0.19 : 0.535) : dark ? 0.57 : 0.107;
+        const strength = gain > 0 ? (dark ? 0.19 : 0.66) : dark ? 0.57 : 0.19;
         const alpha = Math.min(255, Math.round(255 * Math.abs(gain) * strength));
         if (!alpha) continue;
         const tile = sample - 1;
