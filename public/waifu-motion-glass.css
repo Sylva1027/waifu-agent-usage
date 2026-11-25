@@ -61,14 +61,12 @@
     color-mix(in srgb, var(--neo-surface) 24%, transparent) 54%,
     color-mix(in srgb, var(--neo-surface) 64%, transparent)
   );
-  --glass-lens:
-    radial-gradient(ellipse at 24% 0%, var(--glass-rim-light), transparent 67%),
-    linear-gradient(
-      153deg,
-      color-mix(in srgb, var(--blue) 13%, var(--neo-surface)),
-      color-mix(in srgb, var(--neo-surface) 34%, transparent) 51%,
-      color-mix(in srgb, var(--blue) 15%, var(--neo-surface))
-    );
+  --glass-lens: linear-gradient(
+    153deg,
+    color-mix(in srgb, var(--blue) 13%, var(--neo-surface)),
+    color-mix(in srgb, var(--neo-surface) 34%, transparent) 51%,
+    color-mix(in srgb, var(--blue) 15%, var(--neo-surface))
+  );
   --glass-well: color-mix(in srgb, var(--bg) 62%, transparent);
   --glass-table: color-mix(in srgb, var(--bg) 70%, var(--neo-surface));
 }
