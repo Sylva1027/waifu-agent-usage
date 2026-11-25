@@ -150,7 +150,8 @@ async function openDashboard(browser, url, viewport, locale, theme) {
   const session = await createDashboardPage(browser, viewport, locale, theme);
   const { page } = session;
   await page.goto(url, { waitUntil: "domcontentloaded" });
-  await page.waitForFunction(() => window.__skinTestHook);
+  // The achievement entry appears after the boot imports, when preset clicks are wired.
+  await page.locator("#achievementToggle").waitFor();
   await page.locator('#presetButtons button[data-preset="all"]').click();
   await page.waitForFunction(() => Number.parseFloat(document.querySelector("#totalTokens")?.textContent) > 0);
   await page.locator("#dateRangeButton").click();
@@ -900,14 +901,22 @@ test("UI geometry uses the production app and isolated source fixtures", async (
   });
 
   for (const theme of ["light", "dark"]) {
-    await t.test(`${theme} rounded wells keep their shading off scrollbars and details leave a gap`, async () => {
+    await t.test(`${theme} Classic glass wells keep scrollbars clear and preserve detail gaps`, async (t) => {
       const session = await openDashboard(browser, url, VIEWPORTS[0], "zh-CN", theme);
       const { page } = session;
       const failures = [];
       try {
-        await page.evaluate(() => {
-          window.__skinPaletteLegacySpotlight = true;
-        });
+        for (const button of ["#addImportButton", "#updatePricingButton"]) {
+          await hoverSurface(page, button, null, failures);
+          const paint = await page.locator(button).evaluate((button) => ({
+            shadow: getComputedStyle(button).boxShadow,
+            lens: getComputedStyle(button).backgroundImage,
+            toolbarLens: getComputedStyle(document.querySelector("#themeToggle")).backgroundImage,
+          }));
+          assert.equal(paint.shadow, "none", `${button} uses the flat Classic glass face`);
+          assert.match(paint.lens, /linear-gradient/);
+          assert.equal(paint.lens, paint.toolbarLens, `${button} shares the toolbar lens material`);
+        }
         for (const id of ["modelComparisonTable", "repositoryComparisonTable"]) {
           const scroll = page.locator(`#${id} .comparison-table-scroll`);
           await scroll.evaluate((node) => {
@@ -918,9 +927,8 @@ test("UI geometry uses the production app and isolated source fixtures", async (
             node.parentElement.style.translate = `${Math.floor(x) + 0.375 - x}px 0`;
             node.scrollIntoView({ block: "center" });
           });
-          await hoverSurface(page, `#${id} .comparison-table-footer`, ".period-comparison-panel", failures);
-          // The panel's hover fade shows through the scrollbar's transparent rounded corners.
-          // Finish it before comparing screenshots that differ only in the inset shadow.
+          await hoverSurface(page, `#${id} .comparison-table-footer`, null, failures);
+          // Compare screenshots that differ only in the rounded well's inset edge.
           await scroll.evaluate(async (node) => {
             const panel = node.closest(".period-comparison-panel");
             await Promise.all(panel.getAnimations({ subtree: true }).map((animation) => animation.finished));
@@ -1005,7 +1013,9 @@ test("UI geometry uses the production app and isolated source fixtures", async (
               overflow: list.scrollHeight > list.clientHeight,
               trackBackground: getComputedStyle(list, "::-webkit-scrollbar-track").backgroundColor,
               cornerBackground: getComputedStyle(list, "::-webkit-scrollbar-corner").backgroundColor,
-              inset: getComputedStyle(list.querySelector(".bar-track")).boxShadow,
+              shadow: getComputedStyle(list.querySelector(".bar-track")).boxShadow,
+              barFace: getComputedStyle(list.querySelector(".bar-track")).backgroundColor,
+              chartWell: getComputedStyle(document.querySelector(".timeline-chart-well")).backgroundColor,
             };
           });
           assert.ok(detail.overflow, `${mode}: exercise a scrolling list`);
@@ -1014,35 +1024,39 @@ test("UI geometry uses the production app and isolated source fixtures", async (
           near(detail.valueGap, 8, `${mode} value gap before scrollbar`);
           assert.equal(detail.trackBackground, "rgba(0, 0, 0, 0)");
           assert.equal(detail.cornerBackground, "rgba(0, 0, 0, 0)");
-          assert.match(detail.inset, /inset/);
-          await hoverSurface(page, "#detailList .bar-track", "#detailPanel", failures);
+          assert.equal(detail.shadow, "none", `${mode}: flat glass track`);
+          assert.notEqual(detail.barFace, "rgba(0, 0, 0, 0)");
+          assert.equal(detail.barFace, detail.chartWell, `${mode}: track shares the chart well material`);
+          await hoverSurface(page, "#detailList .bar-track", null, failures);
         }
         const screenshots = new URL("../output/ui-scrollbars/", import.meta.url);
         await mkdir(screenshots, { recursive: true });
         for (const width of [960, 480]) {
-          await page.setViewportSize({ width, height: 1000 });
-          const gaps = await page.locator("#detailList").evaluate((list) => {
-            const right = list.getBoundingClientRect().left + list.clientWidth;
-            return [".bar-track", ".bar-value"].map(
-              (selector) => right - list.querySelector(selector).getBoundingClientRect().right,
-            );
-          });
-          gaps.forEach((gap) => {
-            near(gap, 8, `${width} gap before scrollbar`);
-          });
-          await hoverSurface(page, "#detailList .bar-track", "#detailPanel", failures);
-          await page.locator("#detailPanel").screenshot({
-            path: fileURLToPath(new URL(`${width}-${theme}-detail.png`, screenshots)),
-          });
-          for (const id of ["modelComparisonTable", "repositoryComparisonTable"]) {
-            await page.locator(`#${id} .comparison-table-scroll`).evaluate((node) => {
-              node.scrollTop = node.scrollHeight;
+          await t.test(`viewport ${width} scrollbar screenshots`, async () => {
+            await page.setViewportSize({ width, height: 1000 });
+            const gaps = await page.locator("#detailList").evaluate((list) => {
+              const right = list.getBoundingClientRect().left + list.clientWidth;
+              return [".bar-track", ".bar-value"].map(
+                (selector) => right - list.querySelector(selector).getBoundingClientRect().right,
+              );
             });
-            await hoverSurface(page, `#${id} .comparison-table-footer`, ".period-comparison-panel", failures);
-            await page.locator(`#${id}`).screenshot({
-              path: fileURLToPath(new URL(`${width}-${theme}-${id}.png`, screenshots)),
+            gaps.forEach((gap) => {
+              near(gap, 8, `${width} gap before scrollbar`);
             });
-          }
+            await hoverSurface(page, "#detailList .bar-track", null, failures);
+            await page.locator("#detailPanel").screenshot({
+              path: fileURLToPath(new URL(`${width}-${theme}-detail.png`, screenshots)),
+            });
+            for (const id of ["modelComparisonTable", "repositoryComparisonTable"]) {
+              await page.locator(`#${id} .comparison-table-scroll`).evaluate((node) => {
+                node.scrollTop = node.scrollHeight;
+              });
+              await hoverSurface(page, `#${id} .comparison-table-footer`, null, failures);
+              await page.locator(`#${id}`).screenshot({
+                path: fileURLToPath(new URL(`${width}-${theme}-${id}.png`, screenshots)),
+              });
+            }
+          });
         }
         assert.deepEqual(failures, []);
         assert.deepEqual(session.errors, []);
@@ -1051,19 +1065,18 @@ test("UI geometry uses the production app and isolated source fixtures", async (
       }
     });
 
-    await t.test(`${theme} whole-page hover lighting preserves surfaces, text and disclosures`, async () => {
+    await t.test(`${theme} character skin hover lighting preserves surfaces, text and disclosures`, async () => {
       const session = await openDashboard(browser, url, VIEWPORTS[0], "zh-CN", theme);
       const { page } = session;
       const failures = [];
       try {
-        await page.evaluate(() => {
-          window.__skinPaletteLegacySpotlight = true;
-        });
+        await page.evaluate(() => window.__skinTestHook.selectSkin("deepseek"));
+        await page.locator('html[data-skin="deepseek"]:not([data-frame-refraction])').waitFor({ state: "attached" });
         const normal = await geometry(page);
         const disclosures = await page.locator("details").evaluateAll((nodes) => nodes.map((node) => node.open));
         const targets = [
           [".topbar h1", ".topbar"],
-          ["#skinToggle", null],
+          ["#skinToggle", "#skinToggle"],
           ["#languageToggle", "#languageToggle"],
           ["#themeToggle", "#themeToggle"],
           [".range-controls .range-heading", ".range-controls"],
@@ -1072,7 +1085,7 @@ test("UI geometry uses the production app and isolated source fixtures", async (
           ["#autoRefreshStatus", "#autoRefreshStatus", { position: { x: 8, y: 8 } }],
           ["#recentValue", null],
           ["#timelinePanelTitle", ".chart-panel"],
-          ['#timelineModes button[aria-pressed="true"]', null],
+          ['#timelineModes button[aria-pressed="true"]', '#timelineModes button[aria-pressed="true"]'],
           ["#timelineChart", null],
           ["#detailPanelTitle", "#detailPanel"],
           ["#detailList .bar-name", "#detailPanel"],

@@ -36,11 +36,9 @@ async function setup(t) {
     localStorage.setItem("codexUsageTheme", "dark");
     localStorage.setItem(key, JSON.stringify({ version: 1, skinId: "classic", showCharacters: false, opacity: 0.5 }));
   }, SKIN_PREFERENCE_KEY);
-  await Promise.all([
-    page.waitForResponse((response) => new URL(response.url()).pathname === "/api/usage" && response.status() === 200),
-    page.goto(fixture.url),
-  ]);
-  await page.waitForFunction(() => document.querySelector("#totalTokens").textContent !== "-");
+  await page.goto(fixture.url, { waitUntil: "domcontentloaded" });
+  // The app mounts this button after binding the skin picker. The initial Today report loads independently.
+  await page.locator("#achievementToggle").waitFor();
   assert.equal(await page.locator("html").getAttribute("data-skin"), "classic");
   const output = path.join("output", "playwright");
   await mkdir(output, { recursive: true });

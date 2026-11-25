@@ -782,7 +782,7 @@ test("B4-3：范围标签作为普通必要文字精确登记并镜像到 dashbo
 
   assert.match(
     html,
-    /<div class="control-group range-controls">\s*<div class="range-heading">\s*<span>范围<\/span>\s*<\/div>\s*<div class="segmented" id="presetButtons">/,
+    /<div class="control-group range-controls" data-glass-frame>\s*<div class="range-heading">\s*<span>范围<\/span>\s*<\/div>\s*<div class="segmented" id="presetButtons">/,
   );
   assert.match(css, /\.control-group span,\s*label\s*\{[^}]*color:\s*var\(--muted\)[^}]*font-size:\s*13px/);
   const groupRule = css.match(/\.toolbar > \.control-group\s*\{([^}]*)\}/);
