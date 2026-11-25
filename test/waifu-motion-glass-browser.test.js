@@ -62,13 +62,18 @@ async function checkDashboardFrames(page, scenario) {
   assert.equal(await page.locator("#mg-frame-active, #mg-frame-static").count(), supported ? 2 : 0);
   const title = page.getByRole("heading", { name: "Agent Usage", exact: true });
   const assertTitle = async () => {
-    const [clip, stroke, shade] = await title.evaluate((node) => {
+    const [face, surface, stroke, shade] = await title.evaluate((node) => {
       const style = getComputedStyle(node);
-      return [style.backgroundClip, style.webkitTextStrokeWidth, style.textShadow];
+      const color = style.color;
+      node.style.color = "var(--neo-surface)";
+      const surfaceColor = style.color;
+      node.style.removeProperty("color");
+      return [color, surfaceColor, style.webkitTextStrokeWidth, style.textShadow];
     });
-    assert.equal(clip, "text");
+    assert.equal(face, surface);
     assert.equal(parseFloat(stroke), 0);
-    assert.notEqual(shade, "none");
+    assert.match(shade, /-1px -1px 1px/);
+    assert.match(shade, /(?:^| )1px 1px 1px/);
   };
   await assertTitle();
   if (scenario === "classic") {

@@ -199,13 +199,6 @@ html:not([data-frame-refraction])
   background-color: var(--glass-well);
 }
 
-/* The cut face is darker than the surface. Offset reflected light leaves its upper lip in shadow. */
-.shell .topbar > h1 {
-  color: transparent;
-  background: color-mix(in srgb, var(--neo-surface) 35%, #0a1720) text;
-  text-shadow: 0.7px 1.5px 1.25px color-mix(in srgb, var(--neo-surface) 80%, transparent);
-}
-
 :root[data-skin="classic"] #skinToggle {
   position: relative;
   background: transparent;
