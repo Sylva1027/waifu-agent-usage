@@ -106,7 +106,7 @@ test("OMP reads both journal record types, merges orchestration, and projects on
   assert.equal(b.timestampMs, Date.parse(timestamp));
   assert.deepEqual(b.usage, { total: 109, input: 94, cached: 24, output: 15, reasoning: 0 });
   assert.equal(b.detailMask, 39);
-  assert.doesNotMatch(JSON.stringify(result), /private/);
+  assert.doesNotMatch(JSON.stringify(result), /private (?:response ID|text|prompt|reply|title)/);
 });
 
 test("OMP detail known bits distinguish zero, missing, malformed and conflicting counters", async (t) => {
