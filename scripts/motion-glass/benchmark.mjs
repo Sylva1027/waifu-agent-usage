@@ -3,10 +3,11 @@
 // Both accept --output=relative/path to keep previous captures; paths resolve from the working directory.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdir, open, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { build } from "esbuild";
+import { recordTrace, summarizeTrace } from "./trace.mjs";
 import { resolveBrowserRuntime } from "../skin-palette/capture.mjs";
 import { createUsageServer } from "../../src/server.js";
 import { listenOnFetchPort } from "../../test-support/fetch-port.mjs";
@@ -235,30 +236,11 @@ try {
   for (const [round, order] of traceOrders.entries())
     for (const mode of order) {
       const page = await openPage(mode);
-      const cdp = await page.context().newCDPSession(page);
       try {
-        await cdp.send("Tracing.start", {
-          categories: "devtools.timeline,cc,viz,gpu,benchmark",
-          transferMode: "ReturnAsStream",
-        });
-        const sample = await trajectory(page);
+        const name = compareTraces ? `trace-${round + 1}-${mode}.json` : `trace-${mode}.json`;
+        const sample = await recordTrace(page, resolve(output, name), () => trajectory(page));
         assert.equal(sample.distinctScales > 1, mode === "C", `${mode} traced refraction path`);
         assert.equal(sample.distinctHighlights > 1, ["B", "C"].includes(mode), `${mode} traced highlight path`);
-        const done = new Promise((resolve) => cdp.once("Tracing.tracingComplete", resolve));
-        await cdp.send("Tracing.end");
-        const { stream } = await done;
-        const name = compareTraces ? `trace-${round + 1}-${mode}.json` : `trace-${mode}.json`,
-          file = await open(resolve(output, name), "w");
-        try {
-          let chunk;
-          do {
-            chunk = await cdp.send("IO.read", { handle: stream });
-            await file.writeFile(chunk.base64Encoded ? Buffer.from(chunk.data, "base64") : chunk.data);
-          } while (!chunk.eof);
-        } finally {
-          await file.close();
-          await cdp.send("IO.close", { handle: stream });
-        }
         traces.push(name);
       } finally {
         await page.close();
@@ -301,29 +283,7 @@ try {
   const frameReports = {};
   // Parse only after timing/trace capture, one file at a time to keep the measurements isolated.
   for (const name of traces) {
-    const statesByFrame = new Map();
-    let paintCount = 0;
-    let paintMicros = 0;
-    const { traceEvents } = JSON.parse(await readFile(resolve(output, name), "utf8"));
-    for (const event of traceEvents) {
-      if (event.name === "Paint" && event.ph === "X") {
-        paintCount++;
-        paintMicros += event.dur;
-      }
-      const report = event.args?.frame_reporter;
-      if (event.name !== "PipelineReporter" || !report) continue;
-      const key = `${report.frame_source}/${report.frame_sequence}`;
-      if (!statesByFrame.has(key)) statesByFrame.set(key, new Set());
-      statesByFrame.get(key).add(report.state.replace(/^STATE_/, ""));
-    }
-    assert.ok(statesByFrame.size > 0, `${name} contains no PipelineReporter frame sequences`);
-    // Distinct sets are disjoint. A partial and a later full report can describe the same frame sequence.
-    const stateSets = {};
-    for (const states of statesByFrame.values()) {
-      const key = [...states].sort().join("+");
-      stateSets[key] = (stateSets[key] ?? 0) + 1;
-    }
-    frameReports[name] = { sequences: statesByFrame.size, stateSets, paintCount, paintMs: paintMicros / 1000 };
+    frameReports[name] = await summarizeTrace(resolve(output, name));
   }
   await writeFile(
     resolve(output, "results.json"),
