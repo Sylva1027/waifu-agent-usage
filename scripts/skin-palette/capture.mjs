@@ -82,7 +82,7 @@ const SKIN_STORAGE_KEY = "codexUsageSkinV1";
 const AUTO_REFRESH_STORAGE_KEY = "codexUsageAutoRefresh";
 
 /**
- * 运行证据必须覆盖的 31 项源文件：M3.4 的 REQUIRED_SOURCE_FILES（assess.mjs 导出，26 项，含焦点与 detail-bar 模块）
+ * 运行证据必须覆盖 M3.4 的 REQUIRED_SOURCE_FILES（assess.mjs 导出）
  * 全集 + 捕获链路自身依赖（skin-bootstrap.js、i18n.js、bootstrap-source.mjs、
  * preview-server.mjs、capture.mjs）。测试直接断言 M3.4 集合是本清单的子集。
  */
@@ -92,6 +92,14 @@ const SOURCE_FILES = Object.freeze([
   "public/skin-bootstrap.js",
   "public/styles.css",
   "public/skins.css",
+  "public/waifu-motion-glass.css",
+  "public/waifu-glass-dialogs.css",
+  "public/waifu-glass-feature-windows.css",
+  "public/waifu-motion.js",
+  "public/waifu-motion-controls.js",
+  "public/waifu-liquid-glass.css",
+  "public/waifu-liquid-glass.js",
+  "public/waifu-frame-glass.js",
   "public/app.js",
   "public/app-state.js",
   "public/timeline-utils.js",

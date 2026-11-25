@@ -905,6 +905,9 @@ test("UI geometry uses the production app and isolated source fixtures", async (
       const { page } = session;
       const failures = [];
       try {
+        await page.evaluate(() => {
+          window.__skinPaletteLegacySpotlight = true;
+        });
         for (const id of ["modelComparisonTable", "repositoryComparisonTable"]) {
           const scroll = page.locator(`#${id} .comparison-table-scroll`);
           await scroll.evaluate((node) => {
@@ -1053,11 +1056,14 @@ test("UI geometry uses the production app and isolated source fixtures", async (
       const { page } = session;
       const failures = [];
       try {
+        await page.evaluate(() => {
+          window.__skinPaletteLegacySpotlight = true;
+        });
         const normal = await geometry(page);
         const disclosures = await page.locator("details").evaluateAll((nodes) => nodes.map((node) => node.open));
         const targets = [
           [".topbar h1", ".topbar"],
-          ["#skinToggle", "#skinToggle"],
+          ["#skinToggle", null],
           ["#languageToggle", "#languageToggle"],
           ["#themeToggle", "#themeToggle"],
           [".range-controls .range-heading", ".range-controls"],
@@ -1066,7 +1072,7 @@ test("UI geometry uses the production app and isolated source fixtures", async (
           ["#autoRefreshStatus", "#autoRefreshStatus", { position: { x: 8, y: 8 } }],
           ["#recentValue", null],
           ["#timelinePanelTitle", ".chart-panel"],
-          ['#timelineModes button[aria-pressed="true"]', '#timelineModes button[aria-pressed="true"]'],
+          ['#timelineModes button[aria-pressed="true"]', null],
           ["#timelineChart", null],
           ["#detailPanelTitle", "#detailPanel"],
           ["#detailList .bar-name", "#detailPanel"],

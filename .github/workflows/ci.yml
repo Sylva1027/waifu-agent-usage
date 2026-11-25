@@ -112,6 +112,8 @@ jobs:
             "test/history-archive-api.test.js"
             "test/achievement-dialog-browser.test.js"
             "test/achievement-notification-browser.test.js"
+            "test/waifu-motion-glass-browser.test.js"
+            "test/waifu-glass-windows-browser.test.js"
             "test/package-release.test.js"
           )
           npm.cmd test -- --test-reporter=spec --test-concurrency=4 @core

@@ -8556,6 +8556,15 @@ async function openPaletteDashboard(page, origin) {
   assert.equal(usage.summary.timelineError, null);
   await page.waitForFunction(USAGE_RENDER_READY_WAIT_SOURCE, undefined, { timeout: 20000 });
   await page.waitForSelector("#detailList .bar-row", { timeout: 20000 });
+  // The geometry comparison must start after the range selection spring has reached its endpoint.
+  await page.waitForFunction(() => {
+    if (document.documentElement.dataset.skin !== "classic" || matchMedia("(prefers-reduced-motion: reduce)").matches)
+      return true;
+    const rail = document.querySelector("#presetButtons[data-motion-ready]");
+    const target = rail?.querySelector(":scope > .active");
+    const plate = rail?.querySelector(":scope > [data-motion-indicator]");
+    return target && plate?.style.transform === "translateX(" + target.offsetLeft + "px)";
+  });
 }
 
 test("M3.2：真实浏览器集成——纯色/渐变/placeholder/聚光/Canvas 五样例、raw token 达标但真实叠加必须失败、状态不变", async (t) => {
@@ -9450,6 +9459,8 @@ test("M5.2.C-D2b3：真实 Edge 两种装饰隔离、低对比仍失败，异常
           return image?.complete && image.naturalWidth > 0;
         });
         await page.locator("#shareLayout").scrollIntoViewIfNeeded();
+        // The full-page geometry check also sees the toolbar icon rebounding behind the dialog.
+        await page.waitForFunction(() => !document.querySelector("#shareToggle [data-motion-content]").style.scale);
         // 分享弹窗绘制与 hover 淡出先稳定，基准与测量器使用相同的聚光等待前提。
         await page.mouse.move(0, 0);
         const zoneStability = await page.evaluate(buildProbeSource("spotlight-stability"));
@@ -10628,7 +10639,12 @@ test("M5.2.C-E1d：真实Edge深色dashboard在聚光淡入稳定后取整页基
     const port = await listenOnFreePort(server);
     const origin = `http://127.0.0.1:${port}`;
     const { chromium, executablePath } = browserRuntime;
-    browser = await chromium.launch({ executablePath, headless: true });
+    // Compare exact pixels with a fixed renderer while retaining the real CSS transitions and SVG filters.
+    browser = await chromium.launch({
+      executablePath,
+      headless: true,
+      args: ["--enable-unsafe-swiftshader", "--use-gl=angle", "--use-angle=swiftshader"],
+    });
     context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
     await context.route("**/*", async (route) => {
       const requestUrl = new URL(route.request().url());
@@ -10735,7 +10751,11 @@ test("M5.2.C-E1d：真实Edge深色dashboard在聚光淡入稳定后取整页基
       evaluate: (source, argument) => {
         if (!revealResumed && String(source).startsWith("// skinProbe: spotlight-stability")) {
           revealResumed = true;
-          return page.evaluate(`(() => { window.__e1dTransition.play(); return (\n${source}\n); })()`);
+          // Let the probe register the paused transition after its first two paint frames.
+          return page.evaluate(`(() => {
+            requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(() => window.__e1dTransition.play())));
+            return (\n${source}\n);
+          })()`);
         }
         return page.evaluate(source, argument);
       },
@@ -10786,6 +10806,7 @@ test("M5.2.C-E1d：真实Edge深色dashboard在聚光淡入稳定后取整页基
     measurementStates = { before: await readMeasurementState() };
     const result = await measureBrowserRoles({
       page: measurementPage,
+      spotlightTimeoutMs: 3000,
       candidate: null,
       mode: "dark",
       stateId: "dashboard-default",
@@ -12623,8 +12644,7 @@ test("M3.4：必需源文件清单覆盖实际加载的页面/样式文件——
     assert.ok(REQUIRED_SOURCE_FILES.includes(file), `必需清单遗漏 ${file}（页面/样式文件必须在核验范围内）`);
   }
   const timelineFile = "public/timeline-utils.js";
-  assert.equal(REQUIRED_SOURCE_FILES.length, 26);
-  assert.equal(new Set(REQUIRED_SOURCE_FILES).size, 26);
+  assert.equal(new Set(REQUIRED_SOURCE_FILES).size, REQUIRED_SOURCE_FILES.length);
   for (const file of [
     "scripts/skin-palette/focus-outline-pixels.mjs",
     "scripts/skin-palette/focus-outline-browser.mjs",
@@ -13228,7 +13248,9 @@ function createStableFullPageNodePage({
     body,
     querySelectorAll(selector) {
       if (selector === "input,textarea,[contenteditable]") return [guardInput];
-      return selector === "*" ? allElements : [];
+      // This fixture contains layout elements only; none is inside a glass filter's resource SVG.
+      if (selector === "*" || selector === "*:not(svg.lg-defs[aria-hidden='true'] *)") return allElements;
+      throw new Error(`Unsupported stable page fixture selector: ${selector}`);
     },
   };
   const visualViewport = {
