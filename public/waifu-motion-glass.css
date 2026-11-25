@@ -134,6 +134,11 @@ html[data-skin] > body {
     0 4px 12px -5px var(--ceramic-shade);
 }
 
+/* The legend sits along the bottom of the chart, above artwork that can match a series colour. */
+.shell .chart-panel[data-glass-frame] {
+  background: var(--glass-face), linear-gradient(to top, var(--neo-surface) 1rem, transparent 4rem);
+}
+
 :where([data-glass-frame], [data-glass-frame-list] > .comparison-item)::before {
   content: "";
   position: absolute;
@@ -187,7 +192,6 @@ html:not([data-frame-refraction])
   .comparison-item:not(.comparison-unavailable) > strong,
   .timeline-chart-well,
   .auto-refresh-well,
-  .home-list,
   .cost-estimate-note,
   .comparison-table-scroll,
   .segmented-well

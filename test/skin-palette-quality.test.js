@@ -10725,6 +10725,8 @@ test("M5.2.C-E1d：真实Edge深色dashboard在聚光淡入稳定后取整页基
     await page.addStyleTag({
       content: `
         #detailPanel::after { will-change: opacity; }
+        /* Full-page capture can rerasterize the offscreen SVG glow on a different surface. */
+        #shareToggle svg { will-change: transform; }
         #modelComparisonSearch::placeholder,
         #repositoryComparisonSearch::placeholder {
           color: #232b32 !important;
