@@ -2,6 +2,7 @@ import { drawLight, loadMaterial, materialBounds } from "./art.js";
 
 const root = document.documentElement;
 const sourceSize = 1254;
+const frameInterval = 1000 / 12;
 const sweepDuration = 7200;
 const holdDuration = 1000;
 const returnDuration = 2700;
@@ -32,15 +33,12 @@ controls.insertAdjacentHTML(
     '<button type="button" id="qwen-ambient-jacquard" data-phase="0.72">暗花</button>' +
     "</div>" +
     '<div class="qwen-ambient-actions">' +
-    '<button type="button" id="qwen-ambient-play">播放转光</button>' +
-    '<label>更新频率 <select id="qwen-ambient-fps"><option>12</option><option selected>15</option><option>30</option></select> FPS</label>' +
-    "</div>",
+    '<button type="button" id="qwen-ambient-play">播放转光</button></div>',
 );
 document.body.append(controls);
 
 const poses = Array.from(controls.querySelectorAll("button[data-phase]"));
 const play = controls.querySelector("#qwen-ambient-play");
-const fps = controls.querySelector("#qwen-ambient-fps");
 let mode;
 let ready = false;
 let material;
@@ -150,12 +148,11 @@ function tick() {
     showControls();
     return;
   }
-  const interval = 1000 / Number(fps.value);
-  // Sleep through the hold, then draw at the selected cadence.
+  // Sleep through the hold, then resume the 12 FPS schedule.
   nextTick =
     time >= sweepDuration && time < turnEnd
       ? turnEnd
-      : Math.min(totalDuration, (Math.floor(time / interval) + 1) * interval);
+      : Math.min(totalDuration, (Math.floor(time / frameInterval) + 1) * frameInterval);
   scheduleTick();
 }
 

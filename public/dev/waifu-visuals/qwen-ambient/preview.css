@@ -54,8 +54,7 @@
   margin-top: 6px;
 }
 
-.qwen-ambient-actions button,
-.qwen-ambient-actions select {
+.qwen-ambient-actions button {
   padding: 4px 7px;
   border: 1px solid var(--neo-edge);
   border-radius: 6px;
