@@ -51,7 +51,7 @@ let draws = 0;
 let elapsed = 0;
 let started = null;
 let timer = 0;
-let frame = 0;
+let nextTick = 0;
 let placement;
 let canvasRect;
 let drawnPhase;
@@ -76,10 +76,10 @@ function layout() {
   if (!ready) return;
   const { clientWidth: width, clientHeight: height } = root;
   // Track the binding in source coordinates as the viewport narrows.
-  const portrait = Math.min(1, Math.max(0, (1.35 - width / height) / 0.9));
+  const narrow = Math.min(1, Math.max(0, (1.5 - width / height) / 0.5));
   placement = Math.max(Math.min(width, 760), height * 1.14);
-  const x = -placement * (0.07 + portrait * 0.2);
-  const y = -placement * (0.07 + portrait * 0.045);
+  const x = -placement * (0.07 + narrow * 0.1);
+  const y = -placement * (0.07 + narrow * 0.015);
   stage.style.cssText = `left:${x}px;top:${y}px;width:${placement}px;height:${placement}px`;
 
   const scale = placement / sourceSize;
@@ -109,9 +109,7 @@ function canRun() {
 
 function freeze() {
   clearTimeout(timer);
-  cancelAnimationFrame(frame);
   timer = 0;
-  frame = 0;
   if (started !== null) {
     elapsed = Math.min(totalDuration, performance.now() - started);
     started = null;
@@ -129,10 +127,15 @@ function showControls() {
   }
 }
 
-function tick(now) {
-  frame = 0;
+function scheduleTick() {
+  timer = setTimeout(tick, Math.max(0, Math.ceil(started + nextTick - performance.now())));
+}
+
+function tick() {
+  timer = 0;
   if (!canRun()) return freeze();
-  const time = now - started;
+  const time = performance.now() - started;
+  if (time < nextTick) return scheduleTick();
   const turnEnd = sweepDuration + holdDuration;
   phase = time < sweepDuration ? (time / sweepDuration) * turn : turn;
   if (time > turnEnd) {
@@ -149,14 +152,11 @@ function tick(now) {
   }
   const interval = 1000 / Number(fps.value);
   // Sleep through the hold, then draw at the selected cadence.
-  const next = time >= sweepDuration && time < turnEnd ? turnEnd : (Math.floor(time / interval) + 1) * interval;
-  timer = setTimeout(queueFrame, Math.max(0, started + next - performance.now()));
-}
-
-function queueFrame() {
-  timer = 0;
-  if (canRun()) frame = requestAnimationFrame(tick);
-  else freeze();
+  nextTick =
+    time >= sweepDuration && time < turnEnd
+      ? turnEnd
+      : Math.min(totalDuration, (Math.floor(time / interval) + 1) * interval);
+  scheduleTick();
 }
 
 function syncPlayback() {
@@ -164,7 +164,7 @@ function syncPlayback() {
   if (started !== null) return;
   started = performance.now() - elapsed;
   layer.dataset.running = "true";
-  queueFrame();
+  scheduleTick();
 }
 
 for (const pose of poses) {
@@ -181,6 +181,7 @@ play.addEventListener("click", () => {
   active = !active;
   if (active) {
     elapsed = 0;
+    nextTick = 0;
     phase = 0;
     paint();
   }
