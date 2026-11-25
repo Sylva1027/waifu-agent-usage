@@ -10630,7 +10630,12 @@ test("M5.2.C-E1d：真实Edge深色dashboard在聚光淡入稳定后取整页基
     const port = await listenOnFreePort(server);
     const origin = `http://127.0.0.1:${port}`;
     const { chromium, executablePath } = browserRuntime;
-    browser = await chromium.launch({ executablePath, headless: true });
+    // Compare exact pixels with a fixed renderer while retaining the real CSS transitions and SVG filters.
+    browser = await chromium.launch({
+      executablePath,
+      headless: true,
+      args: ["--enable-unsafe-swiftshader", "--use-gl=angle", "--use-angle=swiftshader"],
+    });
     context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
     await context.route("**/*", async (route) => {
       const requestUrl = new URL(route.request().url());
@@ -10725,8 +10730,6 @@ test("M5.2.C-E1d：真实Edge深色dashboard在聚光淡入稳定后取整页基
     await page.addStyleTag({
       content: `
         #detailPanel::after { will-change: opacity; }
-        /* Full-page capture can rerasterize the offscreen SVG glow on a different surface. */
-        #shareToggle svg { will-change: transform; }
         #modelComparisonSearch::placeholder,
         #repositoryComparisonSearch::placeholder {
           color: #232b32 !important;
@@ -10739,7 +10742,11 @@ test("M5.2.C-E1d：真实Edge深色dashboard在聚光淡入稳定后取整页基
       evaluate: (source, argument) => {
         if (!revealResumed && String(source).startsWith("// skinProbe: spotlight-stability")) {
           revealResumed = true;
-          return page.evaluate(`(() => { window.__e1dTransition.play(); return (\n${source}\n); })()`);
+          // Let the probe register the paused transition after its first two paint frames.
+          return page.evaluate(`(() => {
+            requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(() => window.__e1dTransition.play())));
+            return (\n${source}\n);
+          })()`);
         }
         return page.evaluate(source, argument);
       },
@@ -10790,6 +10797,7 @@ test("M5.2.C-E1d：真实Edge深色dashboard在聚光淡入稳定后取整页基
     measurementStates = { before: await readMeasurementState() };
     const result = await measureBrowserRoles({
       page: measurementPage,
+      spotlightTimeoutMs: 3000,
       candidate: null,
       mode: "dark",
       stateId: "dashboard-default",

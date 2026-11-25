@@ -4807,6 +4807,14 @@ test("M4.3 正式色源模式：S0 基准（含角色测量）与 S7 规程一�
   const sandbox = await mkdtemp(path.join(tmpdir(), "skin-palette-matrix-c3-"));
   const outDir = path.join(sandbox, "docs", "validation", "m43", "production");
   try {
+    // 两入口共用同一批日志和来源路径，各自从原始导入配置和空索引开始。
+    // 矩阵续跑后已发布的来源元数据可让主目录多出「移除」按钮，改变整页高度与玻璃背景取样。
+    const directFixture = {
+      ...fixture,
+      importStoreFile: path.join(sandbox, "direct-imports.json"),
+      databaseFile: path.join(sandbox, "direct-index.sqlite"),
+    };
+    await writeFile(directFixture.importStoreFile, await readFile(fixture.importStoreFile));
     const result = await captureStateMatrix({
       candidate: null,
       skinId: "chatgpt",
@@ -4904,7 +4912,7 @@ test("M4.3 正式色源模式：S0 基准（含角色测量）与 S7 规程一�
     const direct = await captureBaseline({
       candidate: null,
       skinId: "chatgpt",
-      fixture,
+      fixture: directFixture,
       outDir: path.join(sandbox, "docs", "validation", "m43", "direct-baseline"),
       rootDir: sandbox,
       modes: ["light"],

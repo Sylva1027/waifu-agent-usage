@@ -2588,12 +2588,15 @@ function buildCompareImagesSource(leftBase64, rightBase64) {
 })()`;
 }
 
+function spotlightBudget(value) {
+  return Number.isFinite(value) ? Math.min(3000, Math.max(1, Math.floor(value))) : 500;
+}
+
 /** 等当前活动聚光伪元素的有限 opacity transition，并确认其状态跨帧稳定。 */
-function buildSpotlightStabilitySource(budgetMs = 500) {
-  const safeBudgetMs = Number.isFinite(budgetMs) ? Math.min(500, Math.max(1, Math.floor(budgetMs))) : 500;
+function buildSpotlightStabilitySource(budgetMs) {
   return `// skinProbe: spotlight-stability
 (async () => {
-  const budgetMs = ${safeBudgetMs};
+  const budgetMs = ${spotlightBudget(budgetMs)};
   const startedAt = performance.now();
   const deadline = startedAt + budgetMs;
   let frameCount = 0;
@@ -4861,6 +4864,7 @@ export async function measureBrowserRoles(options) {
     throw new TypeError("measureBrowserRoles: 需要 options 对象");
   }
   const { page, candidate, mode, stateId, roleCatalog, policy, detailFillRestingPointer = null } = options;
+  const spotlightTimeout = spotlightBudget(options.spotlightTimeoutMs);
   if (!MODES.includes(mode)) throw new TypeError(`measureBrowserRoles: 未知模式 "${String(mode)}"`);
   if (!Array.isArray(roleCatalog)) throw new TypeError("measureBrowserRoles: roleCatalog 必须是角色目录数组");
   if (!policy || typeof policy !== "object" || Array.isArray(policy)) {
@@ -4908,7 +4912,7 @@ export async function measureBrowserRoles(options) {
       inlineRestoreFailures: [],
       statePixelDiff: null,
       statePixelScope: null,
-      spotlightStability: { budgetMs: 500, before: null, after: null, stable: false },
+      spotlightStability: { budgetMs: spotlightTimeout, before: null, after: null, stable: false },
     },
     dpr: null,
     viewport: null,
@@ -4971,12 +4975,12 @@ export async function measureBrowserRoles(options) {
     const waitForSpotlightStability = async (stage) => {
       let stability;
       try {
-        stability = await page.evaluate(buildSpotlightStabilitySource());
+        stability = await page.evaluate(buildSpotlightStabilitySource(spotlightTimeout));
       } catch (error) {
         stability = {
           stable: false,
           reason: `probe-error: ${error instanceof Error ? error.message : String(error)}`,
-          budgetMs: 500,
+          budgetMs: spotlightTimeout,
           waitedMs: null,
         };
       }
