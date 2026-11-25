@@ -45,7 +45,7 @@
   </head>
   <body>
     <main class="shell">
-      <header class="topbar">
+      <header class="topbar" data-glass-frame>
         <h1>Agent Usage</h1>
         <div class="topbar-actions">
           <button class="theme-toggle language-toggle" id="languageToggle" type="button" aria-label="切换语言" aria-pressed="false" title="切换语言">
@@ -83,7 +83,7 @@
       </header>
 
       <section class="toolbar" aria-label="筛选">
-        <div class="control-group range-controls">
+        <div class="control-group range-controls" data-glass-frame>
           <div class="range-heading">
             <span>范围</span>
           </div>
@@ -139,7 +139,7 @@
             </div>
           </div>
         </div>
-        <div class="control-group date-range-controls">
+        <div class="control-group date-range-controls" data-glass-frame>
           <div class="range-heading">
             <span>自定义</span>
           </div>
@@ -155,7 +155,7 @@
           </button>
           <div id="dateRangePicker" class="date-picker-popover" role="dialog" aria-label="日期范围日历" hidden></div>
         </div>
-        <div id="autoRefreshStatus" class="control-group auto-refresh-status">
+        <div id="autoRefreshStatus" class="control-group auto-refresh-status" data-glass-frame>
           <div class="range-heading auto-refresh-heading"><button id="autoRefreshToggle" type="button" aria-pressed="true">自动刷新</button><span id="lastSuccessfulCheck">上次：尚无</span><span id="autoRefreshSpinner" class="auto-refresh-spinner" aria-hidden="true"></span></div>
           <div class="auto-refresh-well">
             <div class="auto-refresh-info" aria-live="polite" aria-atomic="true">
@@ -171,32 +171,32 @@
       </section>
 
       <section class="metrics" aria-label="总览">
-        <article class="metric">
+        <article class="metric" data-glass-frame>
           <span class="metric-new" hidden>New</span>
           <span>总 tokens</span>
           <strong id="totalTokens">-</strong>
         </article>
-        <article class="metric">
+        <article class="metric" data-glass-frame>
           <span class="metric-new" hidden>New</span>
           <span>总输入</span>
           <strong id="inputTokens">-</strong>
         </article>
-        <article class="metric">
+        <article class="metric" data-glass-frame>
           <span class="metric-new" hidden>New</span>
           <span>缓存读取</span>
           <strong id="cachedTokens">-</strong>
         </article>
-        <article class="metric">
+        <article class="metric" data-glass-frame>
           <span class="metric-new" hidden>New</span>
           <span>输出</span>
           <strong id="outputTokens">-</strong>
         </article>
-        <article class="metric">
+        <article class="metric" data-glass-frame>
           <span class="metric-new" hidden>New</span>
           <span>推理</span>
           <strong id="reasoningTokens">-</strong>
         </article>
-        <article class="metric">
+        <article class="metric" data-glass-frame>
           <span class="metric-new" hidden>New</span>
           <span>会话</span>
           <strong id="sessionCount">-</strong>
@@ -204,38 +204,38 @@
       </section>
 
       <section class="metrics price-metrics" aria-label="API 费用估算">
-        <article class="metric">
+        <article class="metric" data-glass-frame>
           <span class="metric-new" hidden>New</span>
           <span>估算花销</span>
           <strong id="totalCost">—</strong>
         </article>
-        <article class="metric">
+        <article class="metric" data-glass-frame>
           <span class="metric-new" hidden>New</span>
           <span>缓外输入</span>
           <strong id="inputCost">—</strong>
         </article>
-        <article class="metric">
+        <article class="metric" data-glass-frame>
           <span class="metric-new" hidden>New</span>
           <span>缓存输入</span>
           <strong id="cachedInputCost">—</strong>
         </article>
-        <article class="metric">
+        <article class="metric" data-glass-frame>
           <span class="metric-new" hidden>New</span>
           <span>输出</span>
           <strong id="outputCost">—</strong>
         </article>
-        <article class="metric">
+        <article class="metric" data-glass-frame>
           <span class="metric-new" hidden>New</span>
           <span>缓存命中</span>
           <strong id="cacheHitRate">—</strong>
         </article>
-        <article class="metric">
+        <article class="metric" data-glass-frame>
           <span class="metric-new" hidden>New</span>
           <span>模型数量</span>
           <strong id="priceModelCount">—</strong>
         </article>
       </section>
-      <section id="comparisonSummary" class="comparison-strip" aria-label="趋势变化">
+      <section id="comparisonSummary" class="comparison-strip" aria-label="趋势变化" data-glass-frame-list>
         <article class="comparison-item flat">
           <span>较昨日</span>
           <strong>—</strong>
@@ -253,7 +253,7 @@
       </section>
 
       <section class="main-grid">
-        <section class="panel chart-panel" aria-labelledby="timelinePanelTitle">
+        <section class="panel chart-panel" aria-labelledby="timelinePanelTitle" data-glass-frame>
           <div class="panel-heading timeline-heading">
             <div class="timeline-title">
               <h2 id="timelinePanelTitle">时间分布</h2>
@@ -275,7 +275,7 @@
           <div id="timelineLegend" class="timeline-legend" role="list" aria-label="图表图例"></div>
         </section>
 
-        <section class="panel detail-panel" id="detailPanel" aria-labelledby="detailPanelTitle">
+        <section class="panel detail-panel" id="detailPanel" aria-labelledby="detailPanelTitle" data-glass-frame>
           <div class="panel-heading">
             <h2 id="detailPanelTitle">详情</h2>
             <span id="detailModeLabel">按渠道</span>
@@ -285,14 +285,14 @@
       </section>
 
       <section class="period-comparison-grid" aria-label="跨时间范围用量对比">
-        <section class="panel period-comparison-panel">
+        <section class="panel period-comparison-panel" data-glass-frame>
           <div class="panel-heading period-comparison-heading">
             <h2>按模型</h2>
             <input id="modelComparisonSearch" type="search" autocomplete="off" placeholder="搜索模型" aria-label="搜索模型用量对比" />
           </div>
           <div id="modelComparisonTable" class="period-comparison-table" aria-live="polite"></div>
         </section>
-        <section class="panel period-comparison-panel">
+        <section class="panel period-comparison-panel" data-glass-frame>
           <div class="panel-heading period-comparison-heading">
             <h2>按仓库</h2>
             <input id="repositoryComparisonSearch" type="search" autocomplete="off" placeholder="搜索仓库" aria-label="搜索仓库用量对比" />
@@ -302,7 +302,7 @@
       </section>
 
       <section class="bottom-grid">
-        <section class="panel homes-panel">
+        <section class="panel homes-panel" data-glass-frame>
           <div class="panel-heading">
             <h2>扫描目录</h2>
             <button id="addImportButton" class="panel-action" type="button">编辑</button>
@@ -310,7 +310,7 @@
           <div id="homeList" class="home-list"></div>
         </section>
 
-        <section class="panel pricing-note-panel" aria-label="费用估算说明">
+        <section class="panel pricing-note-panel" aria-label="费用估算说明" data-glass-frame>
           <div class="panel-heading">
             <h2>费用估算</h2>
             <button id="updatePricingButton" class="panel-action" type="button">计价标准</button>

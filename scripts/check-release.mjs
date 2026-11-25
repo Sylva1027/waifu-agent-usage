@@ -199,7 +199,7 @@ async function checkLitePage(browser, url, locale, viewport) {
     if (response.status() >= 400) errors.push(`${response.status()} ${response.url()}`);
   });
   page.on("request", (request) => {
-    if (/\/(?:pricing|share|skin|achievement|assets\/|waifu-(?:motion|liquid-glass))/.test(new URL(request.url()).pathname))
+    if (/\/(?:pricing|share|skin|achievement|assets\/|waifu-(?:motion|liquid-glass|frame-glass))/.test(new URL(request.url()).pathname))
       forbiddenRequests.push(request.url());
   });
   try {

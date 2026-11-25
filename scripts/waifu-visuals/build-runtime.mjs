@@ -2,8 +2,11 @@ import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
+import { buildRefraction, refractionScale } from "../motion-glass/nordify/maps.ts";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
+// One top-edge profile stretches along its straight run at every panel width.
+const frameEdge = buildRefraction(16, 8);
 const jobs = [
   {
     name: "Three.js",
@@ -22,7 +25,14 @@ const jobs = [
   {
     name: "Nordify css-liquid-glass",
     license: "scripts/motion-glass/nordify/LICENSE",
-    entryPoints: { "waifu-liquid-glass": "scripts/motion-glass/glass.ts" },
+    entryPoints: {
+      "waifu-liquid-glass": "scripts/motion-glass/glass.ts",
+      "waifu-frame-glass": "scripts/motion-glass/frame-glass.ts",
+    },
+    define: {
+      __FRAME_EDGE_PNG__: JSON.stringify(frameEdge.slice.img.top),
+      __FRAME_EDGE_SCALE__: String(refractionScale(frameEdge, 96, 16)),
+    },
     css: true,
   },
 ];
@@ -33,6 +43,7 @@ for (const job of jobs) {
   const result = await build({
     absWorkingDir: root,
     entryPoints: job.entryPoints,
+    define: job.define,
     outdir: "public",
     ...(job.split && { splitting: true, chunkNames: "waifu-visuals-core" }),
     bundle: true,

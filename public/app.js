@@ -2959,6 +2959,12 @@ function setupFrameSpotlight(root) {
     )
       return;
     if (records.some((record) => record.type === "childList")) motionGlass?.refreshTargets();
+    if (
+      records.some(
+        (record) => record.attributeName === "hidden" && record.target.matches(".dialog-backdrop:not([hidden])"),
+      )
+    )
+      motionGlass?.clearFrame();
     if (active && !active.isConnected) clear();
     invalidate();
   });

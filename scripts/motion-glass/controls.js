@@ -1,4 +1,5 @@
 import { springValue } from "motion";
+import { bindFrameInput } from "./frame-input.js";
 
 const spring = { stiffness: 480, damping: 32, mass: 0.8 };
 
@@ -34,6 +35,7 @@ export function mountControls(onOptics) {
   for (const node of [group, ...tabs]) observer.observe(node);
 
   const events = new AbortController();
+  let frames;
   const options = { signal: events.signal };
   const values = new Map();
   const glassButton = document.querySelector("#skinToggle");
@@ -105,6 +107,11 @@ export function mountControls(onOptics) {
 
   return {
     select,
+    attachFrames(shell, material) {
+      if (!frames && material) frames = bindFrameInput(shell, material, events.signal, spring);
+    },
+    clearFrame: () => frames?.clear(),
+    refreshFrame: () => frames?.refresh(),
     syncOptics() {
       const value = values.get(glassButton);
       onOptics(value?.get() ?? 0, value?.getVelocity() ?? 0);

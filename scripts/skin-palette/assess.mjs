@@ -110,6 +110,7 @@ export const REQUIRED_SOURCE_FILES = Object.freeze([
   "public/waifu-motion-controls.js",
   "public/waifu-liquid-glass.css",
   "public/waifu-liquid-glass.js",
+  "public/waifu-frame-glass.js",
   "public/skin-palettes.js",
   "public/app.js",
   "public/app-state.js",

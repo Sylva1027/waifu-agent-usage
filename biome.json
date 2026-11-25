@@ -22,6 +22,7 @@
       "!!public/waifu-visuals-core.js",
       "!!public/waifu-motion-controls.js",
       "!!public/waifu-liquid-glass.js",
+      "!!public/waifu-frame-glass.js",
       "!!public/waifu-liquid-glass.css",
       "!!.tmp",
       "!!output"

@@ -14,6 +14,7 @@ function loadGlassStyles() {
 }
 
 export function setupMotionGlass() {
+  const shell = document.querySelector("main.shell");
   const reduced = matchMedia("(prefers-reduced-motion: reduce)");
   // CSS.supports alone also accepts this syntax in engines that never render it.
   const refraction = "userAgentData" in navigator && CSS.supports("backdrop-filter", "url(#glass)");
@@ -24,6 +25,8 @@ export function setupMotionGlass() {
   let pageHidden = false;
   let controls;
   let glass;
+  let frameGlass;
+  let framesLoading = false;
   let styles;
   let controlsLoading = false;
   let glassLoading = false;
@@ -40,10 +43,12 @@ export function setupMotionGlass() {
       controlsLoading = true;
       import("./waifu-motion-controls.js")
         .then(({ mountControls }) => {
-          if (wantsMotion())
+          if (wantsMotion()) {
             controls = mountControls((value, velocity) => {
               if (materialVisible) glass?.setOptics(value, velocity);
             });
+            controls.attachFrames(shell, frameGlass);
+          }
         })
         .catch(() => {})
         .finally(() => {
@@ -81,8 +86,28 @@ export function setupMotionGlass() {
         });
     }
   }
+  function updateFrameGlass() {
+    if (!shell || !refraction) return;
+    if (!visible()) {
+      frameGlass?.destroy();
+      frameGlass = undefined;
+    } else if (!frameGlass && !framesLoading) {
+      framesLoading = true;
+      import("./waifu-frame-glass.js")
+        .then(({ mountFrameGlass }) => {
+          if (!visible()) return;
+          frameGlass = mountFrameGlass(shell);
+          controls?.attachFrames(shell, frameGlass);
+        })
+        .catch(() => {})
+        .finally(() => {
+          framesLoading = false;
+        });
+    }
+  }
   function sync() {
     updateMotion();
+    updateFrameGlass();
     updateGlass();
   }
   const visibility =
@@ -93,6 +118,7 @@ export function setupMotionGlass() {
         })
       : null;
   function refreshTargets() {
+    controls?.refreshFrame();
     if (surface?.isConnected && indicator?.isConnected) return;
     const nextSurface = document.querySelector("#skinToggle [data-glass-surface]");
     const nextIndicator = document.querySelector("#timelineModes [data-motion-indicator]");
@@ -121,5 +147,10 @@ export function setupMotionGlass() {
     sync();
   });
   refreshTargets();
-  return { updateGlass, refreshTargets, select: (mode) => controls?.select(mode) };
+  return {
+    updateGlass,
+    refreshTargets,
+    clearFrame: () => controls?.clearFrame(),
+    select: (mode) => controls?.select(mode),
+  };
 }

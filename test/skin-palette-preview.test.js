@@ -886,6 +886,7 @@ test("源摘要覆盖 M3.4 必需集与捕获链路自身依赖（直接断言�
     "public/waifu-motion-controls.js",
     "public/waifu-liquid-glass.css",
     "public/waifu-liquid-glass.js",
+    "public/waifu-frame-glass.js",
   ]) {
     assert.ok(REQUIRED_SOURCE_FILES.includes(file), file);
   }
