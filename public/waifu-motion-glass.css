@@ -59,14 +59,12 @@
     color-mix(in srgb, var(--ceramic-top) 53%, transparent)
   );
   --glass-well: color-mix(in srgb, var(--ceramic-well) 74%, transparent);
-  --glass-title-groove: color-mix(in srgb, #233a4c 70%, var(--neo-surface));
 }
 
 :root[data-theme="dark"] {
   --glass-environment-light: color-mix(in srgb, var(--blue) 39%, var(--bg));
   --glass-rim-light: color-mix(in srgb, var(--ceramic-top) 64%, white);
   --glass-rim-shade: color-mix(in srgb, var(--ceramic-shade) 68%, transparent);
-  --glass-title-groove: color-mix(in srgb, #040b11 78%, var(--neo-surface));
 }
 
 :root[data-skin="classic"] {
@@ -201,13 +199,11 @@ html:not([data-frame-refraction])
   background-color: var(--glass-well);
 }
 
-/* The transparent letter centres expose both the static colour and the refraction underneath. */
+/* The cut face is darker than the surface. Offset reflected light leaves its upper lip in shadow. */
 .shell .topbar > h1 {
   color: transparent;
-  -webkit-text-fill-color: transparent;
-  -webkit-text-stroke: 1px var(--glass-title-groove);
-  text-shadow: none;
-  filter: drop-shadow(0.6px 1px 0 var(--glass-rim-light));
+  background: color-mix(in srgb, var(--neo-surface) 35%, #0a1720) text;
+  text-shadow: 0.7px 1.5px 1.25px color-mix(in srgb, var(--neo-surface) 80%, transparent);
 }
 
 :root[data-skin="classic"] #skinToggle {
@@ -261,9 +257,9 @@ html:not([data-frame-refraction])
 
 @media (forced-colors: active) {
   .shell .topbar > h1 {
-    forced-color-adjust: none;
-    -webkit-text-stroke-color: CanvasText;
-    filter: none;
+    color: CanvasText;
+    background: none;
+    text-shadow: none;
   }
 
   #timelineModes[data-motion-ready] > button[aria-pressed="true"] {

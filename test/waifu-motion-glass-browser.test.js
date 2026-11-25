@@ -62,25 +62,25 @@ async function checkDashboardFrames(page, scenario) {
   assert.equal(await page.locator("#mg-frame-active, #mg-frame-static").count(), supported ? 2 : 0);
   const title = page.getByRole("heading", { name: "Agent Usage", exact: true });
   const assertTitle = async () => {
-    const [fill, stroke, rim] = await title.evaluate((node) => {
+    const [clip, stroke, shade] = await title.evaluate((node) => {
       const style = getComputedStyle(node);
-      return [style.webkitTextFillColor, style.webkitTextStrokeWidth, style.filter];
+      return [style.backgroundClip, style.webkitTextStrokeWidth, style.textShadow];
     });
-    assert.equal(fill, "rgba(0, 0, 0, 0)");
-    assert.ok(parseFloat(stroke) > 0);
-    assert.match(rim, /drop-shadow/);
+    assert.equal(clip, "text");
+    assert.equal(parseFloat(stroke), 0);
+    assert.notEqual(shade, "none");
   };
   await assertTitle();
   if (scenario === "classic") {
-    const edged = await title.screenshot();
+    const recessed = await title.screenshot();
     await title.evaluate((n) => {
-      n.style.webkitTextStrokeWidth = "0";
+      n.style.textShadow = "none";
     });
-    const clear = await title.screenshot();
+    const flat = await title.screenshot();
     await title.evaluate((n) => {
-      n.style.removeProperty("-webkit-text-stroke-width");
+      n.style.removeProperty("text-shadow");
     });
-    await assertPaintChanges(page, edged, clear, "the incised title must paint an actual outline");
+    await assertPaintChanges(page, recessed, flat, "directional light must change the painted face of the lettering");
     await page.locator("#themeToggle").click();
     await page.waitForFunction(
       () => document.documentElement.dataset.theme === "dark" && !document.documentElement.dataset.themeTransition,
