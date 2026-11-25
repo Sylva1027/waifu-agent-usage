@@ -33,6 +33,7 @@ async function setup(t, options = {}) {
         window.achievementTestEvents = [];
         window.achievementTestStreams = [];
         window.achievementTestConnections = 0;
+        window.achievementTestStreamReadyAt = null;
         window.achievementTestIntervals = [];
         const NativeEventSource = window.EventSource;
         window.EventSource = class extends NativeEventSource {
@@ -40,6 +41,9 @@ async function setup(t, options = {}) {
             super(url, options);
             window.achievementTestStreams.push(String(url));
             this.addEventListener("open", () => window.achievementTestConnections++);
+            this.addEventListener("ready", () => {
+              window.achievementTestStreamReadyAt = performance.now();
+            });
             this.addEventListener("achievement-state", (event) => {
               window.achievementTestEvents.push(JSON.parse(event.data));
             });
@@ -338,6 +342,20 @@ test("two independent pages including watch=0 share persistent unread state acro
   assert.equal(readRestart.seenAwardRevision, readRestart.awardRevision);
   await visit(a.page, fixture);
   await notice(a.page, false);
+  // The usage report and the SSE ready event can both refresh achievements during startup.
+  await a.page.waitForFunction(() => {
+    const readyAt = window.achievementTestStreamReadyAt;
+    if (readyAt === null || document.querySelector("#totalTokens")?.textContent === "-") return false;
+    const entries = performance.getEntriesByType("resource");
+    const usage = entries.findLast(({ name }) => new URL(name).pathname === "/api/usage");
+    return (
+      usage &&
+      entries.some(
+        ({ name, startTime }) =>
+          new URL(name).pathname === "/api/achievements" && startTime >= Math.max(usage.responseEnd, readyAt),
+      )
+    );
+  });
   const timers = await a.page.evaluate(() => ({
     intervals: window.achievementTestIntervals,
     streams: window.achievementTestStreams,
@@ -348,7 +366,6 @@ test("two independent pages including watch=0 share persistent unread state acro
     "only the existing relative check-time and pricing intervals remain",
   );
   assert.deepEqual(timers.streams, ["/api/usage-events?watch=0"]);
-  await a.page.waitForTimeout(250);
   const counts = a.requests.filter(({ path }) => path === "/api/achievements").length;
   await a.page.waitForTimeout(1_200);
   assert.equal(
