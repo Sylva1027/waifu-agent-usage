@@ -122,12 +122,21 @@
 }
 
 html[data-skin] > body {
+  --glass-wallpaper-base: var(--bg);
   background:
     radial-gradient(ellipse 91% 33% at 107% 5%, transparent 49%, var(--glass-environment-light) 52%, transparent 58%),
     radial-gradient(ellipse 94% 40% at -17% 69%, transparent 61%, var(--glass-halo) 67%, transparent 75%),
     radial-gradient(ellipse 77% 30% at 84% 96%, var(--glass-ambient), transparent),
     radial-gradient(ellipse 62% 45% at 6% 35%, var(--glass-ambient), transparent),
-    radial-gradient(ellipse 73% 35% at 95% 9%, var(--glass-halo), transparent), var(--bg);
+    radial-gradient(ellipse 73% 35% at 95% 9%, var(--glass-halo), transparent), var(--glass-wallpaper-base);
+}
+
+/* Keep the wallpaper highlights below the glass and its white rim. */
+html[data-skin][data-theme="light"] > body {
+  --glass-wallpaper-base: color-mix(in srgb, var(--bg) 74%, var(--muted));
+  --glass-halo: color-mix(in srgb, var(--blue) 21%, var(--glass-wallpaper-base));
+  --glass-ambient: color-mix(in srgb, var(--control-hover) 32%, var(--glass-wallpaper-base));
+  --glass-environment-light: color-mix(in srgb, var(--ceramic-top) 30%, var(--glass-wallpaper-base));
 }
 
 .shell :is([data-glass-frame], [data-glass-frame-list] > .comparison-item) {
