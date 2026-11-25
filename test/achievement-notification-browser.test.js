@@ -79,9 +79,12 @@ async function setup(t, options = {}) {
 }
 
 async function visit(page, fixture) {
-  await page.goto(fixture.url);
-  await page.locator("#achievementNotice").waitFor({ state: "attached" });
-  await page.waitForFunction(() => document.querySelector("#totalTokens").textContent !== "-");
+  await page.goto(fixture.url, { waitUntil: "domcontentloaded" });
+  // A ready snapshot populates the closed dialog with rows or the completed empty state.
+  await page
+    .locator("#achievementList .achievement-row, #achievementList .empty-state h3")
+    .first()
+    .waitFor({ state: "attached" });
   await page.waitForFunction(() => window.achievementTestEvents.length > 0);
 }
 
@@ -393,12 +396,20 @@ test("a delayed real GET cannot roll back a newer event or acknowledge an unseen
   await page.locator("#achievementToggle").click();
   const stale = await gate.entered;
   assert.equal(stale.awardRevision, initial.awardRevision);
+  await page.keyboard.press("Escape");
+  await page.locator("#achievementDialog").waitFor({ state: "hidden" });
+  const published = page.waitForResponse(async (response) => {
+    if (new URL(response.url()).pathname !== "/api/achievements" || !response.ok()) return false;
+    const snapshot = await response.json();
+    return snapshot.profileId === stale.profileId && snapshot.awardRevision > stale.awardRevision;
+  });
   const newer = await fixture.addGold();
   assert.ok(newer.awardRevision > stale.awardRevision);
   await eventAt(page, newer);
-  await page.keyboard.press("Escape");
-  await page.locator("#achievementDialog").waitFor({ state: "hidden" });
   await gate.release();
+  const delivered = await (await published).json();
+  assert.equal(delivered.awardRevision, newer.awardRevision);
+  assert.equal(delivered.seenAwardRevision, initial.awardRevision);
   await notice(page, true);
   assert.equal((await fixture.snapshot()).seenAwardRevision, initial.awardRevision);
   await viewRecent(page, fixture, newer);

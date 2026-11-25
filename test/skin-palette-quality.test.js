@@ -10639,11 +10639,11 @@ test("M5.2.C-E1d：真实Edge深色dashboard在聚光淡入稳定后取整页基
     const port = await listenOnFreePort(server);
     const origin = `http://127.0.0.1:${port}`;
     const { chromium, executablePath } = browserRuntime;
-    // Compare exact pixels with a fixed renderer while retaining the real CSS transitions and SVG filters.
+    // Finish compositing the full document before each capture. Offscreen gradient tiles can otherwise alternate.
     browser = await chromium.launch({
       executablePath,
       headless: true,
-      args: ["--enable-unsafe-swiftshader", "--use-gl=angle", "--use-angle=swiftshader"],
+      args: ["--disable-gpu", "--run-all-compositor-stages-before-draw"],
     });
     context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
     await context.route("**/*", async (route) => {
@@ -10652,7 +10652,10 @@ test("M5.2.C-E1d：真实Edge深色dashboard在聚光淡入稳定后取整页基
       blockedRemoteRequests.push(requestUrl.href);
       return route.abort();
     });
-    await context.addInitScript(buildPreferenceSeedSource({ theme: "light", skinId: "classic" }));
+    // Character skins use this spotlight in production. Classic renders its own glass on the same panel.
+    await context.addInitScript(
+      buildPreferenceSeedSource({ theme: "light", skinId: "chatgpt", showCharacters: false }),
+    );
     const page = await context.newPage();
     installBrowserColorObserver(page);
     await openPaletteDashboard(page, origin);
@@ -10663,6 +10666,11 @@ test("M5.2.C-E1d：真实Edge深色dashboard在聚光淡入稳定后取整页基
     }
     await page.waitForFunction(
       () => document.documentElement.dataset.theme === "dark" && !document.documentElement.dataset.themeTransition,
+    );
+    assert.equal(await page.locator("html").getAttribute("data-skin"), "chatgpt");
+    assert.equal(
+      await page.locator("#detailPanel").evaluate((panel) => getComputedStyle(panel, "::before").backdropFilter),
+      "none",
     );
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.evaluate(async () => {
@@ -10735,10 +10743,8 @@ test("M5.2.C-E1d：真实Edge深色dashboard在聚光淡入稳定后取整页基
     });
     const role = ROLE_CATALOG.find((entry) => entry.id === "input.placeholder");
     assert.ok(role?.states.includes("dashboard-default"));
-    // Keep the revealed gradient on one compositing layer through measurement and restoration.
     await page.addStyleTag({
       content: `
-        #detailPanel::after { will-change: opacity; }
         #modelComparisonSearch::placeholder,
         #repositoryComparisonSearch::placeholder {
           color: #232b32 !important;

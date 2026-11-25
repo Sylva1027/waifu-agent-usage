@@ -121,6 +121,8 @@ jobs:
           npm.cmd test -- --test-reporter=spec --test-concurrency=1 test/q5-refresh-delivery.test.js
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           npm.cmd test -- --test-reporter=spec '--test-name-pattern=^ZCode 1000-event history' test/usage-source-prefix-publication.test.js
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm.cmd test -- --test-reporter=spec --test-concurrency=1 '--test-name-pattern=E1d' test/skin-palette-quality.test.js
       - name: Run full Windows suite
         if: github.event_name != 'pull_request' && needs.changes.outputs.docs-only != 'true'
         timeout-minutes: 30
