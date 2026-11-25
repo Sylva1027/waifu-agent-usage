@@ -19,7 +19,8 @@ export function setupMotionGlass() {
   // CSS.supports alone also accepts this syntax in engines that never render it.
   const refraction = "userAgentData" in navigator && CSS.supports("backdrop-filter", "url(#glass)");
   let surface;
-  let indicator;
+  let timelineIndicator;
+  let presetIndicator;
   let inView = false;
   let materialVisible = false;
   let pageHidden = false;
@@ -32,7 +33,8 @@ export function setupMotionGlass() {
   let glassLoading = false;
 
   const visible = () => !document.hidden && !pageHidden;
-  const wantsMotion = () => visible() && indicator?.isConnected && !reduced.matches;
+  const wantsMotion = () =>
+    visible() && !reduced.matches && (timelineIndicator?.isConnected || presetIndicator?.isConnected);
   const wantsGlass = () =>
     refraction && visible() && surface?.isConnected && document.documentElement.dataset.skin === "classic";
   function updateMotion() {
@@ -44,9 +46,13 @@ export function setupMotionGlass() {
       import("./waifu-motion-controls.js")
         .then(({ mountControls }) => {
           if (wantsMotion()) {
-            controls = mountControls((value, velocity) => {
-              if (materialVisible) glass?.setOptics(value, velocity);
-            });
+            controls = mountControls(
+              (value, velocity) => {
+                if (materialVisible) glass?.setOptics(value, velocity);
+              },
+              timelineIndicator,
+              presetIndicator,
+            );
             controls.attachFrames(shell, frameGlass);
           }
         })
@@ -119,10 +125,11 @@ export function setupMotionGlass() {
       : null;
   function refreshTargets() {
     controls?.refreshFrame();
-    if (surface?.isConnected && indicator?.isConnected) return;
+    if (surface?.isConnected && timelineIndicator?.isConnected && presetIndicator?.isConnected) return;
     const nextSurface = document.querySelector("#skinToggle [data-glass-surface]");
-    const nextIndicator = document.querySelector("#timelineModes [data-motion-indicator]");
-    if (nextSurface === surface && nextIndicator === indicator) return;
+    const nextTimeline = document.querySelector("#timelineModes > [data-motion-indicator]");
+    const nextPreset = document.querySelector("#presetButtons > [data-motion-indicator]");
+    if (nextSurface === surface && nextTimeline === timelineIndicator && nextPreset === presetIndicator) return;
     controls?.destroy();
     controls = undefined;
     if (nextSurface !== surface) {
@@ -133,7 +140,8 @@ export function setupMotionGlass() {
       inView = !visibility;
       if (surface) visibility?.observe(surface);
     }
-    indicator = nextIndicator;
+    timelineIndicator = nextTimeline;
+    presetIndicator = nextPreset;
     sync();
   }
   reduced.addEventListener("change", updateMotion);
@@ -151,6 +159,7 @@ export function setupMotionGlass() {
     updateGlass,
     refreshTargets,
     clearFrame: () => controls?.clearFrame(),
-    select: (mode) => controls?.select(mode),
+    syncTimeline: () => controls?.syncTimeline(),
+    syncPreset: () => controls?.syncPreset(),
   };
 }

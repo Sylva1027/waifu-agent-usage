@@ -516,6 +516,8 @@ function rolesForState(roleCatalog, stateId) {
 export function buildColorObserverSource() {
   return `// skinProbe: color-observer
 (() => {
+  // Palette capture also measures the original ceramic spotlight and its masked wells.
+  window.__skinPaletteLegacySpotlight = true;
   const globalKey = ${JSON.stringify(OBSERVER_GLOBAL)};
   if (window[globalKey]) return "already-installed";
   const proto = window.CanvasRenderingContext2D && window.CanvasRenderingContext2D.prototype;

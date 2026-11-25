@@ -3,37 +3,54 @@ import { bindFrameInput } from "./frame-input.js";
 
 const spring = { stiffness: 480, damping: 32, mass: 0.8 };
 
-export function mountControls(onOptics) {
-  const group = document.querySelector("#timelineModes");
-  const indicator = group.querySelector("[data-motion-indicator]");
-  const tabs = [...group.querySelectorAll("button[data-timeline-mode]")];
+function mountIndicator(indicator) {
+  const group = indicator.parentElement;
   const position = springValue(0, spring);
   position.on("change", (x) => {
     indicator.style.transform = `translateX(${x}px)`;
   });
   let selection;
   function align(animate) {
-    if (!selection?.offsetWidth) {
+    const width = selection?.offsetWidth;
+    if (!width) {
+      position.jump(position.get());
       group.removeAttribute("data-motion-ready");
       return;
     }
     const x = selection.offsetLeft;
-    indicator.style.width = `${selection.offsetWidth}px`;
+    indicator.style.width = `${width}px`;
     if (animate && group.hasAttribute("data-motion-ready")) position.set(x);
     else position.jump(x);
     group.setAttribute("data-motion-ready", "");
   }
-  function select(mode) {
-    const next = tabs.find((button) => button.dataset.timelineMode === mode);
+  function sync() {
+    const next = group.querySelector(":scope > .active");
     if (next === selection) return;
     selection = next;
     align(true);
   }
-  selection = group.querySelector('[aria-pressed="true"]');
+  selection = group.querySelector(":scope > .active");
   align(false);
   const observer = new ResizeObserver(() => align(false));
-  for (const node of [group, ...tabs]) observer.observe(node);
+  observer.observe(group);
+  for (const child of group.children) {
+    if (child !== indicator) observer.observe(child);
+  }
+  return {
+    sync,
+    destroy() {
+      observer.disconnect();
+      position.destroy();
+      group.removeAttribute("data-motion-ready");
+      indicator.style.removeProperty("transform");
+      indicator.style.removeProperty("width");
+    },
+  };
+}
 
+export function mountControls(onOptics, timelineIndicator, presetIndicator) {
+  const timeline = timelineIndicator && mountIndicator(timelineIndicator);
+  const presets = presetIndicator && mountIndicator(presetIndicator);
   const events = new AbortController();
   let frames;
   const options = { signal: events.signal };
@@ -106,7 +123,8 @@ export function mountControls(onOptics) {
   window.addEventListener("blur", release, options);
 
   return {
-    select,
+    syncTimeline: () => timeline?.sync(),
+    syncPreset: () => presets?.sync(),
     attachFrames(shell, material) {
       if (!frames && material) frames = bindFrameInput(shell, material, events.signal, spring);
     },
@@ -118,11 +136,8 @@ export function mountControls(onOptics) {
     },
     destroy() {
       events.abort();
-      observer.disconnect();
-      position.destroy();
-      group.removeAttribute("data-motion-ready");
-      indicator.style.removeProperty("transform");
-      indicator.style.removeProperty("width");
+      timeline?.destroy();
+      presets?.destroy();
       for (const [button, value] of values) {
         value.destroy();
         for (const item of button.querySelectorAll("[data-motion-content]")) item.style.removeProperty("scale");

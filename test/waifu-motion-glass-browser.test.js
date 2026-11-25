@@ -11,6 +11,7 @@ const host = "#skinToggle [data-glass-surface].lg-host";
 const ready = "#timelineModes[data-motion-ready]";
 const glassRequest = /\/waifu-liquid-glass\.(?:js|css)(?:\?|$)/;
 const frameSelector = "[data-glass-frame], [data-glass-frame-list] > .comparison-item";
+const topbarIds = ["achievementToggle", "languageToggle", "shareToggle", "skinToggle", "themeToggle"];
 
 async function assertPaintChanges(page, before, after, label) {
   const changed = await page.evaluate(
@@ -32,6 +33,138 @@ async function assertPaintChanges(page, before, after, label) {
     [before.toString("base64"), after.toString("base64")],
   );
   assert.ok(changed > 0, label);
+}
+
+async function checkPaintedControl(page, selector, opticalSelector) {
+  const control = page.locator(selector);
+  const withOptics = await control.screenshot();
+  const override = await page.addStyleTag({ content: `${opticalSelector}{backdrop-filter:none!important}` });
+  try {
+    await assertPaintChanges(
+      page,
+      withOptics,
+      await control.screenshot(),
+      `${selector} must paint its optical surface`,
+    );
+  } finally {
+    await override.evaluate((node) => node.remove());
+  }
+}
+
+async function waitForPlate(page, groupId, selection) {
+  await page.waitForFunction(
+    ({ groupId, selection }) => {
+      const group = document.getElementById(groupId);
+      const plate = group.querySelector(":scope > [data-motion-indicator]").getBoundingClientRect();
+      const target = group.querySelector(selection)?.getBoundingClientRect();
+      return (
+        target && plate.width > 0 && Math.abs(plate.left - target.left) < 1 && Math.abs(plate.width - target.width) < 1
+      );
+    },
+    { groupId, selection },
+  );
+}
+
+async function checkActionGlass(page, scenario) {
+  const supported = scenario !== "fallback";
+  const animated = supported && scenario !== "reduced";
+  // The populated range enables Share and exercises the production data binding.
+  await page.locator('#presetButtons > [data-preset="all"]').click();
+  await page.waitForSelector("#detailList .bar-row");
+  await page.waitForFunction(() => !document.getElementById("shareToggle").disabled);
+  const actual = await page
+    .locator(".topbar-actions > button[data-glass-control]")
+    .evaluateAll((buttons) => buttons.map((b) => b.id).sort());
+  assert.deepEqual(actual, topbarIds);
+  await page.mouse.move(0, 0);
+  await page.waitForFunction(() => !document.querySelector("[data-glass-frame-active]"));
+  for (const id of topbarIds) {
+    const selector = `#${id}`,
+      button = page.locator(selector);
+    const fullShirt = id === "skinToggle" && scenario !== "character" && supported;
+    if (fullShirt) {
+      await page.locator(`${selector} .lg-pane`).waitFor({ state: "attached" });
+      if (scenario === "classic") await checkPaintedControl(page, selector, `${selector} .lg-pane`);
+      continue;
+    }
+    const initial = await button.evaluate((n) => getComputedStyle(n, "::before").backdropFilter);
+    assert.equal(initial.includes("#mg-frame-static"), supported, `${id} static material`);
+    if (!supported && id !== "skinToggle")
+      assert.match(
+        await button.evaluate((n) => getComputedStyle(n).backgroundImage),
+        /gradient\(/,
+        `${id} static lens`,
+      );
+    await button.hover();
+    if (animated) {
+      await page.waitForFunction(
+        (id) => getComputedStyle(document.getElementById(id), "::before").backdropFilter.includes("#mg-frame-active"),
+        id,
+      );
+      if (scenario === "classic" || id === "skinToggle") {
+        await page.waitForTimeout(450);
+        await checkPaintedControl(page, selector, `${selector}::before`);
+      }
+    }
+    assert.equal(await page.locator(".shell [data-spotlight-active]").count(), 0);
+    await page.mouse.move(0, 0);
+    await page.waitForFunction(() => !document.querySelector("[data-glass-frame-active]"));
+  }
+  for (const [id, choice] of [
+    ["presetButtons", '[data-preset="week"]'],
+    ["timelineModes", '[data-timeline-mode="cost"]'],
+  ]) {
+    const plate = `#${id} > [data-motion-indicator]`;
+    assert.equal(await page.locator(plate).count(), 1);
+    const target = page.locator(`#${id} > ${choice}`);
+    if (animated) {
+      await page.locator(`#${id}[data-motion-ready]`).waitFor({ state: "attached" });
+      assert.match(
+        await page.locator(plate).evaluate((n) => getComputedStyle(n, "::before").backdropFilter),
+        /#mg-frame-static/,
+      );
+      await target.hover();
+      await page.waitForFunction(
+        (plate) =>
+          getComputedStyle(document.querySelector(plate), "::before").backdropFilter.includes("#mg-frame-active"),
+        plate,
+      );
+    }
+    await target.press("Enter");
+    const selection = id === "presetButtons" ? `:scope > ${choice}.active` : `:scope > ${choice}[aria-pressed="true"]`;
+    assert.equal(await page.locator(`#${id}`).locator(selection).count(), 1);
+    if (scenario !== "reduced") {
+      await waitForPlate(page, id, selection);
+      if (scenario === "classic") await checkPaintedControl(page, plate, `${plate}::before`);
+    }
+    if (!animated) {
+      const visibleSelection = scenario === "reduced" ? target : page.locator(plate);
+      assert.match(
+        await visibleSelection.evaluate((n) => getComputedStyle(n).backgroundImage),
+        /gradient\(/,
+        `${id} shows the selected lens`,
+      );
+    }
+    await target.blur();
+    await page.mouse.move(0, 0);
+    await page.waitForFunction(() => !document.querySelector("[data-glass-frame-active]"));
+  }
+  if (scenario === "classic") {
+    await page.locator("#quotaPresetToggle").click();
+    await waitForPlate(page, "presetButtons", ":scope > #quotaPresetToggle.active");
+    await page.locator("#recentMenuButton").click();
+    await page.locator('#recentRangeMenu [data-recent-option="上个月"]').click();
+    await waitForPlate(page, "presetButtons", ":scope > .recent-segment.active");
+    await page.locator("#dateRangeButton").click();
+    const days = page.locator("#dateRangePicker button[data-date]:enabled:not(.outside-month)");
+    await days.nth(1).click();
+    await days.nth(3).click();
+    await page.locator("#presetButtons[data-motion-ready]").waitFor({ state: "detached" });
+    assert.equal(await page.locator("#presetButtons > [data-motion-indicator]").isVisible(), false);
+  }
+  await page.locator('#timelineModes > [data-timeline-mode="channel"]').click();
+  await page.locator('#presetButtons > [data-preset="today"]').click();
+  await page.mouse.move(0, 0);
 }
 
 async function checkDashboardFrames(page, scenario) {
@@ -230,6 +363,7 @@ test("Waifu motion follows native input and classic glass owns the active filter
         const button = page.locator("#skinToggle");
         if (scenario !== "reduced") await page.locator(ready).waitFor({ state: "attached" });
         await checkDashboardFrames(page, scenario);
+        await checkActionGlass(page, scenario);
         assert.equal(
           requests.some((address) => address.includes("/waifu-frame-glass.js")),
           scenario !== "fallback",
@@ -394,7 +528,9 @@ test("Waifu motion follows native input and classic glass owns the active filter
         );
         if (scenario !== "reduced") {
           await page.waitForFunction(() => {
-            const indicator = document.querySelector("[data-motion-indicator]").getBoundingClientRect();
+            const indicator = document
+              .querySelector("#timelineModes > [data-motion-indicator]")
+              .getBoundingClientRect();
             const target = document.querySelector('#timelineModes [aria-pressed="true"]').getBoundingClientRect();
             return Math.abs(indicator.left - target.left) < 1 && Math.abs(indicator.width - target.width) < 1;
           });

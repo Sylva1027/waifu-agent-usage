@@ -34,7 +34,12 @@ export function bindFrameInput(shell, glass, signal, spring) {
     else value.set(pressed ? 1 : next ? 0.55 : 0);
   }
   function frameOf(node) {
-    if (!(node instanceof Element) || !shell.contains(node) || node.closest("#skinToggle")) return null;
+    if (!(node instanceof Element) || !shell.contains(node)) return null;
+    const control = node.closest(".topbar-actions > [data-glass-control]");
+    if (control) return control.disabled || control.querySelector(".lg-host") ? null : control;
+    const rail = node.closest(":is(#presetButtons, #timelineModes)[data-motion-ready]");
+    const indicator = rail?.querySelector(":scope > [data-motion-indicator]");
+    if (indicator && !indicator.hidden && !node.closest(".recent-range-menu")) return indicator;
     return node.closest("[data-glass-frame], [data-glass-frame-list] > .comparison-item");
   }
   value.on("change", (amount) => {

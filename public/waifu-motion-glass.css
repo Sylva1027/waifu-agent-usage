@@ -15,34 +15,36 @@
   pointer-events: none;
 }
 
-#timelineModes {
+:is(#presetButtons, #timelineModes) {
   position: relative;
 }
 
-#timelineModes > button[aria-pressed="false"]:hover {
-  border-color: transparent;
+.shell :is(#presetButtons, #timelineModes) > :is(button, .recent-segment) + :is(button, .recent-segment)::before {
+  left: -4px;
+  width: 1px;
+  background: linear-gradient(transparent, var(--glass-rim-shade), transparent);
+  box-shadow: none;
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  #timelineModes[data-motion-ready] > [data-motion-indicator] {
+  :is(#presetButtons, #timelineModes)[data-motion-ready] > [data-motion-indicator]:not([hidden]) {
     display: block;
     position: absolute;
     inset-block: 7px;
     left: 0;
-    border: 1px solid transparent;
-    border-block-color: var(--ceramic-rim) var(--ceramic-shade);
-    border-radius: 10px;
-    background: linear-gradient(145deg, var(--ceramic-top), var(--ceramic-bottom));
-    box-shadow:
-      0 2px 2px var(--ceramic-shade),
-      var(--neo-raised-small);
   }
 
-  #timelineModes[data-motion-ready] > button[aria-pressed="true"] {
+  .shell :is(#presetButtons, #timelineModes)[data-motion-ready] > :is(.active, [aria-pressed="true"]) {
     border-color: transparent;
     background: transparent;
     box-shadow: none;
   }
+}
+
+.shell :is(#presetButtons, #timelineModes) > button:not(.active, [aria-pressed="true"]):hover {
+  border-color: transparent;
+  color: var(--blue);
+  transform: none;
 }
 
 /* A single environment behind the whole board stays continuous across adjoining panes. */
@@ -50,21 +52,33 @@
   --glass-halo: color-mix(in srgb, var(--blue) 32%, var(--bg));
   --glass-ambient: color-mix(in srgb, var(--control-hover) 48%, var(--bg));
   --glass-environment-light: color-mix(in srgb, var(--ceramic-top) 72%, white);
-  --glass-rim-light: color-mix(in srgb, white 76%, var(--ceramic-top));
-  --glass-rim-shade: color-mix(in srgb, var(--muted) 33%, transparent);
+  --glass-rim-light: color-mix(in srgb, white 72%, transparent);
+  --glass-rim-shade: color-mix(in srgb, var(--blue) 25%, transparent);
+  --glass-cast: color-mix(in srgb, var(--ink) 16%, transparent);
   --glass-face: linear-gradient(
     141deg,
-    color-mix(in srgb, var(--ceramic-top) 68%, transparent),
-    color-mix(in srgb, var(--neo-surface) 31%, transparent) 59%,
-    color-mix(in srgb, var(--ceramic-top) 53%, transparent)
+    color-mix(in srgb, var(--neo-surface) 54%, transparent),
+    color-mix(in srgb, var(--neo-surface) 24%, transparent) 54%,
+    color-mix(in srgb, var(--neo-surface) 64%, transparent)
   );
-  --glass-well: color-mix(in srgb, var(--ceramic-well) 74%, transparent);
+  --glass-lens:
+    radial-gradient(ellipse at 24% 0%, var(--glass-rim-light), transparent 67%),
+    linear-gradient(
+      153deg,
+      color-mix(in srgb, var(--blue) 13%, var(--neo-surface)),
+      color-mix(in srgb, var(--neo-surface) 34%, transparent) 51%,
+      color-mix(in srgb, var(--blue) 15%, var(--neo-surface))
+    );
+  --glass-well: color-mix(in srgb, var(--bg) 62%, transparent);
+  --glass-table: color-mix(in srgb, var(--bg) 70%, var(--neo-surface));
 }
 
 :root[data-theme="dark"] {
   --glass-environment-light: color-mix(in srgb, var(--blue) 39%, var(--bg));
-  --glass-rim-light: color-mix(in srgb, var(--ceramic-top) 64%, white);
-  --glass-rim-shade: color-mix(in srgb, var(--ceramic-shade) 68%, transparent);
+  --glass-rim-light: color-mix(in srgb, var(--blue) 32%, transparent);
+  --glass-rim-shade: color-mix(in srgb, var(--blue) 21%, transparent);
+  --glass-cast: color-mix(in srgb, black 27%, transparent);
+  --glass-well: color-mix(in srgb, var(--bg) 78%, transparent);
 }
 
 :root[data-skin="classic"] {
@@ -85,11 +99,8 @@
   --neo-raised-small: inset 0 1px 0 var(--ceramic-rim), 0 2px 5px #29495c1a;
   --neo-inset: inset 0 1px 3px var(--ceramic-shade), 0 1px 0 var(--ceramic-rim);
   --neo-inset-small: inset 0 1px 2px var(--ceramic-shade);
-  --glass-surface: linear-gradient(135deg, #ffffffc9, #edf7fac2 52%, #dceaf1ad);
   --glass-halo: #a4dce3;
   --glass-ambient: #c2cce6;
-  --glass-ribbon: #4c91a28f;
-  --glass-ribbon-light: #e6ffffe0;
 }
 
 :root[data-skin="classic"][data-theme="dark"] {
@@ -106,11 +117,8 @@
   --neo-edge: #b0d9e938;
   --neo-raised: inset 0 1px 0 var(--ceramic-rim), 0 4px 14px #050c1640;
   --neo-raised-small: inset 0 1px 0 var(--ceramic-rim), 0 2px 5px #050c164d;
-  --glass-surface: linear-gradient(135deg, #304856e8, #203440d9 58%, #203643ba);
   --glass-halo: #27525b;
   --glass-ambient: #33405b;
-  --glass-ribbon: #57b7c17a;
-  --glass-ribbon-light: #bbdfffb8;
 }
 
 html[data-skin] > body {
@@ -125,11 +133,40 @@ html[data-skin] > body {
 .shell :is([data-glass-frame], [data-glass-frame-list] > .comparison-item) {
   position: relative;
   background: var(--glass-face);
-  border-color: var(--glass-rim-light) var(--glass-rim-shade) var(--glass-rim-shade) var(--glass-rim-light);
+  border-color: var(--glass-rim-light) var(--glass-rim-shade) var(--glass-rim-shade);
+  box-shadow: 0 8px 20px -14px var(--glass-cast);
+}
+
+.shell .topbar-actions > [data-glass-control],
+.shell :is(#presetButtons, #timelineModes) > [data-motion-indicator],
+.shell :is(#presetButtons, #timelineModes):not([data-motion-ready]) > :is(.active, [aria-pressed="true"]) {
+  --glass-frame-rim-inset: 6px;
+  position: relative;
+  border: 1px solid var(--glass-rim-shade);
+  border-top-color: var(--glass-rim-light);
+  border-radius: 10px;
+  background: var(--glass-lens);
   box-shadow:
-    inset 0 1px 1px var(--ceramic-rim),
-    inset 0 -2px 2px color-mix(in srgb, var(--neo-surface) 55%, transparent),
-    0 4px 12px -5px var(--ceramic-shade);
+    inset 0 -1px 0 var(--glass-rim-shade),
+    0 3px 8px -4px var(--glass-cast);
+}
+
+.shell :is(#presetButtons, #timelineModes) > [data-motion-indicator] {
+  position: absolute;
+}
+
+.shell .topbar-actions > [data-glass-control] {
+  border-radius: 13px;
+  transform: none;
+}
+
+.shell .topbar-actions > [data-glass-control]:disabled {
+  opacity: 0.55;
+}
+
+.shell .topbar-actions > [data-glass-control] > [data-motion-content] {
+  position: relative;
+  z-index: 1;
 }
 
 /* The legend sits along the bottom of the chart, above artwork that can match a series colour. */
@@ -137,7 +174,12 @@ html[data-skin] > body {
   background: var(--glass-face), linear-gradient(to top, var(--neo-surface) 1rem, transparent 4rem);
 }
 
-:where([data-glass-frame], [data-glass-frame-list] > .comparison-item)::before {
+:where(
+  [data-glass-frame],
+  [data-glass-frame-list] > .comparison-item,
+  .topbar-actions > [data-glass-control],
+  [data-motion-indicator]
+)::before {
   content: "";
   position: absolute;
   pointer-events: none;
@@ -148,7 +190,13 @@ html[data-skin] > body {
   mask-image: linear-gradient(to right, transparent, black 10px, black calc(100% - 10px), transparent);
 }
 
-html[data-frame-refraction] :where([data-glass-frame], [data-glass-frame-list] > .comparison-item)::before {
+html[data-frame-refraction]
+  :where(
+    [data-glass-frame],
+    [data-glass-frame-list] > .comparison-item,
+    .topbar-actions > [data-glass-control],
+    [data-motion-indicator]
+  )::before {
   backdrop-filter: url("#mg-frame-static");
 }
 
@@ -156,76 +204,110 @@ html[data-frame-refraction] [data-glass-frame-active]::before {
   backdrop-filter: url("#mg-frame-active");
 }
 
-html:not([data-frame-refraction]) :where([data-glass-frame], [data-glass-frame-list] > .comparison-item)::before {
+html:not([data-frame-refraction])
+  :where(
+    [data-glass-frame],
+    [data-glass-frame-list] > .comparison-item,
+    .topbar-actions > [data-glass-control],
+    [data-motion-indicator]
+  )::before {
   background: radial-gradient(ellipse 64% 15px at 36% -6px, var(--glass-rim-light) 14%, transparent 97%);
   opacity: 0;
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  html:not([data-frame-refraction]) :where([data-glass-frame], [data-glass-frame-list] > .comparison-item)::before {
+  html:not([data-frame-refraction])
+    :where(
+      [data-glass-frame],
+      [data-glass-frame-list] > .comparison-item,
+      .topbar-actions > [data-glass-control],
+      [data-motion-indicator]
+    )::before {
     transition: opacity 120ms ease-out;
   }
 }
 
 @media (hover: hover) {
   html:not([data-frame-refraction])
-    :where([data-glass-frame], [data-glass-frame-list] > .comparison-item):hover::before {
+    :where(
+      [data-glass-frame],
+      [data-glass-frame-list] > .comparison-item,
+      .topbar-actions > [data-glass-control]:enabled
+    ):hover::before,
+  html:not([data-frame-refraction]) :is(#presetButtons, #timelineModes):hover > [data-motion-indicator]::before {
     opacity: 0.7;
   }
 }
 
 html:not([data-frame-refraction])
-  :where([data-glass-frame], [data-glass-frame-list] > .comparison-item):is(
-    :active,
-    :focus-visible,
-    :has(:focus-visible)
-  )::before {
+  :where(
+    [data-glass-frame],
+    [data-glass-frame-list] > .comparison-item,
+    .topbar-actions > [data-glass-control]:enabled
+  ):is(:active, :focus-visible, :has(:focus-visible))::before,
+html:not([data-frame-refraction]) :is(#presetButtons, #timelineModes):focus-within > [data-motion-indicator]::before {
   opacity: 1;
 }
 
-/* The native scroll wells and readouts keep their own surfaces under the text. */
-.shell
-:is(
-  .metric > strong,
-  .comparison-item:not(.comparison-unavailable) > strong,
-  .timeline-chart-well,
-  .auto-refresh-well,
-  .cost-estimate-note,
-  .comparison-table-scroll,
-  .segmented-well
-),
-.shell #presetButtons,
-.shell .date-range-button:not(:active) {
-  background-color: var(--glass-well);
-}
-
-:root[data-skin="classic"] #skinToggle {
-  position: relative;
-  background: transparent;
-  border-color: transparent;
+.shell :is(.metric > strong, .comparison-item > strong) {
+  background: color-mix(in srgb, var(--bg) 34%, transparent);
   box-shadow: none;
 }
 
-/* A small arc behind the lens follows the real button when the toolbar wraps. */
-:root[data-skin="classic"] #skinToggle::before {
-  content: "";
-  position: absolute;
-  inset: -7px -14px;
-  pointer-events: none;
-  background: radial-gradient(
-    ellipse 72px 42px at 13% -12%,
-    transparent 74%,
-    var(--glass-ribbon) 78%,
-    var(--glass-ribbon-light) 81%,
-    transparent 85% 94%,
-    var(--glass-ribbon-light) 96%,
-    transparent 99%
-  );
-  mask-image: linear-gradient(to right, transparent, black 18% 76%, transparent);
+.shell
+  :is(
+    #presetButtons,
+    #timelineModes,
+    .timeline-chart-well,
+    .auto-refresh-well,
+    .date-range-button,
+    .cost-estimate-note,
+    .comparison-table-scroll
+  ),
+.shell #presetButtons .recent-combobox {
+  border-color: var(--glass-rim-shade);
+  background: var(--glass-well);
+  box-shadow: none;
 }
 
-:root[data-skin="classic"] #skinToggle:not(:disabled):active {
-  transform: none;
+.shell .date-range-button .date-range-icon {
+  background: var(--glass-lens);
+  border-color: var(--glass-rim-light) var(--glass-rim-shade) var(--glass-rim-shade);
+  box-shadow: none;
+}
+
+.shell .date-range-button:is(:active, [aria-expanded="true"]) .date-range-icon {
+  background: var(--glass-well);
+}
+
+.shell .date-range-button:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+.shell #presetButtons .recent-combobox:focus-within {
+  border-color: var(--blue);
+}
+
+.shell :is(.home-list, .comparison-table-frame, .comparison-table-frame .comparison-table th),
+.shell .comparison-table-frame::before {
+  background: var(--glass-table);
+  border-color: var(--glass-rim-shade);
+  box-shadow: none;
+}
+
+.shell .comparison-table-frame::after {
+  box-shadow: inset 0 0 0 1px var(--glass-rim-shade);
+}
+
+.shell .home-list .home-row + .home-row::before {
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--glass-rim-shade), transparent);
+  box-shadow: none;
+}
+
+html[data-skin="classic"] #skinToggle:has(.lg-host)::before {
+  content: none;
 }
 
 :root[data-skin="classic"] #skinToggle > [data-glass-surface] {
@@ -236,16 +318,8 @@ html:not([data-frame-refraction])
 }
 
 :root[data-skin="classic"] [data-glass-surface]:not(.lg-host) {
-  border: 1px solid var(--neo-edge);
-  background: var(--glass-surface);
-  box-shadow: var(--neo-raised-small);
   -webkit-backdrop-filter: blur(5px);
   backdrop-filter: blur(5px);
-}
-
-:root[data-skin="classic"] #skinToggle > [data-motion-content] {
-  position: relative;
-  z-index: 1;
 }
 
 @media (forced-colors: active) {
@@ -255,7 +329,7 @@ html:not([data-frame-refraction])
     text-shadow: none;
   }
 
-  #timelineModes[data-motion-ready] > button[aria-pressed="true"] {
+  .shell :is(#presetButtons, #timelineModes) > :is(.active, [aria-pressed="true"]) {
     border-color: Highlight;
   }
 }

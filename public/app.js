@@ -1169,7 +1169,7 @@ function updateTimelineModeButtons() {
     button.classList.toggle("active", selected);
     button.setAttribute("aria-pressed", String(selected));
   }
-  motionGlass?.select(state.timelineMode);
+  motionGlass?.syncTimeline();
 }
 
 export function renderTimelineLegendHtml(summary, mode, channelColors, modelColors) {
@@ -2470,6 +2470,7 @@ function updatePresetButtons() {
     button.classList.toggle("active", button.dataset.preset === state.preset);
   }
   updateQuotaPresetButton();
+  motionGlass?.syncPreset();
 }
 
 function clearQuotaNotice() {
@@ -2759,6 +2760,14 @@ function toggleQuotaPreset() {
 // is exempt, including its raised navigation buttons and gaps between dates.
 function setupFrameSpotlight(root) {
   if (!root || typeof window.matchMedia !== "function") return;
+  const glassDashboard = document.documentElement.dataset.edition === "waifu";
+  function hasGlassMaterial(node) {
+    return (
+      glassDashboard &&
+      window.__skinPaletteLegacySpotlight !== true &&
+      node?.closest("[data-glass-frame], [data-glass-frame-list] > .comparison-item")
+    );
+  }
   const surfaces =
     ".topbar,.toolbar > .control-group,.metric,.panel,.comparison-item,.recent-segment,.recent-range-menu,button";
   // Detail tracks/fills belong to the panel's continuous light: neither hit
@@ -2897,7 +2906,9 @@ function setupFrameSpotlight(root) {
     if (!point || !capability.matches || document.hidden) return reset();
     // Re-hit-test after scrolling or template replacement, even without a new
     // pointer event. No stale event target or enter-only coordinate cache.
-    const host = surfaceAt(document.elementFromPoint(point.x, point.y));
+    const target = document.elementFromPoint(point.x, point.y);
+    if (hasGlassMaterial(target)) return reset();
+    const host = surfaceAt(target);
     if (!host?.isConnected) return clear();
     const css = getComputedStyle(host);
     const bounds = host.getBoundingClientRect();
@@ -2926,6 +2937,10 @@ function setupFrameSpotlight(root) {
   }
 
   function move(event) {
+    if (hasGlassMaterial(event.target)) {
+      if (point || active) reset();
+      return;
+    }
     if (!capability.matches || event.pointerType === "touch") return reset();
     point = { x: event.clientX, y: event.clientY };
     schedule();

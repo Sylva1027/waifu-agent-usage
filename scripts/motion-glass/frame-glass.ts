@@ -56,9 +56,11 @@ export function mountFrameGlass(shell: HTMLElement): FrameGlass {
     if (destroyed) return;
     if (
       next &&
-      (!next.isConnected ||
-        next.ownerDocument !== doc ||
-        !next.matches("[data-glass-frame], [data-glass-frame-list] > .comparison-item"))
+      (!shell.contains(next) ||
+        !next.isConnected ||
+        !next.matches(
+          "[data-glass-frame], [data-glass-frame-list] > .comparison-item, .topbar-actions > [data-glass-control], [data-motion-indicator]",
+        ))
     )
       next = null;
     if (frame === next) return;
