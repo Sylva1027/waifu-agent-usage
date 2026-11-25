@@ -13,6 +13,7 @@ import {
   derivePaletteDeclarationsFromTokens,
 } from "../public/skins.js";
 import { SKIN_PALETTES } from "../public/skin-palettes.js";
+import { REQUIRED_SOURCE_FILES } from "../scripts/skin-palette/assess.mjs";
 import { buildSkinBootstrapSource } from "../scripts/skin-palette/bootstrap-source.mjs";
 import { buildProductionBootstrapSource } from "../scripts/skin-palette/production-bootstrap-source.mjs";
 import { verifyProductionSourceTransition } from "../scripts/skin-palette/production-source-transition.mjs";
@@ -682,6 +683,7 @@ function hashBytes(bytes) {
 }
 
 const SOURCE_PREIMAGE_FILES = ["public/skin-palettes.js", "public/skin-picker.js", "public/skin-bootstrap.js"];
+const IMMUTABLE_SOURCE_FILES = SOURCE_FILES.filter((file) => !SOURCE_PREIMAGE_FILES.includes(file));
 
 function makeProductionSourceTransitionInputs({ useCurrentPalette = false } = {}) {
   const beforeSourceBytes = Object.fromEntries(
@@ -2627,26 +2629,34 @@ test("production transitions reject semantically equivalent edits to all three g
   }
 });
 
-test("any of the other 28 registered sources must remain byte-identical", () => {
+test("every registered source outside the three constructors must remain byte-identical", () => {
   const inputs = makeProductionSourceTransitionInputs();
-  const unchangedSources = SOURCE_FILES.filter((file) => !SOURCE_PREIMAGE_FILES.includes(file));
-  assert.equal(unchangedSources.length, 28);
+  const expectedImmutableFiles = [
+    ...REQUIRED_SOURCE_FILES,
+    "public/i18n.js",
+    "scripts/skin-palette/bootstrap-source.mjs",
+    "scripts/skin-palette/preview-server.mjs",
+    "scripts/skin-palette/capture.mjs",
+  ].filter((file) => !SOURCE_PREIMAGE_FILES.includes(file));
+  assert.deepEqual(IMMUTABLE_SOURCE_FILES.toSorted(), expectedImmutableFiles.toSorted());
   for (const file of [
+    "public/waifu-glass-dialogs.css",
+    "public/waifu-glass-feature-windows.css",
     "scripts/skin-palette/focus-outline-pixels.mjs",
     "scripts/skin-palette/focus-outline-browser.mjs",
   ]) {
     assert.equal(
-      unchangedSources.filter((entry) => entry === file).length,
+      IMMUTABLE_SOURCE_FILES.filter((entry) => entry === file).length,
       1,
       `${file} must be immutable in transition`,
     );
   }
   assert.ok(
-    unchangedSources.includes("public/timeline-utils.js"),
+    IMMUTABLE_SOURCE_FILES.includes("public/timeline-utils.js"),
     "timeline-utils.js is immutable during production transition",
   );
 
-  for (const file of unchangedSources) {
+  for (const file of IMMUTABLE_SOURCE_FILES) {
     const afterSourceBytes = cloneRecordWithBuffers(inputs.afterSourceBytes);
     afterSourceBytes[file] = Buffer.concat([afterSourceBytes[file], Buffer.from("\n", "utf8")]);
     const result = verifyProductionSourceTransition({ ...inputs, afterSourceBytes });
@@ -9656,13 +9666,9 @@ test("D9a preserves D4a constructor errors for all three generated sources", () 
   }
 });
 
-test("D9a never permits changes to the other 28 sources even when both summaries follow them", () => {
+test("D9a rejects changes to every immutable source even when both summaries follow them", () => {
   const inputs = makeDeclaredSourceTransitionInputs();
-  const unchangedSources = SOURCE_FILES.filter((file) => !SOURCE_PREIMAGE_FILES.includes(file));
-  assert.equal(unchangedSources.length, 28);
-  assert.ok(unchangedSources.includes("public/timeline-utils.js"));
-
-  for (const file of unchangedSources) {
+  for (const file of IMMUTABLE_SOURCE_FILES) {
     const candidate = copyDeclaredSourceTransitionInputs(inputs);
     const changed = Buffer.concat([candidate.currentSources.sourceBytes[file], Buffer.from("\n")]);
     candidate.currentSources.sourceBytes[file] = changed;
