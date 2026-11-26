@@ -1,4 +1,5 @@
 const root = document.documentElement;
+const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 const frameDuration = 1000 / 12;
 const lastFrame = 108;
 const artworkWidth = 1000;
@@ -215,7 +216,7 @@ function stop() {
 
 function requestGust(reason) {
   // A gust paused by focus, palette transition or decoding still owns the playhead.
-  if (active || !mode || root.dataset.skin !== "gemini") return;
+  if (reducedMotion.matches || active || !mode || root.dataset.skin !== "gemini") return;
   backdrop.dataset.trigger = reason;
   active = true;
   syncPlayback();
@@ -276,6 +277,9 @@ async function syncTheme() {
   }
 }
 
+reducedMotion.addEventListener("change", () => {
+  if (reducedMotion.matches) stop();
+});
 for (const event of ["focus", "blur"]) window.addEventListener(event, syncPlayback);
 document.addEventListener("visibilitychange", syncPlayback);
 document.addEventListener("waifu:achievement-earned", () => requestGust("achievement"));
