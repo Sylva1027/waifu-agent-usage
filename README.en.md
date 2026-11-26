@@ -50,7 +50,7 @@ https://github.com/Sylva1027/waifu-agent-usage
 1. Ask whether I want the full Waifu experience or Lite for focused usage tracking.
    Download the latest stable ZIP for that edition from Releases.
 2. Check that Node.js meets engines.node in package.json.
-   If installation is needed, get it from https://nodejs.org/.
+   If installation is needed, get a compatible LTS version from https://nodejs.org/ and confirm it with node -v.
 3. Put the program in a permanent folder. If an installation already exists,
    follow the repository's upgrade guide to preserve usage data, source settings,
    and achievement profiles before updating program files.

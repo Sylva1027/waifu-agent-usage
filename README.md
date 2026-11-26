@@ -50,7 +50,7 @@ https://github.com/Sylva1027/waifu-agent-usage
 1. 询问我想要完整体验的 Waifu，还是专注用量统计的 Lite。
    从 Releases 下载所选版本的最新正式 ZIP 运行包。
 2. 检查 Node.js 是否满足 package.json 中的 engines.node 要求。
-   需要安装时，从 https://nodejs.org/ 获取。
+   需要安装时，从 https://nodejs.org/ 安装符合要求的 LTS 版本，并用 node -v 确认。
 3. 将程序放到固定目录。
    如果已有安装，先按仓库升级文档保留用量数据、来源配置和成就档案，再更新程序文件。
 4. 在安装目录运行 node src/cli.js dashboard。
