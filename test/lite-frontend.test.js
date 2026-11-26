@@ -238,7 +238,7 @@ test("style guard rejects color, shadow, gradient and material image counterexam
     "color:#aabbcc",
     "color:rgba(1,2,3,.5)",
     "box-shadow:0 0 3px #fff",
-    "filter:url(#other)",
+    "filter:blur(1px)",
     "background:linear-gradient(#111,#222)",
     'background:url("skin.png")',
   ]) {

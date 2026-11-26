@@ -6,7 +6,7 @@ Achievement Conditions and Flavor Text — Chinese and English
 
 The current Waifu catalog contains **42 achievements**: **27 with bronze, silver and gold tiers**, and **15 one-time achievements**. Each entry below includes its Chinese and English name, thresholds, unlock condition and flavor text, grouped by the five categories used in the app.
 
-整理日期 / Updated: 2026-11-17 · 规则版本 / Rules version: `R7-production-1`
+整理日期 / Updated: 2026-11-17 · 规则版本 / Rules version: `R7-production-2`
 
 ## 阅读说明 Reading guide
 
