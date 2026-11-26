@@ -162,6 +162,13 @@ a {
     color: transparent;
     -webkit-text-stroke: 1px var(--ink);
   }
+
+  .topbar .logo-a {
+    /* Cover the internal seams with the original glyph fill. */
+    color: var(--panel);
+    -webkit-text-stroke-width: 2px;
+    paint-order: stroke fill;
+  }
 }
 
 .topbar-actions {
