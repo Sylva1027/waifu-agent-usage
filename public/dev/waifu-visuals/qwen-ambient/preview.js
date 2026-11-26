@@ -2,6 +2,7 @@ import { drawLight, loadMaterial, materialBounds } from "./art.js";
 import { drawRightLight, loadRightLight, rightLightBounds, rightLightWindow } from "./right-light.js";
 
 const root = document.documentElement;
+const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 const sourceSize = 1254;
 const frameInterval = 1000 / 12;
 const rightStartTime = 6200;
@@ -32,33 +33,11 @@ document.querySelector("#skinCharacters").before(layer);
 const ctx = canvas.getContext("2d");
 const rightCtx = rightCanvas.getContext("2d");
 
-const controls = document.createElement("details");
-controls.id = "qwen-ambient-controls";
-controls.innerHTML = "<summary>Qwen 光照对照</summary>";
-controls.insertAdjacentHTML(
-  "beforeend",
-  '<div class="qwen-ambient-actions" role="group" aria-label="固定光位">' +
-    '<button type="button" id="qwen-ambient-original" data-phase="0">原图</button>' +
-    '<button type="button" id="qwen-ambient-entry" data-phase="0.24">织纹</button>' +
-    '<button type="button" id="qwen-ambient-satin" data-phase="0.46">素缎</button>' +
-    '<button type="button" id="qwen-ambient-jacquard" data-phase="0.72">暗花</button>' +
-    '<button type="button" id="qwen-ambient-right-pose" data-phase="0.82">右侧折光</button>' +
-    "</div>" +
-    '<div class="qwen-ambient-actions">' +
-    '<button type="button" id="qwen-ambient-play">播放转光</button>' +
-    '<button type="button" id="qwen-ambient-play-right">从右侧播放</button></div>',
-);
-document.body.append(controls);
-
-const poses = Array.from(controls.querySelectorAll("button[data-phase]"));
-const play = controls.querySelector("#qwen-ambient-play");
-const playRight = controls.querySelector("#qwen-ambient-play-right");
 let mode;
 let ready = false;
 let material;
 let rightMaterial;
 let loadVersion = 0;
-let active = false;
 let phase = 0;
 let draws = 0;
 let elapsed = 0;
@@ -155,7 +134,7 @@ function layout() {
 }
 
 function canRun() {
-  return active && ready && !document.hidden && document.hasFocus();
+  return !reducedMotion.matches && ready && !document.hidden && document.hasFocus();
 }
 
 function freeze() {
@@ -166,17 +145,6 @@ function freeze() {
     started = null;
   }
   layer.dataset.running = "false";
-}
-
-function showControls() {
-  const unavailable = !ready;
-  play.disabled = unavailable;
-  playRight.disabled = unavailable;
-  play.textContent = active ? "停止播放" : "播放转光";
-  for (const pose of poses) {
-    pose.disabled = unavailable;
-    pose.setAttribute("aria-pressed", String(!active && phase === Number(pose.dataset.phase)));
-  }
 }
 
 function scheduleTick() {
@@ -200,9 +168,9 @@ function tick() {
   if (time >= totalDuration) phase = 0;
   paint();
   if (time >= totalDuration) {
-    active = false;
-    freeze();
-    showControls();
+    started = performance.now();
+    nextTick = frameInterval;
+    scheduleTick();
     return;
   }
   nextTick = Math.min(totalDuration, (Math.floor(time / frameInterval) + 1) * frameInterval);
@@ -217,51 +185,19 @@ function syncPlayback() {
   scheduleTick();
 }
 
-for (const pose of poses) {
-  pose.addEventListener("click", () => {
-    active = false;
-    freeze();
-    phase = Number(pose.dataset.phase);
-    paint();
-    showControls();
-  });
-}
-
-function startPlayback(startTime, startPhase) {
-  freeze();
-  active = true;
-  elapsed = startTime;
-  nextTick = startTime;
-  phase = startPhase;
-  paint();
-  syncPlayback();
-  showControls();
-}
-
-play.addEventListener("click", () => {
-  if (!active) return startPlayback(0, 0);
-  active = false;
-  syncPlayback();
-  showControls();
-});
-
-playRight.addEventListener("click", () => startPlayback(rightStartTime, rightLightWindow.start));
-
 async function syncMaterial() {
   const next = root.dataset.skin === "qwen" ? root.dataset.theme || "light" : "";
   if (mode === next) return;
   mode = next;
   const version = ++loadVersion;
   ready = false;
-  active = false;
   freeze();
+  elapsed = nextTick = 0;
   phase = 0;
   layer.hidden = true;
   layer.dataset.mode = mode;
   layer.dataset.phase = "0";
   layer.dataset.draws = String(draws);
-  controls.hidden = !mode;
-  controls.removeAttribute("data-unavailable");
   image.removeAttribute("src");
   canvas.width = 0;
   canvas.height = 0;
@@ -269,7 +205,6 @@ async function syncMaterial() {
   rightCanvas.height = 0;
   material = undefined;
   rightMaterial = undefined;
-  showControls();
   if (!mode) {
     rightImage.removeAttribute("src");
     return;
@@ -290,16 +225,24 @@ async function syncMaterial() {
     ready = true;
     layout();
     layer.hidden = false;
-    showControls();
+    syncPlayback();
   } catch (error) {
     if (version !== loadVersion) return;
-    controls.dataset.unavailable = "true";
     console.error("Qwen preview assets failed to load", error);
   }
 }
 
 const themeObserver = new MutationObserver(syncMaterial);
 themeObserver.observe(root, { attributes: true, attributeFilter: ["data-skin", "data-theme"] });
+reducedMotion.addEventListener("change", () => {
+  if (reducedMotion.matches) {
+    freeze();
+    elapsed = nextTick = 0;
+    phase = 0;
+    paint();
+  }
+  syncPlayback();
+});
 window.addEventListener("resize", layout, { passive: true });
 window.addEventListener("focus", syncPlayback);
 window.addEventListener("blur", freeze);
