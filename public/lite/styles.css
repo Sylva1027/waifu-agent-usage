@@ -1203,7 +1203,7 @@ html[lang="en-US"] #repositoryComparisonSearch {
 }
 
 .bottom-grid {
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   margin-bottom: 0;
 }
 
@@ -1590,7 +1590,8 @@ html[lang="en-US"] #repositoryComparisonSearch {
   .toolbar,
   .main-grid,
   .period-comparison-grid,
-  .comparison-strip {
+  .comparison-strip,
+  .bottom-grid {
     grid-template-columns: minmax(0, 1fr);
   }
 
