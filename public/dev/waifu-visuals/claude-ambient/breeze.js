@@ -12,7 +12,7 @@ async function loadAtlas(name, theme) {
   return image;
 }
 const frameMs = 1000 / 12;
-const restMs = 6500;
+const reduced = matchMedia("(prefers-reduced-motion: reduce)");
 const leafPoses = [0, 1, 3, 6, 9, 11, 12, 10, 8, 9, 10, 8, 5, 2, 0, -2, -3, -2, 0, 1, 2, 1, 0];
 const foldPoses = [0, 1, 3, 6, 9, 11, 12, 11, 9, 7, 5, 6, 7, 6, 4, 2, 0, -1, -2, -1, 0];
 const fiberPoses = [0, 2, 5, 8, 11, 12, 12, 10, 9, 9, 8, 6, 4, 2, 0, -1, -2, -1, 0, 1, 0];
@@ -39,6 +39,7 @@ let deadline = 0;
 let remaining = 300;
 let ready = false;
 let theme = null;
+let active = false;
 
 function paint() {
   fibers.paint(fiberPoses[frame] ?? 0);
@@ -51,32 +52,50 @@ function paint() {
   }
 }
 
-function canPlay() {
-  return ready && !root.dataset.themeTransition && !document.hidden && document.hasFocus();
+function pause() {
+  if (!timer) return;
+  clearTimeout(timer);
+  timer = 0;
+  remaining = Math.max(0, deadline - performance.now());
 }
 
-function schedule() {
+function stop() {
+  pause();
+  active = false;
+  frame = 0;
+  remaining = 300;
+  paint();
+}
+
+function requestBreeze() {
+  if (active || !theme || reduced.matches || root.dataset.skin !== "claude") return;
+  active = true;
+  playback();
+}
+
+function playback() {
+  if (!active || !ready || root.dataset.themeTransition || document.hidden || !document.hasFocus()) {
+    pause();
+    return;
+  }
+  if (timer) return;
   deadline = performance.now() + remaining;
   timer = window.setTimeout(() => {
     timer = 0;
-    if (!canPlay()) return;
+    if (++frame >= lastFrame) return stop();
     paint();
-    remaining = frame === lastFrame ? restMs : frameMs;
-    frame = frame === lastFrame ? 0 : frame + 1;
-    schedule();
+    remaining = frameMs;
+    playback();
   }, remaining);
 }
 
 function selectTheme(next) {
   theme = next;
   ready = false;
-  clearTimeout(timer);
-  timer = 0;
-  frame = 0;
-  remaining = 300;
-  paint();
+  pause();
   paper.style.removeProperty("--breeze-atlas");
-  if (!next) return;
+  if (!next) return stop();
+  requestBreeze();
   if (!atlases.has(next)) {
     const assets = Promise.all([loadAtlas("breeze", next), loadAtlas("fibers", next).catch(() => null)]);
     atlases.set(next, assets);
@@ -89,20 +108,18 @@ function selectTheme(next) {
       fibers.setAtlas(next, right);
       paper.style.setProperty("--breeze-atlas", `url("${left.src}")`);
       ready = true;
-      sync();
+      paint();
+      playback();
     })
-    .catch(() => {});
+    .catch(() => {
+      if (theme === next) stop();
+    });
 }
 
 function sync() {
   const next = root.dataset.skin === "claude" ? (root.dataset.theme === "dark" ? "dark" : "light") : null;
   if (next !== theme) selectTheme(next);
-  if (timer && !canPlay()) {
-    clearTimeout(timer);
-    timer = 0;
-    remaining = Math.max(0, deadline - performance.now());
-  }
-  if (canPlay() && !timer) schedule();
+  playback();
 }
 
 paint();
@@ -113,4 +130,8 @@ new MutationObserver(sync).observe(root, {
 window.addEventListener("focus", sync);
 window.addEventListener("blur", sync);
 document.addEventListener("visibilitychange", sync);
+document.addEventListener("waifu:achievement-earned", requestBreeze);
+reduced.addEventListener("change", () => {
+  if (reduced.matches) stop();
+});
 sync();
