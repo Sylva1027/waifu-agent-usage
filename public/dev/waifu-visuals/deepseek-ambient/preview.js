@@ -1,4 +1,5 @@
 const root = document.documentElement;
+const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 const characters = document.getElementById("skinCharacters");
 const scene = document.createElement("div");
 scene.id = "deepseek-ambient";
@@ -78,6 +79,12 @@ function stopEpisode() {
 }
 
 function syncPlayback() {
+  if (reducedMotion.matches) {
+    clearTimeout(restTimer);
+    restTimer = 0;
+    stopEpisode();
+    return;
+  }
   const visible = ready && mode && !root.dataset.themeTransition && !document.hidden && document.hasFocus();
   if (!visible) {
     clearTimeout(restTimer);
@@ -101,7 +108,7 @@ function syncPlayback() {
 
 function requestWave(reason) {
   // A paused wave still owns the playhead.
-  if (!mode || root.dataset.skin !== "deepseek") return;
+  if (reducedMotion.matches || !mode || root.dataset.skin !== "deepseek") return;
   if (episode?.at(-1).playState === "finished") stopEpisode();
   if (episode) return;
   clearTimeout(restTimer);
@@ -155,6 +162,7 @@ new MutationObserver(syncTheme).observe(root, {
   attributes: true,
   attributeFilter: ["data-skin", "data-theme", "data-theme-transition"],
 });
+reducedMotion.addEventListener("change", syncPlayback);
 for (const event of ["focus", "blur"]) window.addEventListener(event, syncPlayback);
 document.addEventListener("visibilitychange", syncPlayback);
 document.addEventListener("waifu:achievement-earned", () => requestWave("achievement"));
