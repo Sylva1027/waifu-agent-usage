@@ -1194,7 +1194,8 @@ html[lang="en-US"] #repositoryComparisonSearch {
   font-variant-numeric: tabular-nums;
 }
 
-.comparison-table tfoot :is(th, td) {
+.comparison-table tfoot :is(th, td),
+.comparison-table tfoot th:first-child {
   border: 0;
   background: var(--panel);
   font-weight: 700;
