@@ -1,4 +1,17 @@
-# Waifu Three.js 开发预览
+# Waifu 视觉开发预览
+
+## Qwen 环境背景
+
+运行 `npm run preview:qwen`，打开 [真实 Waifu 页面预览](http://127.0.0.1:4179/)。
+预览使用独立的临时样例数据。页面右下角的「Qwen 光照对照」可以选择固定光位、播放一次约 18 秒的完整转光，或直接从右侧开始播放。明暗模式沿用页面自己的切换按钮。
+
+在同一滚动位置切换原图和固定光位，比较亮带有没有沿折面移动，以及织纹和暗花有没有分别显出来。可在 1920×1080、1366×768 和 960×900 的桌面窗口观察弧形包边、立绘和卡片间隙。转光按 12 FPS 更新，重新获得焦点时从停止的位置继续。
+
+左侧复用成就分享卡的 Qwen 原图。右侧使用深浅两张织物图。左右素材各自锚定，在中央内容后方渐隐过渡。两侧的光照图集离线烘焙，共用 12 FPS 的一次转光。展开对照后可用「右侧折光」停在右侧掠光的位置。
+
+装有 FFmpeg 时，可用 `node public/dev/waifu-visuals/qwen-ambient/art/bake.mjs` 重烘左侧光照，用 `node public/dev/waifu-visuals/qwen-ambient/art/bake-right.mjs` 重烘右侧光照。
+
+## Three.js 预览
 
 运行 `npm ci` 和 `npm run visuals:serve`，通过 [Demo 首页](http://127.0.0.1:4178/dev/waifu-visuals-demo.html) 打开预览，也可以直接打开各页。
 
