@@ -472,21 +472,21 @@ test("a missed wake remains recoverable by the existing checked sync path", asyn
   }
 });
 
-test("server close ends a live SSE connection instead of waiting forever", async () => {
+test("server close signals and ends a live SSE connection", { timeout: 15_000 }, async () => {
   const fixture = createCodexIntegrationFixture();
-  const server = createUsageServer(fixtureServerOptions(fixture));
+  const server = createUsageServer({ ...fixtureServerOptions(fixture), achievementsEnabled: false });
   let sse;
+  let closed;
   try {
     const baseUrl = await listen(server);
     sse = await openSse(baseUrl);
-    const closed = server.close();
-    await Promise.race([
-      closed,
-      new Promise((_, reject) => setTimeout(() => reject(new Error("server close hung on live SSE")), 3_000)),
-    ]);
+    closed = server.close();
+    assert.deepEqual(await sse.next("close"), {});
+    await sse.waitForClose();
+    await closed;
   } finally {
     await sse?.close();
-    if (server.listening) await server.close();
+    await (closed ?? server.close());
     fixture.close();
   }
 });
