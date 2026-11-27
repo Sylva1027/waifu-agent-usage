@@ -117,8 +117,10 @@ export function createAchievementNotice({ onOpen }) {
       }
       const previous = latestAward;
       latestAward = Math.max(previous ?? 0, awardRevision);
+      const earned = previous !== undefined && awardRevision > previous;
+      if (earned) document.dispatchEvent(new Event("waifu:achievement-earned"));
       if (button.hidden) stopEffect?.();
-      else if (previous !== undefined && awardRevision > previous) {
+      else if (earned) {
         stopEffect?.();
         stopEffect = playNotice(button);
       }
