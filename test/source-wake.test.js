@@ -305,20 +305,28 @@ test("source watcher stop prevents discovery from installing watchers afterward"
   assert.equal(watcher.rootCount, 0);
 });
 
-test("real server coalesces source wake into a committed notification and correct scoped read", async (t) => {
-  const fixture = createCodexIntegrationFixture();
-  const rollout = fixture.rolloutFiles[0];
+function mockCodexFileChanges(t, fixture) {
   let onCodexChange;
-  // Deliver hints explicitly so the coalescing test does not depend on native watcher timing.
+  // Exercise the server with explicit change hints; native delivery is covered separately.
   t.mock.method(fs, "watch", (root, _options, listener) => {
     if (root === fixture.codexHome) onCodexChange = listener;
     return { on() {}, unref() {}, close() {} };
   });
   syncBuiltinESMExports();
-  const notify = () => {
+  t.after(() => {
+    t.mock.restoreAll();
+    syncBuiltinESMExports();
+  });
+  return (rollout) => {
     assert.equal(typeof onCodexChange, "function");
     onCodexChange("change", path.relative(fixture.codexHome, rollout));
   };
+}
+
+test("real server coalesces source wake into a committed notification and correct scoped read", async (t) => {
+  const fixture = createCodexIntegrationFixture();
+  const rollout = fixture.rolloutFiles[0];
+  const notify = mockCodexFileChanges(t, fixture);
   let server;
   let sse;
   try {
@@ -329,15 +337,15 @@ test("real server coalesces source wake into a committed notification and correc
     sse = await openSse(baseUrl);
 
     await appendFile(rollout, usageLine("2026-10-04T13:00:00.000Z", 100));
-    notify();
+    notify(rollout);
     const first = await sse.next("usage-synced");
     assert.equal(typeof first.checkedAt, "string");
     assert.equal((await getJson(baseUrl, `/api/usage?${USAGE_QUERY}&skipCheck=1`)).summary.totals.total, 100);
 
     await appendFile(rollout, usageLine("2026-10-04T13:01:00.000Z", 100));
     await appendFile(rollout, usageLine("2026-10-04T13:02:00.000Z", 100));
-    notify();
-    notify();
+    notify(rollout);
+    notify(rollout);
     await sse.next("usage-synced");
     assert.equal((await getJson(baseUrl, `/api/usage?${USAGE_QUERY}&skipCheck=1`)).summary.totals.total, 300);
     await assert.rejects(
@@ -350,8 +358,6 @@ test("real server coalesces source wake into a committed notification and correc
       await sse?.close();
       await server?.close();
     } finally {
-      t.mock.restoreAll();
-      syncBuiltinESMExports();
       fixture.close();
     }
   }
@@ -390,21 +396,29 @@ test("imported runtime rejects the live stream without starting source sync", as
   }
 });
 
-test("a slow SSE client is disconnected when response buffering applies backpressure", async () => {
+test("a slow SSE client is disconnected when response buffering applies backpressure", async (t) => {
   const fixture = createCodexIntegrationFixture();
+  const rollout = fixture.rolloutFiles[0];
+  const notify = mockCodexFileChanges(t, fixture);
   const server = createUsageServer(fixtureServerOptions(fixture));
   const originalWrite = ServerResponse.prototype.write;
+  let backpressureApplied = false;
   let sse;
   try {
     const baseUrl = await listen(server);
     sse = await openSse(baseUrl);
     ServerResponse.prototype.write = function (chunk) {
-      if (String(chunk).includes("event: usage-synced")) return false;
+      if (String(chunk).includes("event: usage-synced")) {
+        backpressureApplied = true;
+        return false;
+      }
       return originalWrite.call(this, chunk);
     };
 
-    await appendFile(fixture.rolloutFiles[0], usageLine("2026-10-04T13:07:00.000Z", 100));
+    await appendFile(rollout, usageLine("2026-10-04T13:07:00.000Z", 100));
+    notify(rollout);
     await sse.waitForClose();
+    assert.equal(backpressureApplied, true, "the client must close after the server hits backpressure");
   } finally {
     ServerResponse.prototype.write = originalWrite;
     await sse?.close();
@@ -458,21 +472,21 @@ test("a missed wake remains recoverable by the existing checked sync path", asyn
   }
 });
 
-test("server close ends a live SSE connection instead of waiting forever", async () => {
+test("server close signals and ends a live SSE connection", { timeout: 15_000 }, async () => {
   const fixture = createCodexIntegrationFixture();
-  const server = createUsageServer(fixtureServerOptions(fixture));
+  const server = createUsageServer({ ...fixtureServerOptions(fixture), achievementsEnabled: false });
   let sse;
+  let closed;
   try {
     const baseUrl = await listen(server);
     sse = await openSse(baseUrl);
-    const closed = server.close();
-    await Promise.race([
-      closed,
-      new Promise((_, reject) => setTimeout(() => reject(new Error("server close hung on live SSE")), 3_000)),
-    ]);
+    closed = server.close();
+    assert.deepEqual(await sse.next("close"), {});
+    await sse.waitForClose();
+    await closed;
   } finally {
     await sse?.close();
-    if (server.listening) await server.close();
+    await (closed ?? server.close());
     fixture.close();
   }
 });
