@@ -9083,7 +9083,7 @@ test("M5.2.C-D2b3：真实 Edge 两种装饰隔离、低对比仍失败，异常
     const origin = `http://127.0.0.1:${port}`;
     const { chromium, executablePath } = browserRuntime;
     browser = await chromium.launch({ executablePath, headless: true });
-    context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    context = await browser.newContext({ viewport: { width: 1280, height: 900 }, reducedMotion: "reduce" });
     await context.route("**/*", async (route) => {
       const requestUrl = new URL(route.request().url());
       if (requestUrl.origin === origin || requestUrl.protocol === "data:") return route.continue();
