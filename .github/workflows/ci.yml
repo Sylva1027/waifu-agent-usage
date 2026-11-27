@@ -131,7 +131,12 @@ jobs:
       - name: Run full Windows suite
         if: github.event_name != 'pull_request' && needs.changes.outputs.docs-only != 'true'
         timeout-minutes: 30
-        run: node scripts/test.mjs --test-reporter=spec --test-concurrency=4 --test-timeout=720000 'test/**/!(cli|cli-editions|achievement-integration-browser).test.js'
+        run: >-
+          node scripts/test.mjs
+          --test-reporter=spec --test-reporter=./scripts/test-file-timing.mjs
+          --test-reporter-destination=stdout --test-reporter-destination=stdout
+          --test-concurrency=4 --test-timeout=720000
+          'test/**/!(cli|cli-editions|achievement-integration-browser).test.js'
       - name: Upload failed E1d screenshot comparison
         if: failure()
         uses: actions/upload-artifact@v4
