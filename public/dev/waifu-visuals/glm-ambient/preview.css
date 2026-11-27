@@ -25,7 +25,9 @@
   --lamp-glint: #f7fdff;
 }
 
-.glm-bands, .glm-band > div, .glm-band::before {
+.glm-bands,
+.glm-band > div,
+.glm-band::before {
   position: absolute;
   inset: 0;
 }
@@ -49,7 +51,8 @@
 .glm-lamps {
   --emitter: var(--led);
 }
-.glm-rails, .glm-lamps {
+.glm-rails,
+.glm-lamps {
   mask: var(--emitter) center / 100% 100% no-repeat;
 }
 .glm-running-thread {
@@ -73,7 +76,7 @@
   --weave-ink: #485f85;
 }
 :root[data-theme="light"] .glm-band[data-pattern="upper"] {
-  --dye-strength: 0.80;
+  --dye-strength: 0.8;
   --lamp-glint: #e6f2fa;
 }
 :root[data-theme="light"] .glm-band[data-pattern$="lower"] {
@@ -85,10 +88,10 @@
 }
 :root[data-theme="light"] .glm-rails {
   /* Expose the upper face of each yarn and retain its dyed edge at peak light. */
-  mask: var(--emitter) center / 100% 100% no-repeat subtract,
-        var(--weave) var(--facet-x) 0.12cqw / 100% 100% no-repeat;
+  mask:
+    var(--emitter) center / 100% 100% no-repeat subtract,
+    var(--weave) var(--facet-x) 0.12cqw / 100% 100% no-repeat;
 }
-
 
 :root[data-theme="light"] .glm-lamp::after {
   content: "";
