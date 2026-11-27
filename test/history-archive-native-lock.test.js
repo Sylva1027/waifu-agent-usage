@@ -366,7 +366,10 @@ test(
   },
 );
 
-test("a pinned child prevents in-place reparse mutation even through FILE_WRITE_ATTRIBUTES", native, async (t) => {
+test("a pinned child prevents in-place reparse mutation even through FILE_WRITE_ATTRIBUTES", {
+  ...native,
+  timeout: 75_000,
+}, async (t) => {
   const f = await fixture(t);
   const parent = path.join(f.directory, "parent"),
     target = path.join(f.directory, "B");
@@ -381,6 +384,7 @@ test("a pinned child prevents in-place reparse mutation even through FILE_WRITE_
     script,
     String.raw`param([string]$Directory, [string]$Target)
 $ErrorActionPreference = 'Stop'
+[Console]::Error.WriteLine('Compiling the junction fixture')
 Add-Type -TypeDefinition @'
 using System;
 using System.IO;
@@ -412,6 +416,7 @@ public static class ReparseMutation {
   }
 }
 '@
+[Console]::Error.WriteLine('Calling the native junction operation')
 [ReparseMutation]::Set($Directory, $Target)
 `,
   );
@@ -419,9 +424,10 @@ public static class ReparseMutation {
     const result = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-File", script, parent, target], {
       encoding: "utf8",
       windowsHide: true,
-      timeout: 10_000,
+      // Each invocation starts PowerShell and compiles the C# fixture.
+      timeout: 30_000,
     });
-    assert.equal(result.status, 0, result.stderr || result.error?.message);
+    assert.equal(result.status, 0, [result.error?.message, result.stderr?.trim()].filter(Boolean).join("\n"));
     assert.match(result.stdout.trim(), /^\d+$/);
     return Number(result.stdout.trim());
   };
