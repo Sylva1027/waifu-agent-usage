@@ -1,0 +1,91 @@
+#kimi-ambient {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background: #e5f1ed url("./paper-light.webp") 42% center / cover no-repeat;
+  --engraving-rim: #fffef8;
+  --engraving-shadow: #758d8e;
+  --engraving-fill: linear-gradient(165deg, #9eb5b4, #a9bcba 55%, #acbfbd);
+  --engraving-current: linear-gradient(
+    90deg,
+    transparent,
+    rgb(104 160 162 / 48%) 28%,
+    #528c91 57%,
+    #edf8ef 73%,
+    #aecfcb 85%,
+    transparent
+  );
+}
+
+:root:not([data-skin="kimi"]) #kimi-ambient {
+  display: none;
+}
+
+:root[data-theme="dark"] #kimi-ambient {
+  --engraving-rim: #587074;
+  --engraving-shadow: #0c1518;
+  --engraving-fill: linear-gradient(165deg, #496467, #3b595e 55%, #466569);
+  --engraving-current: linear-gradient(
+    90deg,
+    transparent,
+    rgb(135 190 193 / 26%) 25%,
+    #badbd8 71%,
+    #8bafb3 82%,
+    transparent
+  );
+  background: #1b2323 url("./dark/paper-dark.webp") 42% center / cover no-repeat;
+}
+
+.kimi-engraving {
+  position: absolute;
+  inset: 0;
+}
+
+.kimi-stamp {
+  position: absolute;
+  aspect-ratio: 1152 / 252;
+  transform: translate(-50%, -50%) rotate(var(--inclination));
+  container-type: inline-size;
+}
+
+.kimi-stamp[data-part^="score-"] {
+  aspect-ratio: 1152 / 412;
+}
+
+.kimi-stamp::before,
+.kimi-recess,
+.kimi-recess::before {
+  position: absolute;
+  inset: 0;
+  mask: var(--stencil) center / 100% 100% no-repeat;
+}
+
+.kimi-stamp::before {
+  content: "";
+  background: var(--engraving-rim);
+  opacity: 0.72;
+  transform: translate(0.025cqw, 0.092cqw);
+}
+
+.kimi-recess {
+  overflow: hidden;
+  background: var(--engraving-shadow);
+}
+
+.kimi-recess::before {
+  content: "";
+  background: var(--engraving-fill);
+  transform: translate(0.026cqw, 0.09cqw);
+}
+
+.kimi-current {
+  position: absolute;
+  inset: 0;
+
+  background: var(--engraving-current);
+  background-size: 25% 100%;
+  background-repeat: no-repeat;
+  background-position: -33.334% center;
+}
