@@ -1,0 +1,46 @@
+#deepseek-ambient {
+  --water: url("./art/background-light.webp");
+  --water-glints: url("./art/glints-light.webp");
+  --water-width: max(100vw, 150vh);
+  --water-height: calc(var(--water-width) * 2 / 3);
+  --water-crop-y: 62%;
+  position: fixed;
+  z-index: 0;
+  inset: 0;
+  display: none;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+:root[data-theme="dark"] #deepseek-ambient {
+  --water: url("./art/background-dark.webp");
+  --water-glints: url("./art/glints-dark.webp");
+}
+
+:root[data-skin="deepseek"] #deepseek-ambient {
+  display: block;
+}
+
+.deepseek-water {
+  position: absolute;
+  top: var(--water-crop-y);
+  left: 50%;
+  width: var(--water-width);
+  height: var(--water-height);
+  transform: translate(-50%, calc(-1 * var(--water-crop-y)));
+  background: var(--water) center / cover no-repeat;
+}
+
+.deepseek-glint {
+  --x: calc(var(--water-width) * var(--patch-x));
+  --y: calc(var(--water-height) * var(--patch-y));
+  position: absolute;
+  top: var(--y);
+  left: var(--x);
+  width: var(--patch-width);
+  height: var(--height);
+  opacity: 0;
+  background:
+    var(--water-glints) calc(-1 * var(--x)) calc(-1 * var(--y)) / var(--water-width) var(--water-height) no-repeat;
+  mask-image: radial-gradient(ellipse, #000 12%, transparent 68%);
+}
