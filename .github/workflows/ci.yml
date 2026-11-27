@@ -91,14 +91,17 @@ jobs:
           npm.cmd run native:build
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           npm.cmd run native:check
+      - name: Run Windows CLI and achievement integration tests
+        if: needs.changes.outputs.docs-only != 'true'
+        timeout-minutes: 10
+        # These suites launch subprocesses or a desktop browser throughout the test.
+        run: npm.cmd test -- --test-reporter=spec --test-concurrency=1 --test-timeout=720000 test/cli.test.js test/cli-editions.test.js test/achievement-integration-browser.test.js
       - name: Run core Windows suite
         if: github.event_name == 'pull_request' && needs.changes.outputs.docs-only != 'true'
         timeout-minutes: 10
         run: |
           $core = @(
             "test/ci-changes.test.js"
-            "test/cli.test.js"
-            "test/cli-editions.test.js"
             "test/source-wake.test.js"
             "test/lite-server.test.js"
             "test/lite-cross-edition-store.test.js"
@@ -126,7 +129,7 @@ jobs:
       - name: Run full Windows suite
         if: github.event_name != 'pull_request' && needs.changes.outputs.docs-only != 'true'
         timeout-minutes: 30
-        run: npm.cmd test -- --test-reporter=spec --test-concurrency=4 --test-timeout=720000
+        run: npm.cmd test -- --test-reporter=spec --test-concurrency=4 --test-timeout=720000 'test/**/!(cli|cli-editions|achievement-integration-browser).test.js'
       - name: Upload failed E1d screenshot comparison
         if: failure()
         uses: actions/upload-artifact@v4
