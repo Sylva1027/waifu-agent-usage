@@ -4960,9 +4960,7 @@ export async function measureBrowserRoles(options) {
     diagnostics.scroll = { x: viewport.scrollX, y: viewport.scrollY };
     // Full-page capture can resize the viewport and clear pointer-driven states.
     const statePixelKind =
-      normalizedStateId === "button-hover" || normalizedStateId === SPOTLIGHT_DETAIL_HEADING_STATE_ID
-        ? "viewport"
-        : "full-page";
+      normalizedStateId === "button-hover" || normalizedStateId?.startsWith("spotlight-") ? "viewport" : "full-page";
     const captureState = statePixelKind === "viewport" ? captureStableViewport : captureStableFullPage;
     diagnostics.restoration.statePixelScope =
       statePixelKind === "viewport"

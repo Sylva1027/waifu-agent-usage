@@ -8142,12 +8142,13 @@ test("B66：详情填充逐行滚动回调适配", async (t) => {
       active: true,
     });
     let callbackCalls = 0;
-    await runC25Detail(harness.page, "spotlight-detail-fill", undefined, {
+    const result = await runC25Detail(harness.page, "spotlight-detail-fill", undefined, {
       detailFillRestingPointer: async () => {
         callbackCalls += 1;
       },
     });
 
+    assert.equal(result.diagnostics.restoration.statePixelScope.kind, "viewport");
     assert.equal(callbackCalls, 0);
     assert.equal(
       harness.page.evaluations.some((tag) => /^(scroll-|bring-into-view)/.test(tag)),
