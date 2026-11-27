@@ -48,7 +48,10 @@ test("Lite closure binds all canonical entries and retains the exact common runt
   assert.equal(inputs["public/waifu-achievement-notice-effect.js"], undefined);
   assert.equal(inputs["public/waifu-visuals-core.js"], undefined);
   assert.doesNotMatch(Object.keys(inputs).join("\n"), /^public\/waifu-(?:motion|liquid-glass|frame-glass)/m);
-  assert.doesNotMatch(Object.keys(inputs).join("\n"), /^public\/(?:assets|i18n|share|skin|achievement)|^src\/waifu/m);
+  assert.doesNotMatch(
+    Object.keys(inputs).join("\n"),
+    /^public\/(?:assets|dev\/|i18n|share|skin|achievement)|^src\/waifu/m,
+  );
 });
 
 test("Waifu closure keeps all achievement badges, share artwork, and dashboard skins", async () => {
