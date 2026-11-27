@@ -14524,6 +14524,7 @@ function assertHoverFixedCleanup(fixture) {
 test("D21-C7-B2：悬停单目标保持固定视口、正式身份和文字方法", async () => {
   const fixture = createHoverFixedFixture();
   const result = await fixture.run();
+  assert.equal(result.diagnostics.restoration.statePixelScope.kind, "viewport");
   assert.equal(result.records.length, 1);
   const record = result.records[0];
   assert.equal(record.candidateId, "official-source");

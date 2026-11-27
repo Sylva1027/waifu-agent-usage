@@ -60,11 +60,13 @@ async function fixture(t, { pause = false } = {}) {
     const hook = `import {registerHooks} from 'node:module';registerHooks({load(url,ctx,next){
       const result=next(url,ctx);if(!url.endsWith('/src/usage-store.js'))return result;
       return {...result,source:result.source+${JSON.stringify(`
-        import {existsSync as pricingGateExists,writeFileSync as pricingGateWrite} from 'node:fs';
+        import {existsSync as pricingGateExists,renameSync as pricingGateRename,writeFileSync as pricingGateWrite} from 'node:fs';
         const pricingSyncReplace=UsageStore.prototype.replaceFile;
         UsageStore.prototype.replaceFile=async function(file,...args){
           if(file.source.kind==='zcode'&&pricingGateExists(${JSON.stringify(marker("gate"))})){
-            pricingGateWrite(${JSON.stringify(marker("entered"))},'ready');
+            // Publish the marker only after its contents have been written.
+            pricingGateWrite(${JSON.stringify(marker("entering"))},'ready');
+            pricingGateRename(${JSON.stringify(marker("entering"))},${JSON.stringify(marker("entered"))});
             const deadline=Date.now()+30000;
             while(!pricingGateExists(${JSON.stringify(marker("release"))})){
               if(Date.now()>deadline)throw new Error('pricing sync gate timed out');

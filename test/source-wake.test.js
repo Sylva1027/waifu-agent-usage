@@ -190,8 +190,8 @@ function sseClient(response) {
   };
 }
 
-async function openSse(baseUrl) {
-  const response = await fetch(`${baseUrl}/api/usage-events`);
+async function openSse(baseUrl, query = "") {
+  const response = await fetch(`${baseUrl}/api/usage-events${query}`);
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") || "", /^text\/event-stream/);
   const client = sseClient(response);
@@ -396,28 +396,30 @@ test("imported runtime rejects the live stream without starting source sync", as
   }
 });
 
-test("a slow SSE client is disconnected when response buffering applies backpressure", async (t) => {
+test("a slow SSE client is disconnected when response buffering applies backpressure", async () => {
   const fixture = createCodexIntegrationFixture();
-  const rollout = fixture.rolloutFiles[0];
-  const notify = mockCodexFileChanges(t, fixture);
-  const server = createUsageServer(fixtureServerOptions(fixture));
+  const server = createUsageServer({ ...fixtureServerOptions(fixture), achievementsEnabled: false });
   const originalWrite = ServerResponse.prototype.write;
+  const requestId = "sse-backpressure";
   let backpressureApplied = false;
   let sse;
   try {
     const baseUrl = await listen(server);
-    sse = await openSse(baseUrl);
-    ServerResponse.prototype.write = function (chunk) {
-      if (String(chunk).includes("event: usage-synced")) {
+    sse = await openSse(baseUrl, "?watch=0");
+    ServerResponse.prototype.write = function (chunk, ...args) {
+      if (String(chunk).startsWith("event: activity-state\n") && String(chunk).includes(requestId)) {
         backpressureApplied = true;
         return false;
       }
-      return originalWrite.call(this, chunk);
+      return originalWrite.call(this, chunk, ...args);
     };
 
-    await appendFile(rollout, usageLine("2026-10-04T13:07:00.000Z", 100));
-    notify(rollout);
-    await sse.waitForClose();
+    const [status] = await Promise.all([
+      fetch(`${baseUrl}/api/status`, { headers: { "x-usage-request-id": requestId } }),
+      sse.waitForClose(),
+    ]);
+    assert.equal(status.status, 200);
+    await status.arrayBuffer();
     assert.equal(backpressureApplied, true, "the client must close after the server hits backpressure");
   } finally {
     ServerResponse.prototype.write = originalWrite;
