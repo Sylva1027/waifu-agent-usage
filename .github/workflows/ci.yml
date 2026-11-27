@@ -102,6 +102,7 @@ jobs:
         run: |
           $core = @(
             "test/ci-changes.test.js"
+            "test/skin-palette-keyboard-step.test.js"
             "test/source-wake.test.js"
             "test/lite-server.test.js"
             "test/lite-cross-edition-store.test.js"
