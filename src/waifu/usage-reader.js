@@ -77,6 +77,7 @@ import { UsageSessionMembers } from "../usage-session-members.js";
 import { createWaifuAllSummaryExtension } from "./usage-all-summary.js";
 export function harnessModelName(channel) {
   const value = String(channel || "").toLowerCase();
+  if (value === "oh my pi") return "Oh My Pi";
   return value.startsWith("zcode")
     ? "ZCode"
     : value.startsWith("dsh")
@@ -370,7 +371,8 @@ export function costEventFromRow(row, tierEvidence, sourceKind) {
     requestInputTokens: Number(row.request_input_tokens || 0),
     contextLevel: String(row.context_level),
     serviceTier:
-      (sourceKind !== "hermes" && tierEvidence?.resolve(sessionId, timestamp, String(row.service_tier))) ||
+      (!["hermes", "omp"].includes(sourceKind) &&
+        tierEvidence?.resolve(sessionId, timestamp, String(row.service_tier))) ||
       String(row.service_tier),
     priceVersion: String(row.price_version),
     total: usageFromRow(row),
@@ -395,7 +397,8 @@ export function costEventFromRowArray(row, tierEvidence, sourceKind) {
     requestInputTokens: Number(row[11] || 0),
     contextLevel: String(row[12]),
     serviceTier:
-      (sourceKind !== "hermes" && tierEvidence?.resolve(sessionId, timestamp, String(row[13]))) || String(row[13]),
+      (!["hermes", "omp"].includes(sourceKind) && tierEvidence?.resolve(sessionId, timestamp, String(row[13]))) ||
+      String(row[13]),
     priceVersion: String(row[14]),
     total: {
       total: Number(row[15] || 0),
@@ -753,6 +756,7 @@ export class WaifuUsageQueries extends UsageQueries {
         Claude: new Set(),
         WorkBuddy: new Set(),
         Hermes: new Set(),
+        "Oh My Pi": new Set(),
       };
       const modelRows =
         persistedMetadata?.modelRows ??
@@ -777,6 +781,7 @@ export class WaifuUsageQueries extends UsageQueries {
           Claude: [...harnessModels.Claude].sort((a, b) => a.localeCompare(b)),
           WorkBuddy: [...harnessModels.WorkBuddy].sort((a, b) => a.localeCompare(b)),
           Hermes: [...harnessModels.Hermes].sort((a, b) => a.localeCompare(b)),
+          "Oh My Pi": [...harnessModels["Oh My Pi"]].sort((a, b) => a.localeCompare(b)),
         },
         homes: this.homes.map((home) => {
           const row = counts.homeRows.get(home.id);
@@ -835,7 +840,9 @@ export class WaifuUsageQueries extends UsageQueries {
       return {
         model: row.model,
         timestamp: Number(row.last_seen),
-        harness: ["ZCode", "DSH", "OpenCode", "Claude", "WorkBuddy", "Hermes"].includes(group) ? group : "Codex",
+        harness: ["ZCode", "DSH", "OpenCode", "Claude", "WorkBuddy", "Hermes", "Oh My Pi"].includes(group)
+          ? group
+          : "Codex",
       };
     });
     // D1：可缓存时用实例级缓存（同一对象、可被 C5 用例按引用断言）；写事务内用本次快照。
@@ -1211,7 +1218,7 @@ export class WaifuUsageQueries extends UsageQueries {
         requestInputTokens: Number(row.request_input_tokens || 0),
         contextLevel: row.context_level,
         serviceTier:
-          (sourceKinds.get(String(row.home_id)) !== "hermes" &&
+          (!["hermes", "omp"].includes(sourceKinds.get(String(row.home_id))) &&
             this.serviceTierEvidence?.resolve(
               String(row.session_id),
               Number(row.timestamp_ms),

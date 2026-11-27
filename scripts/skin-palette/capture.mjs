@@ -82,7 +82,7 @@ const SKIN_STORAGE_KEY = "codexUsageSkinV1";
 const AUTO_REFRESH_STORAGE_KEY = "codexUsageAutoRefresh";
 
 /**
- * 运行证据必须覆盖的 31 项源文件：M3.4 的 REQUIRED_SOURCE_FILES（assess.mjs 导出，26 项，含焦点与 detail-bar 模块）
+ * 运行证据必须覆盖 M3.4 的 REQUIRED_SOURCE_FILES（assess.mjs 导出）
  * 全集 + 捕获链路自身依赖（skin-bootstrap.js、i18n.js、bootstrap-source.mjs、
  * preview-server.mjs、capture.mjs）。测试直接断言 M3.4 集合是本清单的子集。
  */
@@ -92,6 +92,14 @@ const SOURCE_FILES = Object.freeze([
   "public/skin-bootstrap.js",
   "public/styles.css",
   "public/skins.css",
+  "public/waifu-motion-glass.css",
+  "public/waifu-glass-dialogs.css",
+  "public/waifu-glass-feature-windows.css",
+  "public/waifu-motion.js",
+  "public/waifu-motion-controls.js",
+  "public/waifu-liquid-glass.css",
+  "public/waifu-liquid-glass.js",
+  "public/waifu-frame-glass.js",
   "public/app.js",
   "public/app-state.js",
   "public/timeline-utils.js",
@@ -2027,6 +2035,8 @@ const STATE_MATRIX_GROUPS = Object.freeze([
         kind: "catalog",
         stateId: "autorefresh-on",
         note: "独立测量自动刷新开启按钮；catalog 先选『全部』并用 ensureClick 幂等确保 aria-pressed=true。恢复为空，后续 autorefresh-off/autorefresh-error 均从开启态出发",
+        // Move off the toggle before a full-page screenshot can clear the hover spotlight.
+        postSteps: [{ action: "setSpotlight", value: "off" }],
       },
       { id: "preset-selected", kind: "catalog", stateId: "preset-selected", clipSelector: "#presetButtons" },
       {
@@ -4851,6 +4861,7 @@ async function runStateUnit({
   const isQuotaUnit = unit.id === "quota-toast" && unit.stateId === "quota-toast";
   const quotaDiagnosticStart = ctx.quotaEvidenceErrors?.length ?? 0;
   let quotaRecorder = null;
+  let restoreQuotaTimer = null;
   let quotaBeginCounts = null;
   let quotaBegan = false;
   let quotaEndAttempted = false;
@@ -4952,6 +4963,17 @@ async function runStateUnit({
   }
 
   try {
+    if (isQuotaUnit) {
+      restoreQuotaTimer = await page.evaluateHandle(() => {
+        const schedule = window.setTimeout;
+        // Keep the real toast visible through the full-page measurement on slow runners.
+        window.setTimeout = (callback, delay, ...args) =>
+          schedule(callback, callback?.name === "dismissQuotaNotice" ? 120_000 : delay, ...args);
+        return () => {
+          window.setTimeout = schedule;
+        };
+      });
+    }
     // 1. 路由故障注入（autorefresh-error：中止数据请求让轮询/加载失败）
     if (unit.routeFault && faultPattern) {
       await page.route(faultPattern, (route) => {
@@ -5417,6 +5439,15 @@ async function runStateUnit({
     blockers.push(`状态单元流程异常：${error instanceof Error ? error.message : String(error)}`);
   } finally {
     endQuotaWindow();
+    if (restoreQuotaTimer) {
+      try {
+        await restoreQuotaTimer.evaluate((restore) => restore());
+      } catch (error) {
+        quotaFailure("restore-timer", error);
+      } finally {
+        await restoreQuotaTimer.dispose();
+      }
+    }
     if (unrouteFault) await unrouteFault();
   }
 

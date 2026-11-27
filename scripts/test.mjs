@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-// Keep automatic Hermes discovery enabled inside a disposable test environment.
+// Keep automatic discovery enabled inside a disposable test environment.
 const parent = await realpath(tmpdir());
 const root = await mkdtemp(path.join(parent, "codex-usage-tests-"));
 const directories = [{ directory: root, parent }];
@@ -17,7 +17,11 @@ try {
   if (localParent !== root) directories.push({ directory: local, parent: localParent });
   await mkdir(path.join(local, "Temp"), { recursive: true });
   const env = { ...process.env, LOCALAPPDATA: local, TEMP: root, TMP: root, TMPDIR: root };
-  for (const name of ["HERMES_HOME", "HERMES_DATA_DIR_SUFFIX", "CODEX_USAGE_HERMES_HOMES", "CODEX_USAGE_HERMES"])
+  for (const name of [
+    "HERMES_HOME", "HERMES_DATA_DIR_SUFFIX", "CODEX_USAGE_HERMES_HOMES", "CODEX_USAGE_HERMES",
+    "CODEX_USAGE_OMP_HOMES", "CODEX_USAGE_OMP", "OMP_PROFILE", "PI_PROFILE",
+    "PI_CONFIG_DIR", "PI_CODING_AGENT_DIR", "PI_CODING_AGENT_SESSION_DIR",
+  ])
     delete env[name];
   const args = process.argv.slice(2);
   if (!args.some((arg) => arg.endsWith(".test.js"))) args.push("test/**/*.test.js");

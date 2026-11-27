@@ -880,8 +880,16 @@ test("角色图片等待源：布尔判定语义，延迟就绪后翻真；探�
 
 test("源摘要覆盖 M3.4 必需集与捕获链路自身依赖（直接断言常量内容）", () => {
   const timelineFile = "public/timeline-utils.js";
-  assert.equal(REQUIRED_SOURCE_FILES.length, 26);
-  assert.equal(SOURCE_FILES.length, 31);
+  for (const file of [
+    "public/waifu-motion-glass.css",
+    "public/waifu-motion.js",
+    "public/waifu-motion-controls.js",
+    "public/waifu-liquid-glass.css",
+    "public/waifu-liquid-glass.js",
+    "public/waifu-frame-glass.js",
+  ]) {
+    assert.ok(REQUIRED_SOURCE_FILES.includes(file), file);
+  }
   assert.equal(new Set(REQUIRED_SOURCE_FILES).size, REQUIRED_SOURCE_FILES.length);
   assert.equal(new Set(SOURCE_FILES).size, SOURCE_FILES.length);
   const focusFiles = [
@@ -3861,6 +3869,7 @@ test("M4.3 真机矩阵：light 模式 S1/S2/S6 全覆盖、恢复无旧色残�
       assert.equal(entry.status, "captured", `${unitId} 必须完整捕获：${JSON.stringify(entry.blockers ?? [])}`);
     }
     const enabled = await unitState(result.outDir, "light", "autorefresh-on");
+    assert.ok(enabled.trace.steps.some((step) => step.ok && step.spotlight?.value === "off"));
     assert.ok(
       enabled.trace.closedUsageStreams.some(
         (entry) =>
@@ -4799,6 +4808,14 @@ test("M4.3 正式色源模式：S0 基准（含角色测量）与 S7 规程一�
   const sandbox = await mkdtemp(path.join(tmpdir(), "skin-palette-matrix-c3-"));
   const outDir = path.join(sandbox, "docs", "validation", "m43", "production");
   try {
+    // 两入口共用同一批日志和来源路径，各自从原始导入配置和空索引开始。
+    // 矩阵续跑后已发布的来源元数据可让主目录多出「移除」按钮，改变整页高度与玻璃背景取样。
+    const directFixture = {
+      ...fixture,
+      importStoreFile: path.join(sandbox, "direct-imports.json"),
+      databaseFile: path.join(sandbox, "direct-index.sqlite"),
+    };
+    await writeFile(directFixture.importStoreFile, await readFile(fixture.importStoreFile));
     const result = await captureStateMatrix({
       candidate: null,
       skinId: "chatgpt",
@@ -4896,7 +4913,7 @@ test("M4.3 正式色源模式：S0 基准（含角色测量）与 S7 规程一�
     const direct = await captureBaseline({
       candidate: null,
       skinId: "chatgpt",
-      fixture,
+      fixture: directFixture,
       outDir: path.join(sandbox, "docs", "validation", "m43", "direct-baseline"),
       rootDir: sandbox,
       modes: ["light"],

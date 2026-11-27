@@ -7,11 +7,18 @@ on:
   schedule:
     - cron: '17 2 * * 1'
   workflow_dispatch:
+    inputs:
+      node-version:
+        description: Node.js version for the full suite
+        type: choice
+        default: '26'
+        options:
+          - '24'
+          - '26'
   workflow_call:
     inputs:
       release-candidate:
         type: boolean
-        default: false
 
 permissions:
   contents: read
@@ -53,13 +60,15 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        node-version: ["${{ (inputs.release-candidate || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && '26' || '24' }}"]
+        node-version: ["${{ (github.event_name == 'workflow_dispatch' && inputs.node-version) || ((inputs.release-candidate || github.event_name == 'schedule') && '26' || '24') }}"]
     steps:
       - name: Require change classification
         if: needs.changes.result != 'success' && needs.changes.result != 'skipped'
         run: throw "Change classification failed. See the changes job."
       - uses: actions/checkout@v4
+        if: needs.changes.outputs.docs-only != 'true'
       - uses: actions/setup-node@v4
+        if: needs.changes.outputs.docs-only != 'true'
         with:
           node-version: ${{ matrix.node-version }}
           cache: npm
@@ -91,34 +100,61 @@ jobs:
           npm.cmd run native:build
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           npm.cmd run native:check
+      - name: Run Windows CLI and achievement integration tests
+        if: needs.changes.outputs.docs-only != 'true'
+        timeout-minutes: 10
+        # These suites launch subprocesses or a desktop browser throughout the test.
+        run: >-
+          node scripts/test.mjs --test-reporter=spec --test-concurrency=1 --test-timeout=720000
+          test/cli.test.js test/cli-editions.test.js test/achievement-integration-browser.test.js
+          test/achievement-notification-api.test.js test/achievement-notification-browser.test.js
       - name: Run core Windows suite
         if: github.event_name == 'pull_request' && needs.changes.outputs.docs-only != 'true'
         timeout-minutes: 10
         run: |
           $core = @(
             "test/ci-changes.test.js"
-            "test/cli.test.js"
-            "test/cli-editions.test.js"
+            "test/skin-palette-keyboard-step.test.js"
             "test/source-wake.test.js"
             "test/lite-server.test.js"
             "test/lite-cross-edition-store.test.js"
             "test/three-path-parity.test.js"
+            "test/omp-usage.test.js"
+            "test/omp-source.test.js"
+            "test/omp-ledger.test.js"
+            "test/omp-integration.test.js"
             "test/jsonl-source-bounded.test.js"
             "test/usage-record-connection.test.js"
             "test/history-archive-api.test.js"
             "test/achievement-dialog-browser.test.js"
-            "test/achievement-notification-browser.test.js"
+            "test/waifu-motion-glass-browser.test.js"
+            "test/waifu-glass-windows-browser.test.js"
             "test/package-release.test.js"
           )
           npm.cmd test -- --test-reporter=spec --test-concurrency=4 @core
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          npm.cmd test -- --test-reporter=spec --test-concurrency=1 test/q5-refresh-delivery.test.js
+          npm.cmd test -- --test-reporter=spec test/q5-refresh-delivery.test.js
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           npm.cmd test -- --test-reporter=spec '--test-name-pattern=^ZCode 1000-event history' test/usage-source-prefix-publication.test.js
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node scripts/test.mjs --test-reporter=spec '--test-name-pattern=E1d|D21-C7-B2：悬停单目标保持固定视口' test/skin-palette-quality.test.js
       - name: Run full Windows suite
         if: github.event_name != 'pull_request' && needs.changes.outputs.docs-only != 'true'
         timeout-minutes: 30
-        run: npm.cmd test -- --test-reporter=spec --test-concurrency=4 --test-timeout=720000
+        run: >-
+          node scripts/test.mjs
+          --test-reporter=spec --test-reporter=./scripts/test-file-timing.mjs
+          --test-reporter-destination=stdout --test-reporter-destination=stdout
+          --test-concurrency=4 --test-timeout=720000
+          'test/**/!(cli|cli-editions|achievement-integration-browser|achievement-notification-api|achievement-notification-browser).test.js'
+      - name: Upload failed E1d screenshot comparison
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e1d-screenshot-failure
+          path: docs/validation/2026-10-03-skin-palette-redesign/20261003T185748/integration/m52-c-d8u7-restoration/browser/e1d/dark-dashboard-*/failure/
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Run explicit Windows native acceptance
         if: needs.changes.outputs.docs-only != 'true' && (github.event_name != 'pull_request' || needs.changes.outputs.native == 'true')
         timeout-minutes: 10
@@ -147,7 +183,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-24.04, macos-15]
-        node-version: ["${{ (inputs.release-candidate || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && '26' || '24' }}"]
+        node-version: ["${{ (github.event_name == 'workflow_dispatch' && inputs.node-version) || ((inputs.release-candidate || github.event_name == 'schedule') && '26' || '24') }}"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -164,9 +200,13 @@ jobs:
             test/source-wake.test.js \
             test/lite-server.test.js \
             test/three-path-parity.test.js \
+            test/omp-usage.test.js \
+            test/omp-source.test.js \
+            test/omp-ledger.test.js \
+            test/omp-integration.test.js \
             test/history-archive-api.test.js
       - name: Run refresh delivery tests
-        run: npm test -- --test-reporter=spec --test-concurrency=1 --test-timeout=120000 test/q5-refresh-delivery.test.js
+        run: npm test -- --test-reporter=spec --test-timeout=120000 test/q5-refresh-delivery.test.js
       - name: Install Playwright and Chromium
         uses: ./.github/actions/setup-chromium
       - name: Run Playwright acceptance
@@ -175,4 +215,5 @@ jobs:
             test/achievement-dialog-browser.test.js \
             test/achievement-notification-browser.test.js \
             test/source-imports-browser.test.js \
+            test/omp-source.test.js \
             test/local-calendar-browser.test.js

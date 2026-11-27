@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { listenOnFetchPort } from "../test-support/fetch-port.mjs";
+import fs from "node:fs";
 import { appendFile, rm, writeFile } from "node:fs/promises";
 import { ServerResponse } from "node:http";
+import { syncBuiltinESMExports } from "node:module";
 import path from "node:path";
 import test from "node:test";
 
@@ -182,17 +184,14 @@ function sseClient(response) {
   return {
     next,
     waitForClose,
-    eventCount(eventName) {
-      return events.filter((entry) => entry.event === eventName).length;
-    },
     async close() {
       await reader.cancel().catch(() => {});
     },
   };
 }
 
-async function openSse(baseUrl) {
-  const response = await fetch(`${baseUrl}/api/usage-events`);
+async function openSse(baseUrl, query = "") {
+  const response = await fetch(`${baseUrl}/api/usage-events${query}`);
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") || "", /^text\/event-stream/);
   const client = sseClient(response);
@@ -306,31 +305,61 @@ test("source watcher stop prevents discovery from installing watchers afterward"
   assert.equal(watcher.rootCount, 0);
 });
 
-test("real server coalesces source wake into a committed notification and correct scoped read", async () => {
+function mockCodexFileChanges(t, fixture) {
+  let onCodexChange;
+  // Exercise the server with explicit change hints; native delivery is covered separately.
+  t.mock.method(fs, "watch", (root, _options, listener) => {
+    if (root === fixture.codexHome) onCodexChange = listener;
+    return { on() {}, unref() {}, close() {} };
+  });
+  syncBuiltinESMExports();
+  t.after(() => {
+    t.mock.restoreAll();
+    syncBuiltinESMExports();
+  });
+  return (rollout) => {
+    assert.equal(typeof onCodexChange, "function");
+    onCodexChange("change", path.relative(fixture.codexHome, rollout));
+  };
+}
+
+test("real server coalesces source wake into a committed notification and correct scoped read", async (t) => {
   const fixture = createCodexIntegrationFixture();
-  const server = createUsageServer(fixtureServerOptions(fixture));
+  const rollout = fixture.rolloutFiles[0];
+  const notify = mockCodexFileChanges(t, fixture);
+  let server;
   let sse;
   try {
+    server = createUsageServer(fixtureServerOptions(fixture));
     const baseUrl = await listen(server);
     const initial = await getJson(baseUrl, `/api/usage?${USAGE_QUERY}&skipCheck=1`);
     assert.equal(initial.summary.totals.total, 0);
     sse = await openSse(baseUrl);
 
-    await appendFile(fixture.rolloutFiles[0], usageLine("2026-10-04T13:00:00.000Z", 100));
+    await appendFile(rollout, usageLine("2026-10-04T13:00:00.000Z", 100));
+    notify(rollout);
     const first = await sse.next("usage-synced");
     assert.equal(typeof first.checkedAt, "string");
     assert.equal((await getJson(baseUrl, `/api/usage?${USAGE_QUERY}&skipCheck=1`)).summary.totals.total, 100);
 
-    await appendFile(fixture.rolloutFiles[0], usageLine("2026-10-04T13:01:00.000Z", 100));
-    await appendFile(fixture.rolloutFiles[0], usageLine("2026-10-04T13:02:00.000Z", 100));
+    await appendFile(rollout, usageLine("2026-10-04T13:01:00.000Z", 100));
+    await appendFile(rollout, usageLine("2026-10-04T13:02:00.000Z", 100));
+    notify(rollout);
+    notify(rollout);
     await sse.next("usage-synced");
     assert.equal((await getJson(baseUrl, `/api/usage?${USAGE_QUERY}&skipCheck=1`)).summary.totals.total, 300);
-    await new Promise((resolve) => setTimeout(resolve, 350));
-    assert.equal(sse.eventCount("usage-synced"), 0, "one burst must produce one completed notification");
+    await assert.rejects(
+      sse.next("usage-synced", 350),
+      /Timed out waiting for SSE usage-synced/,
+      "one burst must produce one completed notification",
+    );
   } finally {
-    await sse?.close();
-    await server.close();
-    fixture.close();
+    try {
+      await sse?.close();
+      await server?.close();
+    } finally {
+      fixture.close();
+    }
   }
 });
 
@@ -369,19 +398,29 @@ test("imported runtime rejects the live stream without starting source sync", as
 
 test("a slow SSE client is disconnected when response buffering applies backpressure", async () => {
   const fixture = createCodexIntegrationFixture();
-  const server = createUsageServer(fixtureServerOptions(fixture));
+  const server = createUsageServer({ ...fixtureServerOptions(fixture), achievementsEnabled: false });
   const originalWrite = ServerResponse.prototype.write;
+  const requestId = "sse-backpressure";
+  let backpressureApplied = false;
   let sse;
   try {
     const baseUrl = await listen(server);
-    sse = await openSse(baseUrl);
-    ServerResponse.prototype.write = function (chunk) {
-      if (String(chunk).includes("event: usage-synced")) return false;
-      return originalWrite.call(this, chunk);
+    sse = await openSse(baseUrl, "?watch=0");
+    ServerResponse.prototype.write = function (chunk, ...args) {
+      if (String(chunk).startsWith("event: activity-state\n") && String(chunk).includes(requestId)) {
+        backpressureApplied = true;
+        return false;
+      }
+      return originalWrite.call(this, chunk, ...args);
     };
 
-    await appendFile(fixture.rolloutFiles[0], usageLine("2026-10-04T13:07:00.000Z", 100));
-    await sse.waitForClose();
+    const [status] = await Promise.all([
+      fetch(`${baseUrl}/api/status`, { headers: { "x-usage-request-id": requestId } }),
+      sse.waitForClose(),
+    ]);
+    assert.equal(status.status, 200);
+    await status.arrayBuffer();
+    assert.equal(backpressureApplied, true, "the client must close after the server hits backpressure");
   } finally {
     ServerResponse.prototype.write = originalWrite;
     await sse?.close();
@@ -435,21 +474,21 @@ test("a missed wake remains recoverable by the existing checked sync path", asyn
   }
 });
 
-test("server close ends a live SSE connection instead of waiting forever", async () => {
+test("server close signals and ends a live SSE connection", { timeout: 15_000 }, async () => {
   const fixture = createCodexIntegrationFixture();
-  const server = createUsageServer(fixtureServerOptions(fixture));
+  const server = createUsageServer({ ...fixtureServerOptions(fixture), achievementsEnabled: false });
   let sse;
+  let closed;
   try {
     const baseUrl = await listen(server);
     sse = await openSse(baseUrl);
-    const closed = server.close();
-    await Promise.race([
-      closed,
-      new Promise((_, reject) => setTimeout(() => reject(new Error("server close hung on live SSE")), 3_000)),
-    ]);
+    closed = server.close();
+    assert.deepEqual(await sse.next("close"), {});
+    await sse.waitForClose();
+    await closed;
   } finally {
     await sse?.close();
-    if (server.listening) await server.close();
+    await (closed ?? server.close());
     fixture.close();
   }
 });

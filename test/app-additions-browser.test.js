@@ -76,30 +76,63 @@ test("detail growth, uncut quota control and theme transitions work in the real 
   });
 
   for (const fallback of [false, true]) {
-    if (fallback)
-      await page.evaluate(() => {
-        document.startViewTransition = undefined;
-      });
     const before = await page.locator("html").getAttribute("data-theme");
-    const started = Date.now();
-    await page.locator("#themeToggle").click();
-    await page.waitForFunction(() => document.documentElement.dataset.themeTransition === "running");
-    await page.waitForTimeout(400);
+    await page.evaluate((fallback) => {
+      window.themeFadeAnimations = null;
+      const capture = (animations) => {
+        for (const animation of animations) animation.pause();
+        window.themeFadeAnimations = animations;
+      };
+      // Pause as soon as the browser creates the fade, before test-runner scheduling can miss it.
+      if (fallback) {
+        document.startViewTransition = undefined;
+        const animate = Element.prototype.animate;
+        Element.prototype.animate = function (...args) {
+          const animation = animate.apply(this, args);
+          if (this.parentElement === document.body && this.inert && this.getAttribute("aria-hidden") === "true") {
+            Element.prototype.animate = animate;
+            capture([animation]);
+          }
+          return animation;
+        };
+      } else {
+        const start = document.startViewTransition;
+        document.startViewTransition = function (...args) {
+          document.startViewTransition = start;
+          const transition = start.apply(this, args);
+          transition.ready.then(() => {
+            capture(document.getAnimations().filter((a) => a.effect?.pseudoElement?.startsWith("::view-transition")));
+          });
+          return transition;
+        };
+      }
+      document.querySelector("#themeToggle").click();
+    }, fallback);
+    await page.waitForFunction(() => window.themeFadeAnimations?.length);
+    assert.equal(await page.locator("html").getAttribute("data-theme-transition"), "running");
     assert.equal(await page.locator("#themeToggle").isDisabled(), true);
-    const opacity = await page.evaluate(
-      (fallback) =>
-        Number(
-          getComputedStyle(
-            fallback ? document.body.lastElementChild : document.documentElement,
-            fallback ? null : "::view-transition-new(root)",
-          ).opacity,
-        ),
-      fallback,
-    );
+    const { duration, opacity } = await page.evaluate((fallback) => {
+      const animations = window.themeFadeAnimations;
+      const fade = fallback
+        ? animations[0]
+        : animations.find((animation) => animation.effect.pseudoElement === "::view-transition-new(root)");
+      const duration = fade.effect.getTiming().duration;
+      for (const animation of animations) animation.currentTime = duration / 2;
+      const opacity = Number(
+        getComputedStyle(
+          fallback ? fade.effect.target : document.documentElement,
+          fallback ? null : "::view-transition-new(root)",
+        ).opacity,
+      );
+      return { duration, opacity };
+    }, fallback);
+    assert.equal(duration, 1000, "theme transition must last one second");
     assert.ok(opacity > 0 && opacity < 1, `intermediate opacity: ${opacity}`);
-    await page.evaluate(() => document.querySelector("#themeToggle").click());
+    await page.evaluate(() => {
+      document.querySelector("#themeToggle").click();
+      for (const animation of window.themeFadeAnimations) animation.finish();
+    });
     await page.waitForFunction(() => !document.documentElement.dataset.themeTransition);
-    assert.ok(Date.now() - started >= 900, "theme transition must last approximately one second");
     assert.equal(await page.locator("html").getAttribute("data-theme"), before === "light" ? "dark" : "light");
     assert.equal(await page.locator("#themeToggle").isEnabled(), true);
   }

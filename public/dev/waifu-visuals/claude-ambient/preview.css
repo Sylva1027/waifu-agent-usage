@@ -1,0 +1,70 @@
+#claude-ambient {
+  --board-edge: max(16px, calc((100vw - 1440px) * 0.5));
+  --paper-color: #e4c6a5;
+  --paper-base: url("./art/paper-light.webp");
+  --paper-left: url("./art/left-light.webp");
+  --paper-right: url("./art/right-light.webp");
+  position: fixed;
+  z-index: 0;
+  inset: 0;
+  display: none;
+  overflow: hidden;
+  pointer-events: none;
+  background: var(--paper-color) var(--paper-base) center / auto 100% repeat-x;
+}
+
+:root[data-theme="dark"] #claude-ambient {
+  --paper-color: #382c23;
+  --paper-base: url("./art/paper-dark.webp");
+  --paper-left: url("./art/left-dark.webp");
+  --paper-right: url("./art/right-dark.webp");
+}
+
+:root[data-skin="claude"] #claude-ambient {
+  display: block;
+}
+
+#claude-ambient .claude-paper-left,
+#claude-ambient .claude-paper-right {
+  position: absolute;
+  top: 52%;
+  transform: translateY(-50%);
+  content: "";
+  background-position: center;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  mask-composite: intersect;
+}
+
+#claude-ambient .claude-paper-left {
+  top: 50%;
+  --paper-width: max(104vh, calc(var(--board-edge) + 30vh));
+  left: clamp(calc(-0.28 * var(--paper-width)), calc(var(--board-edge) - 0.58 * var(--paper-width)), 0px);
+  width: var(--paper-width);
+  aspect-ratio: 1280 / 1232;
+  background-image: var(--paper-left);
+  mask-image: linear-gradient(to right, #000 48%, transparent 98%), linear-gradient(to bottom, #000 93%, transparent);
+}
+
+#claude-ambient .claude-paper-right {
+  --paper-width: max(60vh, calc(var(--board-edge) + 37vh));
+  /* The bloom is at 85% of this 6:5 plate. Keep it at the lower-skirt height. */
+  top: calc(76.5% - var(--paper-width) * 5 / 6 * 0.35);
+  width: var(--paper-width);
+  right: clamp(-4vh, calc(var(--board-edge) * 0.08 - 7vh), 0px);
+  aspect-ratio: 6 / 5;
+  background-image: var(--paper-right);
+  mask-image:
+    linear-gradient(to right, transparent 10%, #000 49%),
+    linear-gradient(to bottom, transparent, #000 10%, #000 94%, transparent);
+}
+
+.claude-breeze-patch {
+  position: absolute;
+  background-image: var(--breeze-atlas);
+  background-repeat: no-repeat;
+}
+
+.claude-paper-fibers {
+  position: absolute;
+}

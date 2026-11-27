@@ -50,12 +50,15 @@ async function setup(t, options = {}) {
     reducedMotion: "reduce",
     hasTouch: options.hasTouch ?? false,
   });
-  await page.addInitScript((key) => {
-    localStorage.setItem("codexUsageAutoRefresh", "off");
-    localStorage.setItem("codexUsageLocale", "zh-CN");
-    localStorage.setItem("codexUsageTheme", "dark");
-    localStorage.setItem(key, JSON.stringify({ version: 1, skinId: "chatgpt", showCharacters: true, opacity: 0.5 }));
-  }, SKIN_PREFERENCE_KEY);
+  await page.addInitScript(
+    ({ key, skinId }) => {
+      localStorage.setItem("codexUsageAutoRefresh", "off");
+      localStorage.setItem("codexUsageLocale", "zh-CN");
+      localStorage.setItem("codexUsageTheme", "dark");
+      localStorage.setItem(key, JSON.stringify({ version: 1, skinId, showCharacters: true, opacity: 0.5 }));
+    },
+    { key: SKIN_PREFERENCE_KEY, skinId: options.skinId ?? "chatgpt" },
+  );
   const errors = [],
     requests = [];
   page.on("pageerror", (error) => errors.push(error.message));
@@ -216,6 +219,107 @@ test("the achievement share button exports the displayed earned medal and return
   await page.keyboard.press("Escape");
   assert.ok(await page.locator("#achievementDialog").evaluate((dialog) => dialog.open));
   assert.equal(await page.evaluate(() => document.activeElement.id), "achievementShareToggle");
+  assert.deepEqual(errors, []);
+});
+
+test("Classic achievement PNG uses the active glass palette and preserves bronze across themes", async (t) => {
+  const { fixture, page, errors, requests } = await setup(t, { skinId: "classic", graphics: true });
+  await page.goto(fixture.url);
+  let darkBronze;
+  for (const theme of ["dark", "light"]) {
+    if (theme === "light") await page.locator("#themeToggle").click();
+    await page.locator(`html[data-skin="classic"][data-theme="${theme}"]`).waitFor();
+    await open(page);
+    await page.locator('[data-category="用量规模"]').click();
+    await page.locator('[data-achievement="A01"]').click();
+    await page.locator('[data-preview-grade="bronze"]').click();
+    await page.locator("#achievementShareToggle").click();
+    await page.waitForFunction(() => document.querySelector("#shareImage").naturalWidth === 960);
+    const result = await page.locator("#shareImage").evaluate(async (img) => {
+      await img.decode();
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0);
+      const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const accent = getComputedStyle(document.documentElement).getPropertyValue("--blue").trim();
+      const rgb = Number.parseInt(accent.slice(1), 16);
+      let accentPixels = 0;
+      for (let y = 0; y < canvas.height; y += 2) {
+        for (let x = 0; x < canvas.width; x += 2) {
+          const i = (y * canvas.width + x) * 4;
+          const r = data[i],
+            g = data[i + 1],
+            b = data[i + 2];
+          if (data[i + 3] !== 255) continue;
+          const color = (r << 16) | (g << 8) | b;
+          if (color === rgb) accentPixels++;
+        }
+      }
+      // Recess, relief and highlight on the A01 bronze face, clear of the translucent rim.
+      const bronze = [
+        [480, 420],
+        [450, 400],
+        [480, 460],
+      ].map(([x, y]) => {
+        const i = (y * canvas.width + x) * 4;
+        return Array.from(data.subarray(i, i + 3));
+      });
+      // The award room occupies the top 77% of the PNG. Sample its clear margins against the desktop wallpaper.
+      const wall = document.createElement("div");
+      const style = getComputedStyle(document.body);
+      Object.assign(wall.style, {
+        width: "100%",
+        height: "100%",
+        backgroundImage: style.backgroundImage,
+        backgroundColor: style.backgroundColor,
+      });
+      const reference = new Image();
+      const markup = new XMLSerializer().serializeToString(wall);
+      reference.src =
+        "data:image/svg+xml," +
+        encodeURIComponent(
+          `<svg xmlns="http://www.w3.org/2000/svg" width="960" height="924"><foreignObject width="100%" height="100%">${markup}</foreignObject></svg>`,
+        );
+      await reference.decode();
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(reference, 0, 0);
+      const wallError = Math.max(
+        ...[
+          [80, 140],
+          [80, 570],
+          [880, 170],
+          [880, 650],
+        ].flatMap(([x, y]) => {
+          const i = (y * canvas.width + x) * 4;
+          const pixel = ctx.getImageData(x, y, 1, 1).data;
+          return [0, 1, 2].map((c) => Math.abs(pixel[c] - data[i + c]));
+        }),
+      );
+      return { size: [canvas.width, canvas.height], cornerAlpha: data[3], accent, accentPixels, bronze, wallError };
+    });
+    assert.deepEqual(result.size, [960, 1200]);
+    assert.equal(result.cornerAlpha, 0);
+    assert.equal(result.accent, theme === "dark" ? "#8ee4ec" : "#00687b");
+    assert.ok(result.accentPixels > 100, `The exported title must use the live ${theme} accent`);
+    assert.ok(
+      result.wallError <= 2,
+      `The ${theme} exported room differs from the desktop wallpaper by ${result.wallError}`,
+    );
+    assert.ok(
+      result.bronze.every(([r, g, b]) => r > g && g > b),
+      "Recess, relief and highlight retain the warm metal",
+    );
+    assert.ok(result.bronze[2][0] - result.bronze[0][0] > 100, "Bronze highlights remain distinct from the recess");
+    if (theme === "dark") darkBronze = result.bronze.flat();
+    else assert.ok(result.bronze.flat().every((channel, i) => Math.abs(channel - darkBronze[i]) <= 2));
+    await page.keyboard.press("Escape");
+    await page.locator("#shareDialog").waitFor({ state: "hidden" });
+    await page.keyboard.press("Escape");
+    await page.locator("#achievementDialog").waitFor({ state: "hidden" });
+  }
+  assert.ok(requests.some(({ path }) => path === "/assets/achievements/A01/bronze.webp"));
   assert.deepEqual(errors, []);
 });
 

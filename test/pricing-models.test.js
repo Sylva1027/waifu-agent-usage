@@ -24,6 +24,7 @@ test("model activity expires at one UTC calendar month and clamps month ends", (
     { harness: "ZCode", model: "bad", timestamp: "invalid" },
     { harness: "DSH", model: "unknown model", timestamp: cutoff + 1 },
     { harness: "Claude", model: "claude-sonnet-4-5", timestamp: cutoff + 1 },
+    { harness: "Oh My Pi", model: "fixture-omp-model", timestamp: cutoff + 1 },
   ];
   const activity = buildModelActivity(observations, now);
   assert.deepEqual(activity.activeHarnessModels, {
@@ -34,6 +35,7 @@ test("model activity expires at one UTC calendar month and clamps month ends", (
     Claude: ["claude-sonnet-4-5"],
     WorkBuddy: [],
     Hermes: [],
+    "Oh My Pi": ["fixture-omp-model"],
   });
   assert.equal(activity.modelLastSeen.Codex.recent, cutoff + 1);
   const returned = buildModelActivity([...observations, { harness: "ZCode", model: "old", timestamp: now }], now);

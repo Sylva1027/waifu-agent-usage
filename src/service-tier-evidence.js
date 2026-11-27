@@ -152,7 +152,7 @@ export function loadServiceTierEvidence(homes = []) {
   const filePaths = [
     ...new Set(
       homes
-        .filter((home) => home.kind !== "project-log" && home.kind !== "zcode")
+        .filter((home) => !["project-log", "zcode", "omp"].includes(home.kind))
         .map((home) => path.join(home.path, "logs_2.sqlite")),
     ),
   ];

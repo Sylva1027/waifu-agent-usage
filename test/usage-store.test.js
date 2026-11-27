@@ -469,7 +469,7 @@ test("UsageStore upgrades schema v2 and reindexes old source files with unknown 
   }
 });
 
-test("UsageStore upgrades v23 to schema 25 without replacing usage or quota facts", async () => {
+test("UsageStore upgrades v23 to schema 26 without replacing usage or quota facts", async () => {
   const { homeDir, sessionFile, databaseFile } = await makeStoreFixture();
   const projectRoot = path.join(homeDir, "migration-project");
   const projectLog = path.join(projectRoot, ".codex-usage", "usage.jsonl");
@@ -524,8 +524,8 @@ test("UsageStore upgrades v23 to schema 25 without replacing usage or quota fact
     const migrated = new UsageStore({ homeDir, databaseFile, importDirs: [projectRoot] });
     try {
       await migrated.open();
-      assert.equal(STORE_SCHEMA_VERSION, 25);
-      assert.equal(Number(migrated.database.prepare("PRAGMA user_version").get().user_version), 25);
+      assert.equal(STORE_SCHEMA_VERSION, 26);
+      assert.equal(Number(migrated.database.prepare("PRAGMA user_version").get().user_version), 26);
       assert.equal(
         Number(
           migrated.database
@@ -562,7 +562,7 @@ test("UsageStore upgrades v23 to schema 25 without replacing usage or quota fact
     const reopened = new UsageStore({ homeDir, databaseFile, importDirs: [projectRoot] });
     try {
       await reopened.open();
-      assert.equal(Number(reopened.database.prepare("PRAGMA user_version").get().user_version), 25);
+      assert.equal(Number(reopened.database.prepare("PRAGMA user_version").get().user_version), 26);
       assert.equal((await reopened.sync()).updatedFileCount, 0);
       assert.ok(
         reopened.database

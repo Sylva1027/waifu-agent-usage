@@ -162,6 +162,13 @@ a {
     color: transparent;
     -webkit-text-stroke: 1px var(--ink);
   }
+
+  .topbar .logo-a {
+    /* Cover the internal seams with the original glyph fill. */
+    color: var(--panel);
+    -webkit-text-stroke-width: 2px;
+    paint-order: stroke fill;
+  }
 }
 
 .topbar-actions {
@@ -1187,7 +1194,8 @@ html[lang="en-US"] #repositoryComparisonSearch {
   font-variant-numeric: tabular-nums;
 }
 
-.comparison-table tfoot :is(th, td) {
+.comparison-table tfoot :is(th, td),
+.comparison-table tfoot th:first-child {
   border: 0;
   background: var(--panel);
   font-weight: 700;
@@ -1195,7 +1203,7 @@ html[lang="en-US"] #repositoryComparisonSearch {
 }
 
 .bottom-grid {
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   margin-bottom: 0;
 }
 
@@ -1582,7 +1590,8 @@ html[lang="en-US"] #repositoryComparisonSearch {
   .toolbar,
   .main-grid,
   .period-comparison-grid,
-  .comparison-strip {
+  .comparison-strip,
+  .bottom-grid {
     grid-template-columns: minmax(0, 1fr);
   }
 

@@ -191,8 +191,9 @@ const ENGLISH = new Map(
     无用量记录: "No usage found",
     可扫描: "Ready to scan",
     没有可统计的来源: "No sources available",
-    "没有发现 Codex、ZCode、DSH、OpenCode、Claude Code 或 WorkBuddy 目录":
-      "No Codex, ZCode, DSH, OpenCode, Claude Code, or WorkBuddy directories found",
+    没有发现可统计的记录目录: "No usage directories found",
+    "按 Oh My Pi 导入": "Import as Oh My Pi",
+    已授权目录: "Approved directories",
     移除: "Remove",
     不计入统计: "Excluded from totals",
     切换自动刷新: "Toggle auto refresh",
@@ -246,8 +247,8 @@ const ENGLISH = new Map(
     "同一观察时刻存在相互冲突的限额重置时间。": "Conflicting reset times were recorded at the same observation time.",
     "尚未发现当前限额窗口的 Codex 记录。": "No Codex record was found for the current limit window.",
     "限额窗口边界无效。": "The limit window boundaries are invalid.",
-    "目录需要是 Codex home、ZCode home、DSH home、OpenCode 数据目录、Claude Code home、WorkBuddy home，或包含 .codex-usage/usage.jsonl":
-      "Choose a Codex, ZCode, or DSH home directory, an OpenCode data directory, a Claude Code home, a WorkBuddy home, or a project containing .codex-usage/usage.jsonl.",
+    "目录需要是 Codex home、ZCode home、DSH home、OpenCode 数据目录、Claude Code home、WorkBuddy home、Oh My Pi 会话目录，或包含 .codex-usage/usage.jsonl":
+      "Choose a supported usage directory, an Oh My Pi session directory, or a project containing .codex-usage/usage.jsonl.",
   }),
 );
 
@@ -524,6 +525,10 @@ export function localizeServerError(body, status = 0, locale = activeLocale) {
     ],
     DIRECTORY_PICKER_BUSY: ["文件夹选择器已打开。", "The folder picker is already open."],
     IMPORT_IN_PROGRESS: ["正在导入，请等待当前导入完成。", "An import is in progress. Wait for it to finish."],
+    OMP_SOURCE_AMBIGUOUS: [
+      "此目录使用 Pi 会话格式。确认它来自 Oh My Pi 后即可导入。",
+      "This directory uses the Pi session format. Confirm that it belongs to Oh My Pi to import it.",
+    ],
     SOURCE_UPDATE_PENDING: [
       "本次记录校验未完成，请重试导入。已读取的记录会保留。",
       "Record verification did not finish. Retry the import; records already read are retained.",
@@ -551,8 +556,7 @@ export function localizeServerError(body, status = 0, locale = activeLocale) {
       "Full detail is unavailable in low-memory mode. Restart with more memory or export a snapshot.",
     QUOTA_WINDOW_UNAVAILABLE: "This limit window is not available yet.",
     SNAPSHOT_EXPIRED: "This snapshot has expired.",
-    INVALID_IMPORT_DIRECTORY:
-      "Choose a Codex, ZCode, or DSH home directory, an OpenCode data directory, a Claude Code home, a WorkBuddy home, or a project with a usage log.",
+    INVALID_IMPORT_DIRECTORY: "Choose a supported usage directory or a project with a usage log.",
   };
   if (body?.code && extensionServerErrors[body.code]) return extensionServerErrors[body.code];
   if (body?.code && known[body.code]) return known[body.code];

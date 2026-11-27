@@ -82,10 +82,19 @@ import { dshSessionFiles } from "./dsh-usage.js";
 import { opencodeDatabaseFiles, opencodeSourceStat } from "./opencode-usage.js";
 import { claudeSessionFiles } from "./claude-code-usage.js";
 import { workbuddySessionFiles } from "./workbuddy-usage.js";
+import { ompSessionFiles } from "./omp-source.js";
+import {
+  OMP_LEDGER_DDL,
+  OMP_TABLES,
+  stageOmpFiles,
+  reconcileOmpCalls,
+  ompLedgerWarnings,
+  ompSnapshotStamp,
+} from "./omp-ledger.js";
 import { createHash } from "node:crypto";
 import { sourceGroup, homeSourceKinds, timelineDateKey } from "../public/timeline-utils.js";
 
-export const STORE_SCHEMA_VERSION = 25;
+export const STORE_SCHEMA_VERSION = 26;
 function addDaysMs(date, days) {
   return date.getTime() + days * 86_400_000;
 }
@@ -102,6 +111,7 @@ const USAGE_PROJECTION_IGNORED_TABLES = [
   USAGE_SOURCE_CATALOG_TABLE,
   "history_replaced_facts",
   "usage_business_revision",
+  ...OMP_TABLES,
 
   ...USAGE_QUOTA_TABLE_NAMES,
   ...USAGE_SOURCE_PROGRESS_TABLE_NAMES,
@@ -450,7 +460,7 @@ function historyArchiveRowsByNativeIdentity(rows, segmentId, byIdentity) {
   return byIdentity;
 }
 
-function historyArchiveColdRevisionForRows(prefix, repositoryAliases) {
+function historyArchiveColdRevisionForRows(prefix, repositoryAliases, verifiedAliasMerge = false) {
   const payloadFor = (row) => historyArchiveRevisionPayload(canonicalFactPayload(row, ["id"]), prefix.sourceIdentity);
   const sameFact = (before, after) => {
     const previous = sourceFactIdentity(payloadFor(before));
@@ -501,6 +511,7 @@ function historyArchiveColdRevisionForRows(prefix, repositoryAliases) {
     for (const identity of effectiveByIdentity.keys()) if (!observedByIdentity.has(identity)) removedColdEventCount++;
     for (const identity of observedByIdentity.keys()) if (!effectiveByIdentity.has(identity)) addedCount++;
     if (
+      !verifiedAliasMerge &&
       prefix.sourceIdentity.kind !== "hermes" &&
       (observedByIdentity.size === 0 ||
         (removedColdEventCount > 0 && addedCount > 0) ||
@@ -1711,11 +1722,17 @@ export function createUsageFactStoreClass(QueryOwner) {
         );
         version = 25;
       }
+      if (version === 25) {
+        migrate(OMP_LEDGER_DDL, 26);
+        version = 26;
+      }
       if (version !== 0 && version !== STORE_SCHEMA_VERSION) {
         throw new Error(`不支持的用量索引版本：${version}`);
       }
       if (version === 0) {
-        this.database.exec(`${QUOTA_SOURCES_DDL}\n${HISTORY_REPLACED_FACTS_DDL}\n${ARCHIVE_SEGMENTS_DDL}`);
+        this.database.exec(
+          `${QUOTA_SOURCES_DDL}\n${HISTORY_REPLACED_FACTS_DDL}\n${ARCHIVE_SEGMENTS_DDL}\n${OMP_LEDGER_DDL}`,
+        );
         assertHistoryReplacedFactsSchema(this.database);
         assertArchiveSegmentsSchema(this.database);
         this.database.exec(`PRAGMA user_version = ${STORE_SCHEMA_VERSION}`);
@@ -2575,10 +2592,10 @@ export function createUsageFactStoreClass(QueryOwner) {
      * rows are the only part of the re-parsed file allowed to stay cold.
      * @param {string} filePath
      * @param {Record<string, unknown>} source
-     * @param {{reuseProjection?: boolean}} [options]
+     * @param {{reuseProjection?: boolean, touchesRange?: (startMs: number, endMs: number) => boolean}} [options]
      * @returns {Promise<{prefixes: any[], unboundRanges: {segmentId: string, startMs: number, endMs: number}[], revisionState: any | null, usedProjection?: boolean}>}
      */
-    async historyArchiveReparsePrefixes(filePath, source, { reuseProjection = false } = {}) {
+    async historyArchiveReparsePrefixes(filePath, source, { reuseProjection = false, touchesRange = null } = {}) {
       const authorizedSegmentIds = historyArchiveAuthorizedSegmentIds(this.database);
       if (authorizedSegmentIds.size === 0) return { prefixes: [], unboundRanges: [], revisionState: null };
       const allRecords = this.database
@@ -2593,13 +2610,18 @@ export function createUsageFactStoreClass(QueryOwner) {
         this.readMetaRaw(HISTORY_ARCHIVE_EVENT_REVISIONS_META),
         segmentsById,
       );
-      const records = allRecords.filter((record) => authorizedSegmentIds.has(String(record.segment_id)));
+      const records = allRecords.filter(
+        (record) =>
+          authorizedSegmentIds.has(String(record.segment_id)) &&
+          (!touchesRange || touchesRange(Number(record.start_ms), Number(record.end_ms))),
+      );
       const prefixes = [];
       const unboundRanges = [];
       const owned = new Set();
       let published = null;
+      const allowsIntroduced = source.kind === "hermes" || source.kind === "omp";
       const projectionIdentity =
-        reuseProjection && this.historyProjectionModule && source.kind !== "hermes"
+        reuseProjection && this.historyProjectionModule && !allowsIntroduced
           ? this.usageProjectionDatabaseIdentity()
           : null;
       if (
@@ -2647,7 +2669,7 @@ export function createUsageFactStoreClass(QueryOwner) {
               onRow,
             });
           const coldSource = snapshot.sourceIdentities.find((source) => String(source.path) === filePath);
-          if (!coldSource && source.kind !== "hermes") {
+          if (!coldSource && !allowsIntroduced) {
             unboundRanges.push({ segmentId: String(record.segment_id), startMs, endMs });
             originalRows.close();
             owned.delete(originalRows);
@@ -2707,7 +2729,7 @@ export function createUsageFactStoreClass(QueryOwner) {
             startMs,
             endMs,
             sourceIdentity: { ...(coldSource || liveIdentity) },
-            ...(source.kind === "hermes" ? { binding: coldSource ? "base" : "introduced" } : {}),
+            ...(allowsIntroduced ? { binding: coldSource ? "base" : "introduced" } : {}),
             originalRows,
             effectiveRows,
             observedRows,
@@ -3014,6 +3036,10 @@ export function createUsageFactStoreClass(QueryOwner) {
             await addFiles(await opencodeDatabaseFiles(home.path), home, opencodeSourceStat);
             continue;
           }
+          if (home.kind === "omp") {
+            await addFiles(await ompSessionFiles(home), home);
+            continue;
+          }
           if (home.kind === "claude") {
             // Claude Code 的用量按会话转录分散在 projects/**/*.jsonl（含 subagents），
             // 每个文件各自按 size+mtime 判定是否需要重解析。
@@ -3034,11 +3060,203 @@ export function createUsageFactStoreClass(QueryOwner) {
       return { files, warnings, failedHomes };
     }
 
+    /** Apply only reconciled call changes, preserving the identities of archived and previously published rows. */
+    async applyOmpChanges() {
+      const db = this.database;
+      const owners = db.prepare("SELECT DISTINCT owner_path FROM omp_changes ORDER BY owner_path").all();
+      const upsert = db.prepare(
+        `INSERT INTO events (${EVENT_INSERT_COLUMNS.join(",")}) VALUES (${EVENT_INSERT_COLUMNS.map(() => "?").join(",")})`,
+      );
+      const readHot = db.prepare("SELECT * FROM events WHERE source_path=? AND source_event_id=?");
+      const deleteHot = db.prepare("DELETE FROM events WHERE source_path=? AND source_event_id=?");
+      const recover = db.prepare(HISTORY_REPLACED_FACT_INSERT_SQL);
+      const identity = db.prepare("SELECT path,kind,home_id,home_label,home_path FROM source_files WHERE path=?");
+      const findChange = db.prepare("SELECT payload FROM omp_changes WHERE owner_path=? AND call_key=?");
+      const ownerChanges = db.prepare("SELECT * FROM omp_changes WHERE owner_path=? ORDER BY rowid");
+      const range = db.prepare(
+        "SELECT 1 FROM omp_changes WHERE owner_path=? AND timestamp_ms>=? AND timestamp_ms<? LIMIT 1",
+      );
+      const aliases = this.sourceRepositoryAliases ?? (() => this.repositoryAliases());
+      for (const { owner_path: ownerPath } of owners) {
+        const owner = identity.get(ownerPath);
+        const source = { id: owner.home_id, kind: owner.kind, label: owner.home_label, path: owner.home_path };
+        const cold = await this.historyArchiveReparsePrefixes(ownerPath, source, {
+          touchesRange: (from, to) => Boolean(range.get(ownerPath, from, to)),
+        });
+        try {
+          const changedPrefixes = new Set();
+          const mergePrefixes = new Set();
+          for (const op of ownerChanges.iterate(ownerPath)) {
+            const prefix = cold.prefixes.find((p) => op.timestamp_ms >= p.startMs && op.timestamp_ms < p.endMs);
+            if (prefix) {
+              changedPrefixes.add(prefix);
+              if (op.payload === null) mergePrefixes.add(prefix);
+              continue;
+            }
+            const before = readHot.get(ownerPath, op.call_key);
+            const after = op.payload === null ? null : JSON.parse(String(op.payload));
+            if (before) {
+              saveMissingHistoryFacts(recover, {
+                factTable: "events",
+                source: owner,
+                previousRows: [before],
+                currentRows: after ? [after] : [],
+                methodVersion: HISTORY_REPLACED_FACT_METHOD_VERSION,
+                excludedColumns: ["id"],
+              });
+              deleteHot.run(ownerPath, op.call_key);
+            }
+            if (after) upsert.run(...EVENT_INSERT_COLUMNS.map((column) => after[column]));
+          }
+
+          for (const prefix of changedPrefixes) {
+            for (const row of prefix.effectiveRows.values()) {
+              if (!findChange.get(ownerPath, row.source_event_id))
+                prefix.observedRows.set(String(prefix.observedCount++), row);
+            }
+            for (const op of ownerChanges.iterate(ownerPath))
+              if (op.payload !== null && op.timestamp_ms >= prefix.startMs && op.timestamp_ms < prefix.endMs)
+                prefix.observedRows.set(String(prefix.observedCount++), JSON.parse(String(op.payload)));
+            const revision = historyArchiveColdRevisionForRows(prefix, aliases, mergePrefixes.has(prefix));
+            if (!revision) continue;
+            const entries = (cold.revisionState.revisionsBySegment.get(prefix.segmentId) || []).filter(
+              (entry) => !sameHistoryArchiveSourceIdentity(entry.sourceIdentity, prefix.sourceIdentity),
+            );
+            if (revision.entry.added.length || revision.entry.removed.length) entries.push(revision.entry);
+            cold.revisionState.revisionsBySegment.set(prefix.segmentId, entries);
+            saveMissingHistoryFacts(recover, {
+              factTable: "events",
+              source: owner,
+              previousRows: revision.previousChangedRows,
+              currentRows: revision.currentChangedRows,
+              methodVersion: HISTORY_REPLACED_FACT_METHOD_VERSION,
+              excludedColumns: ["id"],
+            });
+            markHistoryArchiveRevisionRollupDays(db, revision.previousChangedRows, revision.currentChangedRows);
+          }
+          if (changedPrefixes.size) writeHistoryArchiveEventRevisionState(db, cold.revisionState);
+        } finally {
+          for (const prefix of cold.prefixes)
+            for (const rows of new Set([prefix.originalRows, prefix.effectiveRows, prefix.observedRows])) rows.close();
+        }
+      }
+      return owners.map((row) => String(row.owner_path));
+    }
+
+    async protectOmpSourceBindings(snapshots) {
+      const db = this.database;
+      const bindings = db.prepare("SELECT path,kind,home_id FROM source_files WHERE path=?");
+      const ownsFacts = db.prepare(`SELECT 1 WHERE EXISTS (SELECT 1 FROM events WHERE source_path=:path)
+        OR EXISTS (SELECT 1 FROM rate_limit_observations WHERE source_path=:path)
+        OR EXISTS (SELECT 1 FROM quota_usage_sources WHERE source_path=:path)
+        OR EXISTS (SELECT 1 FROM history_replaced_facts WHERE source_path=:path)
+        OR EXISTS (SELECT 1 FROM omp_calls WHERE owner_path=:path)`);
+      const mismatches = new Map();
+      const uncased = new Map();
+      const consider = (snapshot, binding) => {
+        if (binding.kind === "omp" && binding.home_id === snapshot.file.source.id) return;
+        const names = mismatches.get(snapshot) || [];
+        names.push(String(binding.path));
+        mismatches.set(snapshot, names);
+      };
+      for (const snapshot of snapshots) {
+        if (!["complete", "partial"].includes(snapshot.status)) continue;
+        const name = snapshot.file.filePath;
+        const exact = bindings.get(name);
+        if (exact) consider(snapshot, exact);
+        else if (process.platform === "win32") uncased.set(name.toLowerCase(), snapshot);
+      }
+      // Earlier Windows imports can use the user's spelling whereas OMP discovers canonical real paths.
+      if (uncased.size)
+        for (const binding of db.prepare("SELECT path,kind,home_id FROM source_files").iterate()) {
+          const snapshot = uncased.get(String(binding.path).toLowerCase());
+          if (!snapshot) continue;
+          try {
+            if (realpathSync.native(String(binding.path)) === realpathSync.native(snapshot.file.filePath))
+              consider(snapshot, binding);
+          } catch (error) {
+            if (error.code !== "ENOENT" && error.code !== "ENOTDIR") throw error;
+          }
+        }
+      if (!mismatches.size) return;
+      const oldPaths = [...new Set([...mismatches.values()].flat())];
+      const records = db.prepare("SELECT * FROM archive_segments").all();
+      const segments = new Map(records.map((r) => [String(r.segment_id), r]));
+      const revisions = historyArchiveEventRevisions(this.readMetaRaw(HISTORY_ARCHIVE_EVENT_REVISIONS_META), segments);
+      const occupied = new Set(oldPaths.filter((name) => ownsFacts.get({ path: name })));
+      if (records.length && occupied.size < oldPaths.length) {
+        const { withVerifiedHistoryArchiveCandidate } = await import("./history-archive.js");
+        for (const record of records) {
+          const overlays = revisions.get(String(record.segment_id)) || [];
+          for (const overlay of overlays) occupied.add(overlay.sourceIdentity.path);
+          await withVerifiedHistoryArchiveCandidate(String(record.database_path), undefined, (cold, verified) => {
+            assertHistoryArchiveRecordMatches(record, verified);
+            const evidence = cold.prepare("SELECT 1 FROM events WHERE source_path=? LIMIT 1");
+            for (const name of oldPaths) if (!occupied.has(name) && evidence.get(name)) occupied.add(name);
+          });
+        }
+      }
+      for (const [snapshot, names] of mismatches) {
+        if (names.some((name) => occupied.has(name))) {
+          db.prepare("DELETE FROM omp_stage WHERE path=?").run(snapshot.file.filePath);
+          snapshot.status = "error";
+          snapshot.diagnostics = { OMP_SOURCE_BINDING_CONFLICT: 1 };
+        } else {
+          // Empty rows from older broad Codex discovery carry no usage. Discard their parser checkpoints too.
+          for (const name of names) db.prepare("DELETE FROM source_files WHERE path=?").run(name);
+        }
+      }
+    }
+
+    async syncOmpFiles(files, hints, force) {
+      const db = this.database;
+      if (this.ompSyncInFlight)
+        throw Object.assign(new Error("OMP source synchronization is in progress"), {
+          code: "LIVE_SOURCE_CHANGED",
+          retryable: true,
+        });
+      this.ompSyncInFlight = true;
+      try {
+        const warnings = [];
+        const snapshots = await stageOmpFiles(db, files, this.sourceRepositoryResolver, hints, force, warnings);
+        if (snapshots.length) {
+          db.exec("BEGIN IMMEDIATE");
+          this.writeTransactionDepth++;
+          try {
+            const projection = this.historyProjectionModule?.readHistoryProjectionStamp(db);
+            await this.protectOmpSourceBindings(snapshots);
+            reconcileOmpCalls(db, snapshots, sourceEventRow);
+            const changed = await this.applyOmpChanges();
+            if (projection)
+              this.historyProjectionModule.recordHistoryProjectionBatch(db, projection, {
+                sources: [...new Set([...changed, ...snapshots.map(({ file }) => file.filePath)])],
+                mode: "replace",
+              });
+            db.exec("COMMIT");
+            this.writeTransactionDepth--;
+          } catch (error) {
+            this.#rollbackWriteTransaction(error, db);
+            throw error;
+          }
+        }
+        return { snapshots, warnings: [...warnings, ...ompLedgerWarnings(db)] };
+      } finally {
+        this.ompSyncInFlight = false;
+        db.exec(
+          "DROP TABLE IF EXISTS temp.omp_stage; DROP TABLE IF EXISTS temp.omp_group; DROP TABLE IF EXISTS temp.omp_changes; DROP TABLE IF EXISTS temp.omp_visible",
+        );
+      }
+    }
+
     async usageFileFingerprints(files) {
       const fingerprints = new Map();
       for (let offset = 0; offset < files.length; offset += 32) {
         const batch = files.slice(offset, offset + 32);
-        const results = await Promise.allSettled(batch.map((file) => asyncUsageSourceFingerprint(file.filePath)));
+        const results = await Promise.allSettled(
+          batch.map((file) =>
+            file.source?.kind === "omp" ? ompSnapshotStamp(file.info) : asyncUsageSourceFingerprint(file.filePath),
+          ),
+        );
         for (const [index, result] of results.entries()) {
           if (result.status === "rejected") throw result.reason;
           fingerprints.set(batch[index].filePath, result.value);
@@ -4022,9 +4240,9 @@ export function createUsageFactStoreClass(QueryOwner) {
     /**
      * Discover sources, replace changed usage files, refresh missing-source state,
      * and rebuild ordinary usage projections and rollups.
-     * @param {{ options?: any, acquisitionPlan?: any }} [args]
+     * @param {{ options?: any, acquisitionPlan?: any, sourceHints?: any, forceFull?: boolean }} [args]
      */
-    async syncRound({ options, acquisitionPlan: plan } = {}) {
+    async syncRound({ options, acquisitionPlan: plan, sourceHints, forceFull = false } = {}) {
       await this.open();
       this.syncDerivedRevision();
       createUsageRollups(this.database);
@@ -4166,7 +4384,8 @@ export function createUsageFactStoreClass(QueryOwner) {
         historyVerificationPending ||= Boolean(outcome.historyVerificationPending);
         updatedFileCount += 1;
         committedPaths.add(file.filePath);
-        nextFingerprints[file.filePath] = usageSourceFingerprint(file.filePath);
+        nextFingerprints[file.filePath] =
+          file.source.kind === "omp" ? ompSnapshotStamp(file.info) : usageSourceFingerprint(file.filePath);
         file.sourceValidation = outcome.sourceValidation;
         sourceWork[outcome.appended ? "appendedFiles" : "replacedFiles"] += 1;
         for (const key of ["parsedBytes", "prefixBytesRead", "journalBytes"]) sourceWork[key] += outcome[key] || 0;
@@ -4224,9 +4443,22 @@ export function createUsageFactStoreClass(QueryOwner) {
       );
       const readSourceSessions = this.database.prepare("SELECT DISTINCT session_id FROM events WHERE source_path = ?");
       const readReparse = this.database.prepare("SELECT 1 FROM usage_source_reparse WHERE source_path=?");
+      const ompFiles = files.filter((file) => file.source.kind === "omp");
+      if (ompFiles.length) {
+        const omp = await this.syncOmpFiles(ompFiles, sourceHints, forceFull);
+        warnings.push(...omp.warnings);
+        for (const { file, status } of omp.snapshots) {
+          if (status === "partial" || status === "complete") acceptSource(file, { parsedBytes: file.info.size });
+        }
+      }
       for (const file of files) {
+        if (file.source.kind === "omp") continue;
         await retrySource(file, async () => {
           const existing = readSource.get(file.filePath);
+          if (existing?.kind === "omp") {
+            warnings.push(`Oh My Pi: OMP_SOURCE_BINDING_CONFLICT (1): ${file.filePath}`);
+            return;
+          }
           const savedProgress = existing ? readUsageSourceProgress(this.database, file.filePath) : null;
           // shortcut: mutable Hermes snapshots require full reads until SQLite change proofs cover WAL updates.
           const unchanged =
@@ -4322,7 +4554,13 @@ export function createUsageFactStoreClass(QueryOwner) {
       this.assertSourceRepairsComplete();
 
       for (const old of sourceRowsBefore) {
-        if (knownFiles.has(old.path) || failedHomeIds.has(old.home_id) || failedHomePaths.has(old.home_path)) continue;
+        if (
+          old.kind === "omp" ||
+          knownFiles.has(old.path) ||
+          failedHomeIds.has(old.home_id) ||
+          failedHomePaths.has(old.home_path)
+        )
+          continue;
         const fingerprint = publishedFingerprints[old.path];
         const matchingOldPaths = sourceRowsBefore.filter(
           (row) =>

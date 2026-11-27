@@ -55,6 +55,9 @@ import {
 import { homeSourceKinds } from "../public/timeline-utils.js";
 import { COMPARISON_PERIOD_KEYS, summarizePeriodComparison } from "../public/period-comparison.js";
 import { addUsage } from "./usage-query.js";
+import { addOmpHome, classifyOmpDirectory, discoverOmpHomes, ompScanRoots, ompSessionFiles } from "./omp-source.js";
+import { readOmpSnapshot } from "./omp-usage.js";
+import { chooseOmpOccurrence, groupOmpOccurrences } from "./omp-usage-identity.js";
 
 export { COMPARISON_PERIOD_KEYS, summarizePeriodComparison };
 
@@ -274,8 +277,17 @@ function optionImportDirs(options = {}) {
   return uniquePaths(configured);
 }
 
-export async function classifyImportDirectory(importPath) {
+/**
+ * @returns {Promise<{type: string, path: string, id?: string, kind?: string, label?: string,
+ * approvedScanRoots?: string[], excludedScanRoots?: string[], agentPath?: string,
+ * usageLogPath?: string, dbFile?: string, reason?: string}>}
+ */
+export async function classifyImportDirectory(importPath, options = {}) {
   const resolved = path.resolve(importPath);
+  if (options.ompExplicit) {
+    const omp = await classifyOmpDirectory(resolved, options);
+    return omp ?? { type: "unsupported", path: resolved, reason: "No Oh My Pi session logs found." };
+  }
   if (await hermesHomeLooksUsable(resolved)) {
     return { type: "hermes-home", path: resolved, dbFile: await hermesDatabaseFile(resolved) };
   }
@@ -322,6 +334,8 @@ export async function classifyImportDirectory(importPath) {
     };
   }
 
+  const omp = await classifyOmpDirectory(resolved, options);
+  if (omp) return omp;
   if (await codexHomeLooksUsable(resolved)) {
     return {
       type: "codex-home",
@@ -350,7 +364,7 @@ export async function classifyImportDirectory(importPath) {
   return {
     type: "unsupported",
     path: resolved,
-    reason: `目录需要是 Codex home、ZCode home、DSH home、OpenCode 数据目录、Claude Code home、WorkBuddy home，或包含 ${PROJECT_USAGE_DIR}/${PROJECT_USAGE_FILE}`,
+    reason: `目录需要是 Codex home、ZCode home、DSH home、OpenCode 数据目录、Claude Code home、WorkBuddy home、Oh My Pi 会话目录，或包含 ${PROJECT_USAGE_DIR}/${PROJECT_USAGE_FILE}`,
   };
 }
 
@@ -704,6 +718,11 @@ export async function discoverUsageSources(options = {}) {
   if (Array.isArray(options.confirmedSources)) {
     const sources = [];
     for (const source of options.confirmedSources) {
+      if (source.kind === "omp") {
+        options.sourceCandidates?.push(...ompScanRoots(source));
+        sources.push(source);
+        continue;
+      }
       options.sourceCandidates?.push(source.path);
       // Keep the persisted identity, including unavailable homes and historical aliases.
       // A known Codex home needs only its own probe, not every other parser's directory walk.
@@ -735,7 +754,9 @@ export async function discoverUsageSources(options = {}) {
     }
     return sources;
   }
-  const sources = await discoverCodexHomes(options);
+  const ompHomes = await discoverOmpHomes(options);
+  const ompPaths = new Set(ompHomes.map(({ path }) => path));
+  const sources = [...ompHomes, ...(await discoverCodexHomes(options)).filter((home) => !ompPaths.has(home.path))];
   const seenPaths = new Set(sources.map((source) => source.path));
   const seenHermesPaths = new Set();
   const seenProjectLogs = new Set();
@@ -789,7 +810,19 @@ export async function discoverUsageSources(options = {}) {
 
   for (const importDir of optionImportDirs(options)) {
     options.sourceCandidates?.push(path.resolve(importDir));
-    const classified = await classifyImportDirectory(importDir);
+    let classified;
+    try {
+      classified = await classifyImportDirectory(importDir, options);
+    } catch (error) {
+      if (error.code !== "OMP_SOURCE_AMBIGUOUS") throw error;
+      options.discoveryErrors?.push({ code: error.code, path: error.path });
+      continue;
+    }
+    if (classified.type === "omp-home") {
+      const { type: _type, ...home } = classified;
+      addOmpHome(sources, { ...home, imported: true });
+      continue;
+    }
     if (classified.type === "codex-home") {
       if (seenPaths.has(classified.path)) {
         continue;
@@ -977,6 +1010,9 @@ export async function buildUsageFingerprint(options = {}) {
 
   for (const home of homes) {
     hash.update(`${home.id}\t${home.label}\t${home.path}\t${home.kind || ""}\t${home.usageLogPath || ""}\n`);
+    if (home.kind === "omp") {
+      hash.update(JSON.stringify([ompScanRoots(home), home.excludedScanRoots || [], home.agentPath || ""]));
+    }
     if (Array.isArray(options.scannedFiles)) {
       for (const entry of scannedByHome.get(home.id) || []) await addFile(entry.filePath, entry.info);
       if (failedHomeIds.has(home.id)) hash.update("!scan-failed\n");
@@ -1046,6 +1082,14 @@ export async function buildUsageFingerprint(options = {}) {
         continue;
       }
       for (const file of sessionFiles) await addFile(file);
+      continue;
+    }
+    if (home.kind === "omp") {
+      try {
+        for (const file of await ompSessionFiles(home)) await addFile(file);
+      } catch (error) {
+        hash.update(`!discover-failed:${error.code || "unreadable"}\n`);
+      }
       continue;
     }
     let files;
@@ -1863,6 +1907,9 @@ async function streamProjectUsageFileEvents(filePath, source, onEvent, options =
 }
 
 export async function streamUsageFileEvents(filePath, source, onEvent, options = {}) {
+  if (source.kind === "omp") {
+    return readOmpSnapshot(filePath, source, { ...options, onEvent });
+  }
   if (source.kind === "hermes") {
     await streamHermesDbEvents(filePath, source, onEvent, options);
     return;
@@ -1892,6 +1939,33 @@ export async function streamUsageFileEvents(filePath, source, onEvent, options =
     return;
   }
   await streamSessionUsageFileEvents(filePath, source, onEvent, options);
+}
+
+async function readOmpEvents(home, repositoryResolver, warnings) {
+  const occurrences = [];
+  let files;
+  try {
+    files = await ompSessionFiles(home);
+  } catch (error) {
+    warnings.push(`Oh My Pi: ${error.code || "OMP_SCAN_FAILED"}`);
+    return [];
+  }
+  for (const filePath of files) {
+    const snapshot = await readOmpSnapshot(filePath, home, {
+      repositoryResolver,
+      onEvent: (event) => occurrences.push(event),
+    });
+    for (const [code, count] of Object.entries(snapshot.diagnostics)) {
+      warnings.push(`Oh My Pi: ${code} (${count})`);
+    }
+  }
+  const events = [];
+  for (const group of groupOmpOccurrences(occurrences)) {
+    const { winner, conflict } = chooseOmpOccurrence(group);
+    if (winner) events.push(winner);
+    if (conflict) warnings.push("Oh My Pi: OMP_CALL_CONFLICT");
+  }
+  return events;
 }
 
 async function parseSessionFileForIndex(
@@ -2058,36 +2132,38 @@ async function parseZcodeDbForIndex(dbFile, source, intern, resolveRepository, o
   await (source.kind === "hermes" ? streamHermesDbEvents : streamZcodeDbEvents)(
     dbFile,
     source,
-    (event) => {
-      events.push({
-        t: event.timestampMs,
-        s: intern(event.sessionId),
-        h: intern(event.homeId),
-        l: intern(event.homeLabel),
-        c: intern(event.channel),
-        p: intern(event.project),
-        rk: intern(event.repositoryKey),
-        rp: intern(event.repositoryPath),
-        rt: intern(event.repositoryKind),
-        m: intern(event.model),
-        total: event.usage.total,
-        input: event.usage.input,
-        cached: event.usage.cached,
-        output: event.usage.output,
-        reasoning: event.usage.reasoning,
-        detailMask: event.detailMask,
-        reconciliationGap: event.reconciliationGap,
-        cacheWriteTokens: event.cacheWriteTokens,
-        cacheWriteKnown: event.cacheWriteKnown,
-        requestInputTokens: event.requestInputTokens,
-        contextLevel: intern(event.contextLevel),
-        serviceTier: intern(event.serviceTier),
-        priceVersion: intern(event.priceVersion),
-      });
-    },
+    (event) => events.push(compactStreamEvent(event, intern)),
     { repositoryResolver: resolveRepository, onWarning },
   );
   return events;
+}
+
+function compactStreamEvent(event, intern) {
+  return {
+    t: event.timestampMs,
+    s: intern(event.sessionId),
+    h: intern(event.homeId),
+    l: intern(event.homeLabel),
+    c: intern(event.channel),
+    p: intern(event.project),
+    rk: intern(event.repositoryKey),
+    rp: intern(event.repositoryPath),
+    rt: intern(event.repositoryKind),
+    m: intern(event.model),
+    total: event.usage.total,
+    input: event.usage.input,
+    cached: event.usage.cached,
+    output: event.usage.output,
+    reasoning: event.usage.reasoning,
+    detailMask: event.detailMask,
+    reconciliationGap: event.reconciliationGap,
+    cacheWriteTokens: event.cacheWriteTokens,
+    cacheWriteKnown: event.cacheWriteKnown,
+    requestInputTokens: event.requestInputTokens,
+    contextLevel: intern(event.contextLevel),
+    serviceTier: intern(event.serviceTier),
+    priceVersion: intern(event.priceVersion),
+  };
 }
 
 /** 把一个 DSH home 下所有会话日志摊平成索引事件。 */
@@ -2207,6 +2283,20 @@ export async function buildUsageReport(options = {}, { createEventDecorator = nu
   const quotaSourceObservations = [];
 
   for (const home of homes) {
+    if (home.kind === "omp") {
+      if (options.skipOmpRead) continue;
+      const occurrences = await readOmpEvents(home, repositoryResolver, warnings);
+      const parsed = await parseSqliteUsageDb(
+        async (_file, _source, onEvent) => {
+          for (const occurrence of occurrences) await onEvent(occurrence);
+        },
+        home.path,
+        home,
+      );
+      sessions.push(...parsed.sessions);
+      events.push(...parsed.events);
+      continue;
+    }
     if (home.kind === "project-log" && home.usageLogPath) {
       try {
         const parsed = await parseProjectUsageLogFile(home.usageLogPath, home, { repositoryResolver });
@@ -2343,6 +2433,7 @@ export async function buildUsageReport(options = {}, { createEventDecorator = nu
   const resolveQuotaSource = quotaSourceResolver([...events, ...quotaSourceObservations], quotaEvidence);
   for (const event of events) {
     decorateEvent?.(event);
+    if (event.sourceKind === "omp") continue;
     event.quotaSource = resolveQuotaSource(
       event.homeId,
       event.sessionId,
@@ -2374,6 +2465,12 @@ export async function buildUsageIndex(options = {}, { createEventDecorator = nul
   const interner = createStringInterner();
 
   for (const home of homes) {
+    if (home.kind === "omp") {
+      for (const occurrence of await readOmpEvents(home, repositoryResolver, warnings)) {
+        events.push(compactStreamEvent(occurrence, interner.intern));
+      }
+      continue;
+    }
     if (home.kind === "project-log" && home.usageLogPath) {
       try {
         events.push(
@@ -2508,9 +2605,10 @@ export async function buildUsageIndex(options = {}, { createEventDecorator = nul
   );
   const kindsByHome = homeSourceKinds(homes);
   for (const event of events) {
+    const sourceKind = kindsByHome.get(String(interner.values[event.h]));
     if (decorateEvent) {
       const raw = {
-        sourceKind: kindsByHome.get(String(interner.values[event.h])),
+        sourceKind,
         sessionId: interner.values[event.s],
         timestampMs: event.t,
         serviceTier: interner.values[event.serviceTier],
@@ -2518,6 +2616,7 @@ export async function buildUsageIndex(options = {}, { createEventDecorator = nul
       decorateEvent(raw);
       event.serviceTier = interner.intern(raw.serviceTier);
     }
+    if (sourceKind === "omp") continue;
     event.quotaSource = resolveQuotaSource(
       interner.values[event.h],
       interner.values[event.s],
