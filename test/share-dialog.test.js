@@ -36,6 +36,7 @@ async function imageReady(page) {
       dimensions: [image.naturalWidth, image.naturalHeight],
       theme: card.getAttribute("data-preview-theme"),
       palette: card.getAttribute("style"),
+      glassDivider: card.style.getPropertyValue("--glass-divider"),
       title: card.querySelector(".p-heading").textContent,
       period: card.querySelector(".p-period")?.textContent ?? null,
       total: card.querySelector(".p-number").textContent,
@@ -62,6 +63,40 @@ async function closeShare(page) {
   await page.keyboard.press("Escape");
   await page.locator("#shareDialog").waitFor({ state: "hidden" });
   assert.ok(await page.locator("#shareToggle").evaluate((button) => button === document.activeElement));
+}
+
+async function checkPngDividers(page, layout) {
+  const width = layout === "portrait" ? 1080 : 1440;
+  await page.waitForFunction(
+    (width) =>
+      !document.querySelector("#saveShareImage").disabled &&
+      document.querySelector("#shareImage").naturalWidth === width,
+    width,
+  );
+  const counts = await page.locator("#shareImage").evaluate(async (png, layout) => {
+    // Compare the published PNG with an identical rendering in which only the header marks are hidden.
+    const control = new Image();
+    const style = ".v05 .p-hero-display::before,.s-heading::after,.s-chart-title::after{visibility:hidden}";
+    const source = window.shareCardSvg.replace("</style>", `${style}</style>`);
+    control.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(source)}`;
+    await control.decode();
+    const canvas = document.createElement("canvas");
+    canvas.width = 2;
+    canvas.height = 16;
+    const context = canvas.getContext("2d");
+    // Sample the center and the fading left tip of each heading at its native PNG coordinates.
+    const y = layout === "portrait" ? 251 : 121;
+    const positions = layout === "portrait" ? [500, 197] : [475, 89, 1124, 977];
+    return positions.map((x) => {
+      context.drawImage(png, x, y, 1, 16, 0, 0, 1, 16);
+      context.drawImage(control, x, y, 1, 16, 1, 0, 1, 16);
+      const pixels = context.getImageData(0, 0, 2, 16).data;
+      let paintedRows = 0;
+      for (let i = 0; i < pixels.length; i += 8) if (Math.abs(pixels[i] - pixels[i + 4]) >= 3) paintedRows++;
+      return paintedRows;
+    });
+  }, layout);
+  assert.deepEqual(counts, layout === "portrait" ? [1, 0] : [1, 0, 1, 0], "Each heading fades from a one-pixel line");
 }
 
 const geometry = (page) =>
@@ -144,7 +179,7 @@ test("production share dialog preserves the PNG, layout, snapshot and skin acros
     // Inspect the SVG actually painted into the PNG, without a production test hook.
     const drawImage = CanvasRenderingContext2D.prototype.drawImage;
     CanvasRenderingContext2D.prototype.drawImage = function (image, ...args) {
-      if (this.canvas.width === 1080 && this.canvas.height === 1440 && image.src?.startsWith("data:image/svg+xml")) {
+      if ([1080, 1440].includes(this.canvas.width) && image.src?.startsWith("data:image/svg+xml")) {
         window.shareCardSvg = decodeURIComponent(image.src.slice(image.src.indexOf(",") + 1));
       }
       return drawImage.call(this, image, ...args);
@@ -249,6 +284,7 @@ test("production share dialog preserves the PNG, layout, snapshot and skin acros
     assert.equal(image.period, period);
     assert.deepEqual(image.dimensions, [1080, 1440]);
     assert.equal(image.classic, true);
+    assert.match(image.glassDivider, /linear-gradient/);
     assert.equal(image.artwork, null);
     const started = page.waitForEvent("download");
     await page.locator("#saveShareImage").click();
@@ -280,6 +316,7 @@ test("production share dialog preserves the PNG, layout, snapshot and skin acros
 
   await selectPreset("week");
   const baseline = await openShare(page);
+  await checkPngDividers(page, "portrait");
   const availableMetrics = await appState.evaluate(async (state) => {
     const { createShareCardData } = await import("/share-card-data.js");
     return createShareCardData(state.summary).availableMetrics;
@@ -448,12 +485,22 @@ test("production share dialog preserves the PNG, layout, snapshot and skin acros
   await page.waitForFunction(
     () => document.documentElement.dataset.theme === "dark" && !document.querySelector("#themeToggle").disabled,
   );
+  await openShare(page);
+  await checkPngDividers(page, "portrait");
+  await page.locator("#shareLayout").click();
+  await page.locator('[data-share-layout="landscape"]').click();
+  await checkPngDividers(page, "landscape");
+  await page.locator("#shareLayout").click();
+  await page.locator('[data-share-layout="portrait"]').click();
+  await imageReady(page);
+  await closeShare(page);
   await page.locator("#skinToggle").click();
   await page.locator('.skin-card[data-skin-id="deepseek"]').click();
   await page.locator("#closeSkinDialogButton").click();
   const character = await openShare(page);
   assert.equal(character.theme, "dark");
   assert.equal(character.classic, false);
+  assert.equal(character.glassDivider, "");
   assert.equal(character.fee, `API 估算$${expectedUsd}`, "A new share remembers that fees were enabled");
   assert.equal(await page.locator("#shareShowCost").isChecked(), true);
   const art = await readFile(new URL(`../public${skinAssetUrl("deepseek", "dark", "front")}`, import.meta.url));
@@ -466,6 +513,7 @@ test("production share dialog preserves the PNG, layout, snapshot and skin acros
   const hidden = await openShare(page);
   assert.equal(hidden.artwork, null);
   assert.equal(hidden.classic, true);
+  assert.equal(hidden.glassDivider, "");
   assert.equal(hidden.palette, character.palette, "Hiding characters preserves the selected skin palette");
   assert.notEqual(hidden.sha256, character.sha256);
   assert.equal(await page.locator("#shareDialog input[type=checkbox]").count(), 1, "No duplicate character control");

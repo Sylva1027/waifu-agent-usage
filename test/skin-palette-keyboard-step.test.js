@@ -219,6 +219,21 @@ async function runCatalogFixture(
   const stubMeasurement = { records: [], captures: [], diagnostics: {} };
   let quotaCtx;
   let dialogOpen = stateId === "input-focus" && entryReady;
+  const nativeSetTimeout = (_callback, delay) => delay;
+  const browserWindow = { setTimeout: nativeSetTimeout };
+  fake.page.evaluateHandle = async (source) => {
+    const restore = runInNewContext(`(${source})()`, { window: browserWindow });
+    io.quotaTimerDelays = [
+      browserWindow.setTimeout(function dismissQuotaNotice() {}, 5000),
+      browserWindow.setTimeout(() => {}, 5000),
+    ];
+    return {
+      evaluate: async (invoke) => invoke(restore),
+      dispose: async () => {
+        io.quotaTimerDisposed = true;
+      },
+    };
+  };
   const focusEvaluate = fake.page.evaluate;
   fake.page.evaluate = async (source, argument) => {
     if (typeof source === "function") return focusEvaluate(source, argument);
@@ -380,6 +395,11 @@ async function runCatalogFixture(
   );
   assert.equal(io.declarations, quotaScenario === "early-exception" ? 0 : 1, "原流程仍执行收尾声明复读");
   if (quotaScenario !== "early-exception") assert.equal(result.trace.declarations.postMatches, true);
+  if (stateId === "quota-toast") {
+    assert.deepEqual(io.quotaTimerDelays, [120_000, 5000]);
+    assert.strictEqual(browserWindow.setTimeout, nativeSetTimeout);
+    assert.equal(io.quotaTimerDisposed, true);
+  }
   return { ...fake, io, result, stubMeasurement, ctx: quotaCtx, quotaRecorder };
 }
 

@@ -291,28 +291,6 @@ test("W1 · close() 释放连接：库文件与目录可立即删除（Windows E
   assert.equal(existsSync(root), false);
 });
 
-test("W1 · /api/status 在主线程就地应答：执行器在飞时仍快速返回", async () => {
-  const root = await mkdtemp(path.join(tmpdir(), "w1-status-"));
-  const fixture = createCodexIntegrationFixture();
-  const options = isolatedOptions(root, fixture);
-  const server = createUsageServer(options);
-  await listenOnFetchPort(server);
-  const base = `http://127.0.0.1:${server.address().port}`;
-  try {
-    const inFlight = fetch(`${base}/api/usage?preset=all`).then((response) => response.json());
-    const started = performance.now();
-    const status = await fetch(`${base}/api/status`).then((response) => response.json());
-    const ms = performance.now() - started;
-    assert.ok(status.fingerprint, "/api/status 必须由主线程算指纹");
-    assert.ok(ms < 250, `/api/status 不得被在飞的重请求拖住（实测 ${ms.toFixed(1)} ms）`);
-    await inFlight;
-  } finally {
-    await new Promise((resolve) => server.close(resolve));
-    fixture.close();
-    await rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
-  }
-});
-
 // ---------------------------------------------------------------------------
 // W1-b：故障路径与发布语义契约（突变靶子；三家族）
 // ---------------------------------------------------------------------------

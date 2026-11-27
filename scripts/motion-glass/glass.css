@@ -1,0 +1,26 @@
+/* The button is the containing block for all three decorative siblings. */
+button > .lg-tick,
+[data-glass-surface].lg-host,
+[data-glass-surface].lg-host + .lg-cover {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  --lg-s: 0.6;
+}
+
+html[data-theme="dark"] [data-glass-surface].lg-host,
+html[data-theme="dark"] [data-glass-surface].lg-host + .lg-cover {
+  --lg-dark: 1;
+}
+
+[data-glass-surface].lg-host + .lg-cover {
+  --lg-spec: calc(0.13 + 0.25 * var(--lg-dark) + var(--lg-press-highlight, 0));
+}
+
+/* Toolbar icon sizing also matches the inline SVG that stores the filters. */
+[data-glass-surface] > svg.lg-defs {
+  width: 0;
+  height: 0;
+}

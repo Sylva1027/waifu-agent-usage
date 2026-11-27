@@ -4,7 +4,20 @@ import path from "node:path";
 
 const markdown = /^(?:(?:docs\/(?!validation\/).+)|README(?:\.en)?|native\/windows-source-proof\/README)\.md$/i;
 const docsImage = /^docs\/images\/.+\.(?:avif|gif|jpe?g|png|svg|webp)$/i;
-const needsNative = /^(?:\.github\/|native\/|package(?:-lock)?\.json$|scripts\/(?:ci-|test\.|package-release|check-release|release-dependencies)|(?:src|public|test|test-support)\/.*(?:archive|source|hermes|native|windows|usage-(?:core|store|record|fact|executor)|cli|server|final-status))/i;
+const nonNativeText = /^(?:docs\/(?:validation\/.+\.md|images\/.+\.LICENSE\.txt)|CREDITS\.md|LICENSE)$/i;
+const browserPresentation = /^public\/(?:dev\/.+|.+\.(?:avif|css|gif|html|ico|jpe?g|png|svg|webp|woff2?))$/i;
+const standaloneTest = /^test\/[^/]+\.test\.js$/i;
+const nativeTest = /(?:archive|source|hermes|native|windows|usage-(?:core|store|record|fact|executor)|cli|server|final-status)/i;
+
+function isDocumentation(file) {
+  return markdown.test(file) || docsImage.test(file);
+}
+
+function needsNative(file) {
+  if (isDocumentation(file) || nonNativeText.test(file) || browserPresentation.test(file)) return false;
+  // Shared modules can reach Native indirectly, including modules in public/ and test-support/.
+  return !standaloneTest.test(file) || nativeTest.test(file);
+}
 
 function git(...args) {
   const result = spawnSync("git", args, { encoding: "utf8", maxBuffer: 16 * 1024 * 1024 });
@@ -36,8 +49,8 @@ if (/^[0-9a-f]{40}$/i.test(base) && !/^0+$/.test(base)) {
   }
 }
 
-const docsOnly = Boolean(changed?.length && changed.every((file) => markdown.test(file) || docsImage.test(file)));
-const native = !changed?.length || changed.some((file) => needsNative.test(file));
+const docsOnly = Boolean(changed?.length && changed.every(isDocumentation));
+const native = !changed?.length || changed.some(needsNative);
 if (docsOnly) {
   const tracked = git("ls-tree", "--name-only", "-r", "-z", "HEAD")?.split("\0").filter(Boolean);
   if (!tracked) throw new Error("Unable to read tracked documentation paths");

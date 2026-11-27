@@ -1,0 +1,87 @@
+#qwen-ambient {
+  position: fixed;
+  z-index: 0;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+#qwen-ambient > .qwen-ambient-left {
+  position: absolute;
+  mask-image:
+    linear-gradient(to right, #000 77%, transparent 100%), linear-gradient(to bottom, #000 85%, transparent 100%);
+  mask-composite: intersect;
+}
+
+#qwen-ambient img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+#qwen-ambient .qwen-ambient-right {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  mask-image: linear-gradient(to right, transparent, #000 var(--qwen-overlap));
+  opacity: 0.86;
+}
+
+#qwen-ambient .qwen-ambient-right > img {
+  object-fit: cover;
+  object-position: right var(--qwen-right-position);
+}
+
+#qwen-ambient[data-mode="light"] .qwen-ambient-right {
+  opacity: 0.72;
+}
+
+#qwen-ambient canvas {
+  position: absolute;
+}
+
+#qwen-ambient-controls {
+  position: fixed;
+  right: 12px;
+  bottom: 12px;
+  z-index: 2;
+  width: max-content;
+  max-width: calc(100vw - 24px);
+  padding: 6px 10px;
+  border: 1px solid var(--neo-edge);
+  border-radius: 12px;
+  background: var(--panel);
+  box-shadow: var(--neo-raised);
+  font-size: 12px;
+}
+
+#qwen-ambient-controls summary {
+  cursor: pointer;
+}
+
+#qwen-ambient-controls[data-unavailable] summary::after {
+  content: " · 素材加载失败";
+}
+
+.qwen-ambient-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.qwen-ambient-actions button {
+  padding: 4px 7px;
+  border: 1px solid var(--neo-edge);
+  border-radius: 6px;
+  background: var(--control);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.qwen-ambient-actions button[aria-pressed="true"] {
+  background: var(--blue);
+  color: var(--active-ink);
+}

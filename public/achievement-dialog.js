@@ -18,17 +18,19 @@ export function createAchievementDialog({
   button.setAttribute("aria-controls", "achievementDialog");
   button.setAttribute("aria-expanded", "false");
   button.dataset.i18nSkip = "";
+  button.dataset.glassControl = "";
   button.innerHTML =
-    '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path class="clipboard-board" d="M9 4H6.5A1.5 1.5 0 0 0 5 5.5v14A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5v-14A1.5 1.5 0 0 0 17.5 4H15"/><rect x="9" y="2.5" width="6" height="4" rx="1.2"/></svg>';
+    '<svg data-motion-content viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path class="clipboard-board" d="M9 4H6.5A1.5 1.5 0 0 0 5 5.5v14A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5v-14A1.5 1.5 0 0 0 17.5 4H15"/><rect x="9" y="2.5" width="6" height="4" rx="1.2"/></svg>';
   const dashboardShare = document.querySelector("#shareToggle");
   dashboardShare.before(button);
   const dialog = document.createElement("dialog");
   dialog.id = "achievementDialog";
   dialog.setAttribute("aria-labelledby", "achievementTitle");
   dialog.dataset.i18nSkip = "";
+  dialog.dataset.glassWindow = "";
   dialog.innerHTML = `<header class="app-heading"><h2 id="achievementTitle" tabindex="-1"></h2>
     <div class="status-picker"><button id="achievementStatusFilter" class="recent-combobox" type="button" role="combobox" aria-controls="achievementStatusMenu" aria-expanded="false" aria-haspopup="listbox"><span id="achievementStatusValue"></span><span class="calendar-zone-arrow" aria-hidden="true"></span></button>
-    <div id="achievementStatusMenu" class="recent-range-menu" role="listbox" hidden>${["all", "earned", "locked"].map((status) => `<button type="button" role="option" data-status="${status}" aria-selected="${status === "all"}"></button>`).join("")}</div></div></header>
+    <div id="achievementStatusMenu" class="recent-range-menu" role="listbox" data-glass-window hidden>${["all", "earned", "locked"].map((status) => `<button type="button" role="option" data-status="${status}" aria-selected="${status === "all"}"></button>`).join("")}</div></div></header>
     <div class="achievement-filters"><div class="category-search-well segmented-well"><nav class="category-tabs" id="achievementCategories"></nav><div class="search-slot"><input class="search" id="achievementSearch" type="search" autocomplete="off"></div></div></div>
     <div class="split-layout" id="achievementPreview"><div class="list-column"><div class="achievement-list-frame"><div class="list-well" id="achievementList"></div></div></div><div id="achievementDetail"></div></div>`;
   document.body.append(dialog);
@@ -147,6 +149,7 @@ export function createAchievementDialog({
     $("#achievementSearch").setAttribute("aria-label", copy.search);
     $("#achievementSearch").placeholder = copy.searchPlaceholder;
     $("#achievementStatusValue").textContent = copy.statuses[state.filter];
+    $("#achievementStatusFilter").toggleAttribute("data-filtered", state.filter !== "all");
     for (const option of dialog.querySelectorAll("[data-status]")) {
       option.textContent = copy.statuses[option.dataset.status];
       option.setAttribute("aria-selected", String(option.dataset.status === state.filter));

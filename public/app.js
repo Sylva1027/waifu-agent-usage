@@ -93,6 +93,27 @@ let quotaNoticeTimer = null;
 let achievementDialog = null;
 let achievementUnread = null;
 let achievementNotice = null;
+let motionGlass;
+let loadingMotionGlass = false;
+
+function updateMotionGlass() {
+  const classic = () => document.documentElement.dataset.skin === "classic";
+  if (!classic()) {
+    motionGlass?.destroy();
+    motionGlass = undefined;
+  } else if (!motionGlass && !loadingMotionGlass) {
+    loadingMotionGlass = true;
+    void import("./waifu-motion.js")
+      .then(({ setupMotionGlass }) => {
+        if (classic()) motionGlass = setupMotionGlass();
+      })
+      .catch(() => {})
+      .finally(() => {
+        loadingMotionGlass = false;
+      });
+  }
+}
+
 function refreshAchievements() {
   void achievementUnread?.refresh().catch(() => {});
 }
@@ -1167,6 +1188,7 @@ function updateTimelineModeButtons() {
     button.classList.toggle("active", selected);
     button.setAttribute("aria-pressed", String(selected));
   }
+  motionGlass?.syncTimeline();
 }
 
 export function renderTimelineLegendHtml(summary, mode, channelColors, modelColors) {
@@ -1431,6 +1453,38 @@ function updateShareAvailability() {
     button.disabled = !shareSummary || shareSummary !== state.summary || !canShareSummary(shareSummary, state);
 }
 
+function snapshotGlassPalette() {
+  if (document.documentElement.dataset.skin !== "classic") return undefined;
+  const style = getComputedStyle(document.body);
+  const names = [
+    "--bg",
+    "--ink",
+    "--muted",
+    "--blue",
+    "--neo-surface",
+    "--ceramic-top",
+    "--ceramic-bottom",
+    "--ceramic-well",
+    "--glass-halo",
+    "--glass-ambient",
+    "--glass-face",
+    "--glass-well",
+    "--glass-table",
+    "--glass-cast",
+    "--glass-rim-light",
+    "--glass-rim-shade",
+    "--glass-divider",
+    "--glass-window",
+    "--glass-window-rim",
+    "--glass-window-reflection",
+  ];
+  return [
+    ...names.map((name) => [name, style.getPropertyValue(name).trim()]),
+    ["--glass-wallpaper", style.backgroundImage],
+    ["--glass-wallpaper-base", style.backgroundColor],
+  ];
+}
+
 async function openShareImageDialog() {
   if (openingShare || $("#shareToggle").disabled) return;
   openingShare = true;
@@ -1450,6 +1504,7 @@ async function openShareImageDialog() {
       achievementReceipt: shareAchievementReceipt,
       locale: getLocale(),
       theme: state.theme,
+      glassPalette: snapshotGlassPalette(),
     };
     const preference = state.skinRuntime?.getPreference();
     const { openShareDialog } = await import("./share-dialog.js");
@@ -2325,6 +2380,22 @@ function closeModelPricing() {
   if (dialog.open) dialog.close();
 }
 
+function bindPricingBackdrop(dialog, close) {
+  const outside = (event) => {
+    if (event.target !== dialog) return false;
+    const { left, top, right, bottom } = dialog.getBoundingClientRect();
+    return event.clientX < left || event.clientX > right || event.clientY < top || event.clientY > bottom;
+  };
+  let downOutside = false;
+  dialog.addEventListener("pointerdown", (event) => {
+    downOutside = event.isPrimary && event.button === 0 && outside(event);
+  });
+  dialog.addEventListener("click", (event) => {
+    if (downOutside && outside(event)) close();
+    downOutside = false;
+  });
+}
+
 function applyModelPricing() {
   const model = state.modelPricingDraft;
   const inputs = $("#modelPricingFields").querySelectorAll("input[data-model]");
@@ -2467,6 +2538,7 @@ function updatePresetButtons() {
     button.classList.toggle("active", button.dataset.preset === state.preset);
   }
   updateQuotaPresetButton();
+  motionGlass?.syncPreset();
 }
 
 function clearQuotaNotice() {
@@ -2483,7 +2555,7 @@ function showQuotaNotice(message) {
   if (!message) return;
   state.quotaNotice = message;
   updateQuotaPresetButton();
-  quotaNoticeTimer = window.setTimeout(() => {
+  quotaNoticeTimer = window.setTimeout(function dismissQuotaNotice() {
     quotaNoticeTimer = null;
     state.quotaNotice = "";
     updateQuotaPresetButton();
@@ -2756,6 +2828,13 @@ function toggleQuotaPreset() {
 // is exempt, including its raised navigation buttons and gaps between dates.
 function setupFrameSpotlight(root) {
   if (!root || typeof window.matchMedia !== "function") return;
+  function hasGlassMaterial(node) {
+    return (
+      document.documentElement.dataset.skin === "classic" &&
+      window.__skinPaletteLegacySpotlight !== true &&
+      node?.closest("[data-glass-frame], [data-glass-frame-list] > .comparison-item")
+    );
+  }
   const surfaces =
     ".topbar,.toolbar > .control-group,.metric,.panel,.comparison-item,.recent-segment,.recent-range-menu,button";
   // Detail tracks/fills belong to the panel's continuous light: neither hit
@@ -2796,6 +2875,8 @@ function setupFrameSpotlight(root) {
   function surfaceAt(node) {
     if (!node || !root.contains(node)) return null;
     if (node.closest(".date-picker-popover")) return null;
+    if (document.documentElement.dataset.skin === "classic" && node.closest("#skinToggle")) return null;
+    if (node.closest("#timelineModes[data-motion-ready]")) return null;
     for (let current = node; current && current !== root; current = current.parentElement) {
       if (current.matches(recesses)) return null;
       if (current.matches(surfaces)) {
@@ -2892,7 +2973,9 @@ function setupFrameSpotlight(root) {
     if (!point || !capability.matches || document.hidden) return reset();
     // Re-hit-test after scrolling or template replacement, even without a new
     // pointer event. No stale event target or enter-only coordinate cache.
-    const host = surfaceAt(document.elementFromPoint(point.x, point.y));
+    const target = document.elementFromPoint(point.x, point.y);
+    if (hasGlassMaterial(target)) return reset();
+    const host = surfaceAt(target);
     if (!host?.isConnected) return clear();
     const css = getComputedStyle(host);
     const bounds = host.getBoundingClientRect();
@@ -2921,6 +3004,10 @@ function setupFrameSpotlight(root) {
   }
 
   function move(event) {
+    if (hasGlassMaterial(event.target)) {
+      if (point || active) reset();
+      return;
+    }
     if (!capability.matches || event.pointerType === "touch") return reset();
     point = { x: event.clientX, y: event.clientY };
     schedule();
@@ -2943,13 +3030,17 @@ function setupFrameSpotlight(root) {
     if (
       records.every(
         (record) =>
-          record.type === "attributes" &&
-          record.attributeName === "style" &&
-          record.target === active &&
-          active.getAttribute("style") === lastStyle,
+          record.target.closest?.(
+            "[data-motion-content], [data-motion-indicator], [data-glass-surface], .lg-cover, .lg-tick",
+          ) ||
+          (record.type === "attributes" &&
+            record.attributeName === "style" &&
+            record.target === active &&
+            active.getAttribute("style") === lastStyle),
       )
     )
       return;
+    if (records.some((record) => record.type === "childList")) motionGlass?.refreshTargets();
     if (active && !active.isConnected) clear();
     invalidate();
   });
@@ -2993,7 +3084,10 @@ async function bootDashboard() {
         // skin changed) must be followed by one re-render. Opacity and character
         // visibility recolour nothing, and re-rendering per slider tick would be
         // wasteful.
-        if (!meta || meta.previousSkinId !== preference.skinId) render();
+        if (!meta || meta.previousSkinId !== preference.skinId) {
+          updateMotionGlass();
+          render();
+        }
         if (!paletteStudioPreview && meta?.previousSkinId !== preference.skinId)
           void import("./achievement-events.js")
             .then((events) => events.recordAchievementSkin(preference.skinId))
@@ -3006,11 +3100,15 @@ async function bootDashboard() {
       void import("./achievement-events.js")
         .then((events) => events.recordAchievementSkin(state.skinRuntime.getPreference().skinId))
         .catch(() => {});
+    function reflectPickerOpen(open) {
+      $("#skinToggle").setAttribute("aria-expanded", String(open));
+      motionGlass?.updateGlass();
+    }
     state.skinPicker = createSkinPicker({
       runtime: state.skinRuntime,
       translate: (key) => localizeText(key, getLocale()),
-      onOpen: () => $("#skinToggle").setAttribute("aria-expanded", "true"),
-      onClose: () => $("#skinToggle").setAttribute("aria-expanded", "false"),
+      onOpen: () => reflectPickerOpen(true),
+      onClose: () => reflectPickerOpen(false),
     });
     state.skinPicker.bind();
     installSkinTestHook(state.skinRuntime, state.skinPicker);
@@ -3031,6 +3129,7 @@ async function bootDashboard() {
         const appearance = {
           ...state.skinRuntime.getPreference(),
           mode: state.theme,
+          glassPalette: snapshotGlassPalette(),
         };
         try {
           const { openAchievementShareDialog } = await import("./share-dialog.js");
@@ -3207,9 +3306,7 @@ async function bootDashboard() {
   $("#providerPricingDialog").addEventListener("animationend", (event) => {
     if (event.animationName === "provider-pricing-leave") closeProviderPricing(true);
   });
-  $("#providerPricingDialog").addEventListener("click", (event) => {
-    if (event.target.id === "providerPricingDialog") closeProviderPricing();
-  });
+  bindPricingBackdrop($("#providerPricingDialog"), closeProviderPricing);
   $("#providerPricingDialog").addEventListener("close", () => {
     if (!$("#providerPricingDialog").open) closeProviderPricing(true);
   });
@@ -3235,9 +3332,7 @@ async function bootDashboard() {
   $("#modelPricingFields").addEventListener("input", updateModelPricingApplyState);
   $("#modelPricingFields").addEventListener("change", updateModelPricingApplyState);
   $("#cancelModelPricingButton").addEventListener("click", closeModelPricing);
-  $("#modelPricingDialog").addEventListener("click", (event) => {
-    if (event.target.id === "modelPricingDialog") closeModelPricing();
-  });
+  bindPricingBackdrop($("#modelPricingDialog"), closeModelPricing);
   // cancel（Esc）与 close() 都会走到 close：草稿在这里统一清理。
   $("#modelPricingDialog").addEventListener("close", () => {
     state.modelPricingDraft = null;
@@ -3382,6 +3477,7 @@ async function bootDashboard() {
   });
 
   setTheme(preferredTheme(), { persist: false });
+  if (state.skinRuntime) updateMotionGlass();
   state.excludedHomes = readExcludedHomes();
   initializeAutoRefresh();
   updateRecentControls();

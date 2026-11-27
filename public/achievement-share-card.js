@@ -302,6 +302,7 @@ export async function renderAchievementShareCard({
   locale,
   skinId,
   mode,
+  glassPalette,
   showCharacters = true,
 }) {
   const achievement = ACHIEVEMENT_CONTENT.find((entry) => entry.id === id);
@@ -325,7 +326,10 @@ export async function renderAchievementShareCard({
   card.dataset.skin = art ? skinId : "classic";
   card.dataset.mode = theme;
   card.style.cssText = `width:${WIDTH}px;border-radius:${ROUNDNESS}px;box-shadow:none`;
-  for (const [property, value] of paletteDeclarations(card.dataset.skin, theme) ?? []) {
+  const classicGlass = skinId === "classic" && glassPalette?.length;
+  if (classicGlass) card.dataset.motionGlass = "";
+  const palette = classicGlass ? glassPalette : paletteDeclarations(card.dataset.skin, theme);
+  for (const [property, value] of palette ?? []) {
     card.style.setProperty(property, value);
   }
   card.innerHTML = cardContents;
