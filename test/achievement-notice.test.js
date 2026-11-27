@@ -9,19 +9,22 @@ test("notice is appended to the refresh well and only accepts a ready, valid unr
     setAttribute: (name, value) => attributes.set(name, value),
   });
   const appended = [];
+  const page = Object.assign(new EventTarget(), {
+    createElement: (tag) => {
+      assert.equal(tag, "button");
+      return button;
+    },
+    querySelector: (selector) => {
+      assert.equal(selector, ".auto-refresh-well");
+      return { append: (node) => appended.push(node) };
+    },
+  });
+  let earned = 0;
+  page.addEventListener("waifu:achievement-earned", () => earned++);
   const old = Object.getOwnPropertyDescriptor(globalThis, "document");
   Object.defineProperty(globalThis, "document", {
     configurable: true,
-    value: {
-      createElement: (tag) => {
-        assert.equal(tag, "button");
-        return button;
-      },
-      querySelector: (selector) => {
-        assert.equal(selector, ".auto-refresh-well");
-        return { append: (node) => appended.push(node) };
-      },
-    },
+    value: page,
   });
   t.after(() => (old ? Object.defineProperty(globalThis, "document", old) : delete globalThis.document));
   let opened = 0;
@@ -81,14 +84,18 @@ test("notice is appended to the refresh well and only accepts a ready, valid unr
   accept("b", 101);
   accept("b", 101, 0, "preparing");
   assert.equal(attempted, 0, "initial unread and profile changes only establish a baseline");
+  assert.equal(earned, 0);
   accept("b", 102);
   assert.equal(attempted, 1, "a temporary preparing state retains the ready revision watermark");
+  assert.equal(earned, 1);
   accept("b", 102, 1);
   accept("b", 101);
   accept("b", 102);
   accept("b", 103, 103);
   accept("c", 1);
   assert.equal(attempted, 1, "seen awards, repeat/stale snapshots and new profiles never replay");
+  assert.equal(earned, 2, "a genuinely new award is announced once even when already seen");
   accept("c", 2);
   assert.equal(attempted, 2, "a later unread revision after switching profiles is eligible");
+  assert.equal(earned, 3);
 });
