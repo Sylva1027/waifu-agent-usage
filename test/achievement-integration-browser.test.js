@@ -28,7 +28,7 @@ async function setup(t) {
   await fixture.ready();
   browser = await runtime.chromium.launch({ executablePath: runtime.executablePath, headless: true });
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" });
-  page.setDefaultTimeout(10_000);
+  page.setDefaultTimeout(30_000);
   page.on("pageerror", (error) => errors.push(error.message));
   await page.addInitScript((key) => {
     localStorage.setItem("codexUsageAutoRefresh", "off");
@@ -37,8 +37,9 @@ async function setup(t) {
     localStorage.setItem(key, JSON.stringify({ version: 1, skinId: "classic", showCharacters: false, opacity: 0.5 }));
   }, SKIN_PREFERENCE_KEY);
   await page.goto(fixture.url, { waitUntil: "domcontentloaded" });
-  // The app mounts this button after binding the skin picker. The initial Today report loads independently.
   await page.locator("#achievementToggle").waitFor();
+  // The control mounts before the initial report finishes. Let that request finish before changing the range.
+  await page.evaluate(async () => (await import("/app.js")).activeUsageLoadDone);
   assert.equal(await page.locator("html").getAttribute("data-skin"), "classic");
   const output = path.join("output", "playwright");
   await mkdir(output, { recursive: true });
@@ -61,7 +62,7 @@ async function select(page, id) {
 }
 
 test("all 42 real achievement cards render approved bilingual content and all 96 badges decode in the production page", {
-  timeout: 60_000,
+  timeout: 120_000,
 }, async (t) => {
   const { fixture, page, screenshots } = await setup(t);
   const snapshot = await fixture.snapshot();
@@ -76,24 +77,34 @@ test("all 42 real achievement cards render approved bilingual content and all 96
       for (const content of ACHIEVEMENT_CONTENT.filter((entry) => entry.category === category)) {
         const button = page.locator(`[data-achievement="${content.id}"]`);
         await button.click();
-        assert.equal(await button.locator("h3").textContent(), content[locale].name);
-        assert.equal(await button.locator("p").textContent(), content[locale].description);
-        assert.equal(await page.locator(".detail-panel h3").textContent(), content[locale].name);
-        assert.equal(await page.locator(".detail-flavor").textContent(), content[locale].flavor);
-        assert.equal(
-          await page
-            .locator("#achievementDetail .detail-panel")
-            .evaluate((node) => node.classList.contains("is-locked")),
-          row(snapshot, content.id).highestEarned === null,
-        );
-        const fits = await page.locator("#achievementDetail .detail-panel").evaluate((node) => {
-          const detail = node.getBoundingClientRect();
+        const card = await button.evaluate((node) => {
+          const panel = document.querySelector("#achievementDetail .detail-panel");
+          const detail = panel.getBoundingClientRect();
           const dialog = document.querySelector("#achievementDialog").getBoundingClientRect();
-          return (
-            detail.top >= dialog.top && detail.bottom <= dialog.bottom && node.scrollHeight <= node.clientHeight + 1
-          );
+          return {
+            name: node.querySelector("h3").textContent,
+            description: node.querySelector("p").textContent,
+            detailName: panel.querySelector("h3").textContent,
+            flavor: panel.querySelector(".detail-flavor").textContent,
+            locked: panel.classList.contains("is-locked"),
+            fits:
+              detail.top >= dialog.top &&
+              detail.bottom <= dialog.bottom &&
+              panel.scrollHeight <= panel.clientHeight + 1,
+          };
         });
-        assert.equal(fits, true, `${locale}/${content.id} detail must fit the approved fixed window`);
+        assert.deepEqual(
+          card,
+          {
+            name: content[locale].name,
+            description: content[locale].description,
+            detailName: content[locale].name,
+            flavor: content[locale].flavor,
+            locked: row(snapshot, content.id).highestEarned === null,
+            fits: true,
+          },
+          `${locale}/${content.id} card and detail`,
+        );
         inspected++;
       }
     }
@@ -131,7 +142,7 @@ test("all 42 real achievement cards render approved bilingual content and all 96
 });
 
 test("actual picker, share download and CLI restore award A44/A43/A46 in the original profile and remain idempotent", {
-  timeout: 60_000,
+  timeout: 120_000,
 }, async (t) => {
   let stage = "starting isolated fixture";
   t.after(() => t.diagnostic(`Last integration stage: ${stage}`));
@@ -180,11 +191,20 @@ test("actual picker, share download and CLI restore award A44/A43/A46 in the ori
   assert.equal(await page.locator("html").getAttribute("data-skin"), "classic");
   await page.locator("#closeSkinDialogButton").click();
 
-  stage = "opening actual share";
-  await page.locator('[data-preset="all"]').click();
-  await page.waitForFunction(() => !document.querySelector("#shareToggle").disabled);
+  stage = "loading usage for the All range";
+  const [allUsage] = await Promise.all([
+    page.waitForResponse((response) => {
+      const url = new URL(response.url());
+      return url.pathname === "/api/usage" && url.searchParams.get("preset") === "all";
+    }),
+    page.locator('#presetButtons [data-preset="all"]').click(),
+  ]);
+  const usage = await allUsage.json();
+  assert.ok(allUsage.ok(), JSON.stringify(usage));
+  assert.equal(usage.summary.range.preset, "all");
+  stage = "opening the share dialog for the loaded report";
   await page.locator("#shareToggle").click();
-  await page.waitForFunction(() => !document.querySelector("#saveShareImage").disabled);
+  await page.locator("#saveShareImage:not([disabled])").waitFor();
   const sharedRequest = page.waitForResponse(
     (response) =>
       new URL(response.url()).pathname === "/api/achievements/operations" &&

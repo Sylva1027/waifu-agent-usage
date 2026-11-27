@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { listenOnFetchPort } from "../test-support/fetch-port.mjs";
+import fs from "node:fs";
 import { appendFile, rm, writeFile } from "node:fs/promises";
 import { ServerResponse } from "node:http";
+import { syncBuiltinESMExports } from "node:module";
 import path from "node:path";
 import test from "node:test";
 
@@ -182,9 +184,6 @@ function sseClient(response) {
   return {
     next,
     waitForClose,
-    eventCount(eventName) {
-      return events.filter((entry) => entry.event === eventName).length;
-    },
     async close() {
       await reader.cancel().catch(() => {});
     },
@@ -306,31 +305,55 @@ test("source watcher stop prevents discovery from installing watchers afterward"
   assert.equal(watcher.rootCount, 0);
 });
 
-test("real server coalesces source wake into a committed notification and correct scoped read", async () => {
+test("real server coalesces source wake into a committed notification and correct scoped read", async (t) => {
   const fixture = createCodexIntegrationFixture();
-  const server = createUsageServer(fixtureServerOptions(fixture));
+  const rollout = fixture.rolloutFiles[0];
+  let onCodexChange;
+  // Deliver hints explicitly so the coalescing test does not depend on native watcher timing.
+  t.mock.method(fs, "watch", (root, _options, listener) => {
+    if (root === fixture.codexHome) onCodexChange = listener;
+    return { on() {}, unref() {}, close() {} };
+  });
+  syncBuiltinESMExports();
+  const notify = () => {
+    assert.equal(typeof onCodexChange, "function");
+    onCodexChange("change", path.relative(fixture.codexHome, rollout));
+  };
+  let server;
   let sse;
   try {
+    server = createUsageServer(fixtureServerOptions(fixture));
     const baseUrl = await listen(server);
     const initial = await getJson(baseUrl, `/api/usage?${USAGE_QUERY}&skipCheck=1`);
     assert.equal(initial.summary.totals.total, 0);
     sse = await openSse(baseUrl);
 
-    await appendFile(fixture.rolloutFiles[0], usageLine("2026-10-04T13:00:00.000Z", 100));
+    await appendFile(rollout, usageLine("2026-10-04T13:00:00.000Z", 100));
+    notify();
     const first = await sse.next("usage-synced");
     assert.equal(typeof first.checkedAt, "string");
     assert.equal((await getJson(baseUrl, `/api/usage?${USAGE_QUERY}&skipCheck=1`)).summary.totals.total, 100);
 
-    await appendFile(fixture.rolloutFiles[0], usageLine("2026-10-04T13:01:00.000Z", 100));
-    await appendFile(fixture.rolloutFiles[0], usageLine("2026-10-04T13:02:00.000Z", 100));
+    await appendFile(rollout, usageLine("2026-10-04T13:01:00.000Z", 100));
+    await appendFile(rollout, usageLine("2026-10-04T13:02:00.000Z", 100));
+    notify();
+    notify();
     await sse.next("usage-synced");
     assert.equal((await getJson(baseUrl, `/api/usage?${USAGE_QUERY}&skipCheck=1`)).summary.totals.total, 300);
-    await new Promise((resolve) => setTimeout(resolve, 350));
-    assert.equal(sse.eventCount("usage-synced"), 0, "one burst must produce one completed notification");
+    await assert.rejects(
+      sse.next("usage-synced", 350),
+      /Timed out waiting for SSE usage-synced/,
+      "one burst must produce one completed notification",
+    );
   } finally {
-    await sse?.close();
-    await server.close();
-    fixture.close();
+    try {
+      await sse?.close();
+      await server?.close();
+    } finally {
+      t.mock.restoreAll();
+      syncBuiltinESMExports();
+      fixture.close();
+    }
   }
 });
 
