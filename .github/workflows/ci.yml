@@ -102,6 +102,7 @@ jobs:
         run: |
           $core = @(
             "test/ci-changes.test.js"
+            "test/skin-palette-keyboard-step.test.js"
             "test/source-wake.test.js"
             "test/lite-server.test.js"
             "test/lite-cross-edition-store.test.js"
@@ -129,7 +130,7 @@ jobs:
       - name: Run full Windows suite
         if: github.event_name != 'pull_request' && needs.changes.outputs.docs-only != 'true'
         timeout-minutes: 30
-        run: npm.cmd test -- --test-reporter=spec --test-concurrency=4 --test-timeout=720000 'test/**/!(cli|cli-editions|achievement-integration-browser).test.js'
+        run: node scripts/test.mjs --test-reporter=spec --test-concurrency=4 --test-timeout=720000 'test/**/!(cli|cli-editions|achievement-integration-browser).test.js'
       - name: Upload failed E1d screenshot comparison
         if: failure()
         uses: actions/upload-artifact@v4
