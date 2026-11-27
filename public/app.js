@@ -2555,7 +2555,7 @@ function showQuotaNotice(message) {
   if (!message) return;
   state.quotaNotice = message;
   updateQuotaPresetButton();
-  quotaNoticeTimer = window.setTimeout(() => {
+  quotaNoticeTimer = window.setTimeout(function dismissQuotaNotice() {
     quotaNoticeTimer = null;
     state.quotaNotice = "";
     updateQuotaPresetButton();

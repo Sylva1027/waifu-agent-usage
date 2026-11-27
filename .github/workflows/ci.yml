@@ -11,7 +11,6 @@ on:
     inputs:
       release-candidate:
         type: boolean
-        default: false
 
 permissions:
   contents: read
@@ -59,7 +58,9 @@ jobs:
         if: needs.changes.result != 'success' && needs.changes.result != 'skipped'
         run: throw "Change classification failed. See the changes job."
       - uses: actions/checkout@v4
+        if: needs.changes.outputs.docs-only != 'true'
       - uses: actions/setup-node@v4
+        if: needs.changes.outputs.docs-only != 'true'
         with:
           node-version: ${{ matrix.node-version }}
           cache: npm
@@ -91,14 +92,18 @@ jobs:
           npm.cmd run native:build
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           npm.cmd run native:check
+      - name: Run Windows CLI and achievement integration tests
+        if: needs.changes.outputs.docs-only != 'true'
+        timeout-minutes: 10
+        # These suites launch subprocesses or a desktop browser throughout the test.
+        run: npm.cmd test -- --test-reporter=spec --test-concurrency=1 --test-timeout=720000 test/cli.test.js test/cli-editions.test.js test/achievement-integration-browser.test.js
       - name: Run core Windows suite
         if: github.event_name == 'pull_request' && needs.changes.outputs.docs-only != 'true'
         timeout-minutes: 10
         run: |
           $core = @(
             "test/ci-changes.test.js"
-            "test/cli.test.js"
-            "test/cli-editions.test.js"
+            "test/skin-palette-keyboard-step.test.js"
             "test/source-wake.test.js"
             "test/lite-server.test.js"
             "test/lite-cross-edition-store.test.js"
@@ -118,15 +123,20 @@ jobs:
           )
           npm.cmd test -- --test-reporter=spec --test-concurrency=4 @core
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          npm.cmd test -- --test-reporter=spec --test-concurrency=1 test/q5-refresh-delivery.test.js
+          npm.cmd test -- --test-reporter=spec test/q5-refresh-delivery.test.js
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           npm.cmd test -- --test-reporter=spec '--test-name-pattern=^ZCode 1000-event history' test/usage-source-prefix-publication.test.js
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          npm.cmd test -- --test-reporter=spec --test-concurrency=1 '--test-name-pattern=E1d' test/skin-palette-quality.test.js
+          npm.cmd test -- --test-reporter=spec '--test-name-pattern=E1d' test/skin-palette-quality.test.js
       - name: Run full Windows suite
         if: github.event_name != 'pull_request' && needs.changes.outputs.docs-only != 'true'
         timeout-minutes: 30
-        run: npm.cmd test -- --test-reporter=spec --test-concurrency=4 --test-timeout=720000
+        run: >-
+          node scripts/test.mjs
+          --test-reporter=spec --test-reporter=./scripts/test-file-timing.mjs
+          --test-reporter-destination=stdout --test-reporter-destination=stdout
+          --test-concurrency=4 --test-timeout=720000
+          'test/**/!(cli|cli-editions|achievement-integration-browser).test.js'
       - name: Upload failed E1d screenshot comparison
         if: failure()
         uses: actions/upload-artifact@v4
@@ -186,7 +196,7 @@ jobs:
             test/omp-integration.test.js \
             test/history-archive-api.test.js
       - name: Run refresh delivery tests
-        run: npm test -- --test-reporter=spec --test-concurrency=1 --test-timeout=120000 test/q5-refresh-delivery.test.js
+        run: npm test -- --test-reporter=spec --test-timeout=120000 test/q5-refresh-delivery.test.js
       - name: Install Playwright and Chromium
         uses: ./.github/actions/setup-chromium
       - name: Run Playwright acceptance

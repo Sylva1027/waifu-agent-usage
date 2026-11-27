@@ -67,7 +67,7 @@ Code PRs run static and core checks on Windows with Node 24. Changes that affect
 
 Pull requests targeting `main` must pass the GitHub Actions check `test (24)`. A docs-only PR satisfies this requirement after its lightweight check succeeds.
 
-Before publishing, run [Release candidate](../.github/workflows/release.yml) in Actions for the candidate branch, or use `gh workflow run release.yml --ref <tag>` for a tag. After the Node 26 compatibility checks pass, Windows checks the source archive fixtures, then builds and verifies the Waifu and Lite ZIPs. Ubuntu and Apple Silicon macOS download those same ZIPs from the run, verify the SHA-256 hashes and package contents, and run CLI, HTTP, and Playwright checks on Node 24. Download the ZIPs and SHA-256 manifest from the successful run and publish those files.
+Before publishing, run [Release candidate](../.github/workflows/release.yml) in Actions for the candidate branch, or use `gh workflow run release.yml --ref <tag>` for a tag. The Node 26 compatibility checks run in parallel with Windows, which checks the source archive fixtures and then builds and verifies the Waifu and Lite ZIPs. After both jobs pass, Ubuntu and Apple Silicon macOS download those same ZIPs from the run, verify the SHA-256 hashes and package contents, and run CLI, HTTP, and Playwright checks on Node 24. Download the ZIPs and SHA-256 manifest from the successful run and publish those files.
 
 The interface primarily targets desktop mouse and keyboard use. Check large screens, side-by-side windows, and narrow windows, retaining keyboard navigation, focus restoration, and reduced-motion support. Place explanations of mechanisms and costs in details users choose to open.
 

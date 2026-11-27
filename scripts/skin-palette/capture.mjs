@@ -4859,6 +4859,7 @@ async function runStateUnit({
   const isQuotaUnit = unit.id === "quota-toast" && unit.stateId === "quota-toast";
   const quotaDiagnosticStart = ctx.quotaEvidenceErrors?.length ?? 0;
   let quotaRecorder = null;
+  let restoreQuotaTimer = null;
   let quotaBeginCounts = null;
   let quotaBegan = false;
   let quotaEndAttempted = false;
@@ -4960,6 +4961,17 @@ async function runStateUnit({
   }
 
   try {
+    if (isQuotaUnit) {
+      restoreQuotaTimer = await page.evaluateHandle(() => {
+        const schedule = window.setTimeout;
+        // Keep the real toast visible through the full-page measurement on slow runners.
+        window.setTimeout = (callback, delay, ...args) =>
+          schedule(callback, callback?.name === "dismissQuotaNotice" ? 120_000 : delay, ...args);
+        return () => {
+          window.setTimeout = schedule;
+        };
+      });
+    }
     // 1. 路由故障注入（autorefresh-error：中止数据请求让轮询/加载失败）
     if (unit.routeFault && faultPattern) {
       await page.route(faultPattern, (route) => {
@@ -5425,6 +5437,15 @@ async function runStateUnit({
     blockers.push(`状态单元流程异常：${error instanceof Error ? error.message : String(error)}`);
   } finally {
     endQuotaWindow();
+    if (restoreQuotaTimer) {
+      try {
+        await restoreQuotaTimer.evaluate((restore) => restore());
+      } catch (error) {
+        quotaFailure("restore-timer", error);
+      } finally {
+        await restoreQuotaTimer.dispose();
+      }
+    }
     if (unrouteFault) await unrouteFault();
   }
 
