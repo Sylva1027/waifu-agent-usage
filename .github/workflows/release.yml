@@ -23,7 +23,6 @@ jobs:
 
   package:
     name: Verify Waifu and Lite ZIPs
-    needs: compatibility
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -94,8 +93,8 @@ jobs:
 
   accept-posix:
     name: Verify ZIPs on ${{ matrix.os }}
-    needs: package
-    if: ${{ !cancelled() && needs.package.result == 'success' }}
+    # Packaging runs alongside compatibility; acceptance requires both to pass.
+    needs: [compatibility, package]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     defaults:
