@@ -2035,6 +2035,8 @@ const STATE_MATRIX_GROUPS = Object.freeze([
         kind: "catalog",
         stateId: "autorefresh-on",
         note: "独立测量自动刷新开启按钮；catalog 先选『全部』并用 ensureClick 幂等确保 aria-pressed=true。恢复为空，后续 autorefresh-off/autorefresh-error 均从开启态出发",
+        // Move off the toggle before a full-page screenshot can clear the hover spotlight.
+        postSteps: [{ action: "setSpotlight", value: "off" }],
       },
       { id: "preset-selected", kind: "catalog", stateId: "preset-selected", clipSelector: "#presetButtons" },
       {

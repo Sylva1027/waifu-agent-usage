@@ -3869,6 +3869,7 @@ test("M4.3 真机矩阵：light 模式 S1/S2/S6 全覆盖、恢复无旧色残�
       assert.equal(entry.status, "captured", `${unitId} 必须完整捕获：${JSON.stringify(entry.blockers ?? [])}`);
     }
     const enabled = await unitState(result.outDir, "light", "autorefresh-on");
+    assert.ok(enabled.trace.steps.some((step) => step.ok && step.spotlight?.value === "off"));
     assert.ok(
       enabled.trace.closedUsageStreams.some(
         (entry) =>
