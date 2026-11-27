@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>鳞间珠光 · 深色绸缎动效小样</title>
+<style>
+  * { box-sizing: border-box }
+  html, body { height:100%; margin:0; background:#19161d }
+  body { display:grid; place-items:center }
+  main { position:relative; width:min(100vw,100vh); aspect-ratio:1; background:#19161d }
+  img, canvas { position:absolute; inset:0; width:100%; height:100% }
+  img { display:block }
+  main[data-side="right"] :is(img, canvas) { transform:rotate(180deg) }
+  canvas[hidden], main:has(canvas:not([hidden])) img { visibility:hidden }
+</style>
+<main aria-label="原稿中的三道深色绸面随水流起伏，贝母色随翻面改变">
+  <img src="/assets/achievement-share/chatgpt/background-dark.webp" alt="">
+  <canvas hidden aria-hidden="true"></canvas>
+</main>
+<script type="module">
+  import {createStudy,duration as leftDuration,rightDuration} from './nacre-study.js';
+  const canvas=document.querySelector('canvas');
+  const side=new URLSearchParams(location.search).get('side')==='right'?'right':'left';
+  canvas.parentElement.dataset.side=side;
+  const duration=side==='right'?rightDuration:leftDuration;
+  const reduced=matchMedia('(prefers-reduced-motion: reduce)');
+  const draw=await createStudy(canvas,side);
+  let elapsed=0, previous=null, raf=0, last=-1;
+  function tick(now) {
+    if(previous!==null) elapsed=Math.min(duration,elapsed+(now-previous)/1000);
+    previous=now;
+    const frame=Math.floor(elapsed*24);
+    if(last!==frame) { draw(elapsed); last=frame; }
+    if(elapsed<duration) raf=requestAnimationFrame(tick);
+  }
+  function sync() {
+    cancelAnimationFrame(raf);
+    previous=null;
+    if(reduced.matches) { elapsed=0; last=-1; draw(0); return; }
+    if(!document.hidden && document.hasFocus() && elapsed<duration) raf=requestAnimationFrame(tick);
+  }
+  canvas.hidden=false;
+  draw(0);
+  new ResizeObserver(()=>draw(elapsed)).observe(canvas);
+  document.addEventListener('visibilitychange',sync);
+  window.addEventListener('blur',sync);
+  window.addEventListener('focus',sync);
+  reduced.addEventListener('change',sync);
+  sync();
+</script>
+</html>

@@ -243,6 +243,57 @@
   border: 4px solid transparent;
   border-top-color: currentColor;
 }
+
+/* Match the 26px range well inside the full-height native button next to Share. */
+:where(html[data-skin="classic"]) #achievementDialog #achievementStatusFilter {
+  padding: 0 30px 0 11px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--ink);
+  font-weight: 400;
+}
+
+:where(html[data-skin="classic"]) #achievementStatusFilter::before {
+  content: "";
+  position: absolute;
+  inset: 5px 0;
+  border: 1px solid var(--glass-rim-shade);
+  border-radius: 8px;
+  background: var(--glass-well);
+  pointer-events: none;
+}
+
+:where(html[data-skin="classic"]) #achievementStatusValue {
+  position: relative;
+  white-space: nowrap;
+}
+
+:where(html[data-skin="classic"]) #achievementStatusFilter .calendar-zone-arrow {
+  right: 12px;
+  transform: translateY(-50%);
+  border-width: 5px 4px 0;
+  color: var(--muted);
+}
+
+:where(html[data-skin="classic"])
+  #achievementDialog
+  #achievementStatusFilter:is(:hover, :focus-visible, [aria-expanded="true"], [data-filtered]) {
+  color: var(--blue);
+  text-shadow: var(--button-label-glow);
+}
+
+:where(html[data-skin="classic"])
+  #achievementStatusFilter:is(:hover, :focus-visible, [aria-expanded="true"], [data-filtered])
+  .calendar-zone-arrow {
+  color: inherit;
+  filter: var(--button-icon-glow);
+}
+
+:where(html[data-skin="classic"]) #achievementStatusFilter:focus-visible::before {
+  border-color: var(--blue);
+}
+
 #achievementDialog .recent-range-menu {
   position: absolute;
   z-index: 30;

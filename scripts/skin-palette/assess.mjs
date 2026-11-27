@@ -90,7 +90,7 @@ export const APPROXIMATE_METHOD_SUFFIX = ":approximate";
 export const RECORDED_INPUT_FIELDS = Object.freeze(["profiles", "policy", "roles", "derivation"]);
 
 /**
- * 本门禁的 26 项源文件依赖（出处核验的最小覆盖集）：分两段，两段都不可省。
+ * 本门禁的源文件依赖分为实际渲染资源和评审工具。
  * ① 实际加载的页面/颜色文件——实测量的是浏览器里真正渲染出来的东西。总计划 4.1
  *    （第 155 行）点名"至少包含 public/index.html / skin-palettes.js / styles.css /
  *    app.js / app-state.js / skin-ui.js / skin-picker.js"，并要求"任一影响该候选颜色、
@@ -105,6 +105,14 @@ export const REQUIRED_SOURCE_FILES = Object.freeze([
   "public/index.html",
   "public/styles.css",
   "public/skins.css",
+  "public/waifu-motion-glass.css",
+  "public/waifu-glass-dialogs.css",
+  "public/waifu-glass-feature-windows.css",
+  "public/waifu-motion.js",
+  "public/waifu-motion-controls.js",
+  "public/waifu-liquid-glass.css",
+  "public/waifu-liquid-glass.js",
+  "public/waifu-frame-glass.js",
   "public/skin-palettes.js",
   "public/app.js",
   "public/app-state.js",

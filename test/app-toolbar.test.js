@@ -61,7 +61,7 @@ test("toolbar embeds the fillable recent dropdown inside the range segments", as
 
 test("title, range, refresh, and timezone controls use separate compact groups", async () => {
   const html = await readFile(new URL("../public/index.html", import.meta.url), "utf8");
-  const header = html.match(/<header class="topbar">([\s\S]*?)<\/header>/)?.[1];
+  const header = html.match(/<header class="topbar" data-glass-frame>([\s\S]*?)<\/header>/)?.[1];
   const toolbar = html.match(/<section class="toolbar"[\s\S]*?<\/section>/)?.[0];
   assert.ok(header);
   assert.ok(toolbar);

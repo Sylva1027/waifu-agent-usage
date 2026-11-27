@@ -1,0 +1,169 @@
+/* Custom backdrops center a section. Native dialogs and popovers already own their positioning. */
+:where(html[data-skin="classic"]) .dialog-backdrop > .dialog[data-glass-window] {
+  position: relative;
+}
+
+:where(html[data-skin="classic"]) :is(.dialog, .date-picker-popover, .recent-range-menu)[data-glass-window] {
+  border-color: var(--glass-window-rim);
+  background: var(--glass-window);
+  box-shadow: var(--glass-window-depth);
+}
+
+/* Compact menus often cover figures on the dashboard or controls in their parent window. */
+:where(html[data-skin="classic"]) :is(#dateRangePicker, .recent-range-menu[data-glass-window]) {
+  --glass-window: color-mix(in srgb, var(--glass-table) 97%, transparent);
+}
+
+:where(html[data-skin="classic"]) .dialog[data-glass-window] .dialog-actions > button,
+:where(html[data-skin="classic"]) :is(#rescanImportsButton, #manualImportButton, #pickImportDirectoryButton),
+:where(html[data-skin="classic"]) :is(#refreshPricingButton, #restoreAutomaticRateButton, #resetSkinClassicButton),
+:where(html[data-skin="classic"]) #dateRangePicker :is(.date-picker-nav, .date-picker-clear) {
+  background: var(--glass-lens);
+  border-color: var(--glass-window-rim);
+  box-shadow: 0 2px 3px -2px var(--glass-rim-shade);
+}
+
+:where(html[data-skin="classic"])
+  .dialog[data-glass-window]
+  .dialog-actions
+  > :is(#submitImportButton, #savePricingButton) {
+  background: var(--blue);
+  color: var(--active-ink);
+}
+
+:where(html[data-skin="classic"])
+  :is(
+    #manualImportButton[aria-expanded="true"],
+    #restoreAutomaticRateButton[aria-pressed="true"],
+    #resetSkinClassicButton[aria-pressed="true"]
+  ) {
+  border-color: var(--blue);
+  color: var(--blue);
+  box-shadow: none;
+}
+
+/* A hairline defines each inset without changing the original gallery or control dimensions. */
+:where(html[data-skin="classic"])
+:is(
+  #skinDialog .skin-gallery-well,
+  #importDialog .source-picker,
+  #pricingForm .pricing-provider-well,
+  #providerPricingDialog .provider-pricing-well,
+  #pricingForm .pricing-currency
+),
+:where(html[data-skin="classic"]) #modelPricingDialog[open] .pricing-context,
+:where(html[data-skin="classic"]) :is(#importPath, #pricingSearch, #usdToCnyRate, #modelPricingFields input) {
+  background: var(--glass-well);
+  border-color: var(--glass-window-rim);
+  box-shadow: none;
+}
+
+:where(html[data-skin="classic"]) :is(.skin-gallery-well, .pricing-provider-well, .provider-pricing-well)::after,
+:where(html[data-skin="classic"]) #importDialog .source-picker {
+  box-shadow: inset 0 0 0 1px var(--glass-window-rim);
+}
+
+:where(html[data-skin="classic"]) #importDialog .source-option + .source-option::before,
+:where(html[data-skin="classic"]) #modelPricingDialog .pricing-mode-heading::after {
+  height: 1px;
+  background: var(--glass-divider);
+  box-shadow: none;
+}
+
+:where(html[data-skin="classic"]) :is(#skinDialog .skin-card, #pricingForm .pricing-provider-card) {
+  background: var(--glass-lens);
+  border-color: var(--glass-window-rim);
+  box-shadow: none;
+}
+
+:where(html[data-skin="classic"])
+  :is(#skinDialog .skin-card, #pricingForm .pricing-provider-card):is(:hover, :focus-visible),
+:where(html[data-skin="classic"]) #skinDialog .skin-card.is-selected {
+  border-color: var(--blue);
+}
+
+:where(html[data-skin="classic"]) #pricingForm .pricing-provider-readout {
+  background: var(--glass-well);
+  box-shadow: none;
+}
+
+:where(html[data-skin="classic"]) #pricingCurrency > button {
+  background: transparent;
+  box-shadow: none;
+}
+
+:where(html[data-skin="classic"]) #pricingCurrency > button[aria-pressed="true"],
+:where(html[data-skin="classic"]) #providerPricingDialog button.pricing-model-row:is(:hover, :focus-visible) {
+  background: var(--glass-lens);
+  border-color: var(--glass-window-rim);
+}
+
+:where(html[data-skin="classic"]) #skinOpacity::-webkit-slider-runnable-track {
+  background: linear-gradient(
+    to right,
+    var(--skin-slider-accent) var(--skin-opacity-fill),
+    var(--glass-well) var(--skin-opacity-fill)
+  );
+  box-shadow: inset 0 0 0 1px var(--glass-window-rim);
+}
+
+:where(html[data-skin="classic"]) #skinOpacity::-moz-range-track {
+  background: var(--glass-well);
+  box-shadow: inset 0 0 0 1px var(--glass-window-rim);
+}
+
+:where(html[data-skin="classic"]) #skinOpacity::-webkit-slider-thumb {
+  border-color: var(--glass-rim-shade);
+  background: var(--glass-lens);
+  box-shadow: none;
+}
+
+:where(html[data-skin="classic"]) #skinOpacity::-moz-range-thumb {
+  border-color: var(--glass-rim-shade);
+  background: var(--glass-lens);
+  box-shadow: none;
+}
+
+:where(html[data-skin="classic"])
+  :is(#presetButtons #recentRangeMenu, #achievementDialog #achievementStatusMenu)
+  > [role="option"],
+:where(html[data-skin="classic"]) #dateRangePicker .date-picker-day {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+:where(html[data-skin="classic"])
+  :is(#presetButtons #recentRangeMenu, #achievementDialog #achievementStatusMenu)
+  > [role="option"]:enabled:is(:hover, :focus-visible, [aria-selected="true"]),
+:where(html[data-skin="classic"]) #dateRangePicker .date-picker-day:is(:hover, :focus-visible) {
+  background: var(--glass-lens);
+  border-color: var(--glass-window-rim);
+}
+
+:where(html[data-skin="classic"])
+  :is(#presetButtons #recentRangeMenu, #achievementDialog #achievementStatusMenu)
+  > [role="option"]:enabled:is(:hover, :focus-visible, [aria-selected="true"]) {
+  color: var(--blue);
+  text-shadow: var(--button-label-glow);
+}
+
+:where(html[data-skin="classic"])
+  :is(#presetButtons #recentRangeMenu, #achievementDialog #achievementStatusMenu)
+  > [role="option"]:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: -2px;
+}
+
+:where(html[data-skin="classic"]) #dateRangePicker .date-picker-day.in-range {
+  background: color-mix(in srgb, var(--blue) 10%, var(--glass-well));
+}
+
+:where(html[data-skin="classic"]) #dateRangePicker .date-picker-day.selected {
+  border-color: currentColor;
+  background: var(--glass-lens);
+}
+
+:where(html[data-skin="classic"]) #dateRangePicker .date-picker-day.range-start.range-end {
+  border-color: var(--blue) var(--red) var(--red) var(--blue);
+}

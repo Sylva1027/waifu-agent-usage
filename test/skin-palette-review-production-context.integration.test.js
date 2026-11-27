@@ -158,7 +158,6 @@ test("D9f-2 runs the full source-context branch and records expected synthetic s
       readProductionCurrentSources(),
       readProductionGeneratedAssets(),
     ]);
-    assert.equal(SOURCE_FILES.length, 31);
     for (const file of [
       "scripts/skin-palette/focus-outline-pixels.mjs",
       "scripts/skin-palette/focus-outline-browser.mjs",

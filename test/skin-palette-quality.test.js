@@ -8556,6 +8556,15 @@ async function openPaletteDashboard(page, origin) {
   assert.equal(usage.summary.timelineError, null);
   await page.waitForFunction(USAGE_RENDER_READY_WAIT_SOURCE, undefined, { timeout: 20000 });
   await page.waitForSelector("#detailList .bar-row", { timeout: 20000 });
+  // The geometry comparison must start after the range selection spring has reached its endpoint.
+  await page.waitForFunction(() => {
+    if (document.documentElement.dataset.skin !== "classic" || matchMedia("(prefers-reduced-motion: reduce)").matches)
+      return true;
+    const rail = document.querySelector("#presetButtons[data-motion-ready]");
+    const target = rail?.querySelector(":scope > .active");
+    const plate = rail?.querySelector(":scope > [data-motion-indicator]");
+    return target && plate?.style.transform === "translateX(" + target.offsetLeft + "px)";
+  });
 }
 
 test("M3.2：真实浏览器集成——纯色/渐变/placeholder/聚光/Canvas 五样例、raw token 达标但真实叠加必须失败、状态不变", async (t) => {
@@ -9450,6 +9459,8 @@ test("M5.2.C-D2b3：真实 Edge 两种装饰隔离、低对比仍失败，异常
           return image?.complete && image.naturalWidth > 0;
         });
         await page.locator("#shareLayout").scrollIntoViewIfNeeded();
+        // The full-page geometry check also sees the toolbar icon rebounding behind the dialog.
+        await page.waitForFunction(() => !document.querySelector("#shareToggle [data-motion-content]").style.scale);
         // 分享弹窗绘制与 hover 淡出先稳定，基准与测量器使用相同的聚光等待前提。
         await page.mouse.move(0, 0);
         const zoneStability = await page.evaluate(buildProbeSource("spotlight-stability"));
@@ -10509,7 +10520,11 @@ test("M5.2.C-E1c：真实Edge验证五状态浅深输入目标、适用性与恢
   }
 });
 
-async function captureSettledPage(screenshot, attempts, { now = () => performance.now(), timeoutMs = 3000 } = {}) {
+async function captureSettledPage(
+  screenshot,
+  attempts,
+  { now = () => performance.now(), timeoutMs = 3000, matchesBaseline } = {},
+) {
   // Compositor paint can lag the finished CSS transition under load.
   // Bound elapsed settling time while keeping exact consecutive-frame equality.
   const deadline = now() + timeoutMs;
@@ -10519,13 +10534,17 @@ async function captureSettledPage(screenshot, attempts, { now = () => performanc
     const current = await screenshot();
     count += 1;
     if (now() > deadline) break;
-    if (previous.equals(current)) {
+    if (previous.equals(current) && (!matchesBaseline || (await matchesBaseline(current)))) {
+      if (now() > deadline) break;
       attempts.push(count);
       return current;
     }
     previous = current;
   }
-  throw new Error(`Screenshot paint did not converge within ${timeoutMs}ms`);
+  const reason = matchesBaseline
+    ? "Restored screenshot did not match the baseline"
+    : "Screenshot paint did not converge";
+  throw new Error(`${reason} within ${timeoutMs}ms`);
 }
 
 test("E1d：真实截图基准要求连续相同，短暂重绘有界收敛，持续变化拒绝", async () => {
@@ -10579,18 +10598,48 @@ test("E1d：真实截图基准要求连续相同，短暂重绘有界收敛，�
   );
   const changed = [b, b];
   assert.notDeepEqual(await captureSettledPage(async () => changed.shift(), []), a, "稳定的真实变化不能变回原基准");
+
+  elapsed = 0;
+  const restoring = [b, b, a, a];
+  assert.equal(
+    await captureSettledPage(
+      async () => {
+        elapsed += 400;
+        return restoring.shift();
+      },
+      [],
+      { now, matchesBaseline: (frame) => a.equals(frame) },
+    ),
+    a,
+    "恢复截图不能把连续两帧尚未恢复的绘制当作最终结果",
+  );
+  elapsed = 0;
+  await assert.rejects(
+    captureSettledPage(
+      async () => {
+        elapsed += 500;
+        return b;
+      },
+      [],
+      { now, matchesBaseline: (frame) => a.equals(frame) },
+    ),
+    /did not match the baseline within 3000ms/,
+    "持续存在的恢复差异继续失败",
+  );
 });
 
-test("M5.2.C-E1d：真实Edge深色dashboard在聚光淡入稳定后取整页基准", async () => {
+test("M5.2.C-E1d：真实Edge深色dashboard在聚光淡入稳定后取整页基准", async (t) => {
   const browserRuntime = await resolveBrowserRuntime();
   assert.ok(browserRuntime, "E1d 必须使用真实 Edge/Chromium，不得跳过或以 Node 替代");
   const fixture = await createPaletteFixture();
   const server = createUsageServer(createPaletteServerOptions(fixture));
   let browser = null;
   let context = null;
+  let page = null;
   let animationInspection = null;
   const blockedRemoteRequests = [];
   const fullPageScreenshots = [];
+  let lastFullPageScreenshot;
   const runId = `dark-dashboard-${new Date().toISOString().replaceAll(":", "").replaceAll("-", "").replaceAll(".", "")}`;
   const evidenceRoot = path.resolve(
     "docs/validation/2026-10-03-skin-palette-redesign/20261003T185748/integration/m52-c-d8u7-restoration/browser/e1d",
@@ -10600,6 +10649,8 @@ test("M5.2.C-E1d：真实Edge深色dashboard在聚光淡入稳定后取整页基
   mkdirSync(evidenceDir, { recursive: false });
   let measurementStates = null;
   const fullPageCaptureAttempts = [];
+  const compareScreenshots = (before, after) =>
+    page.evaluate(buildProbeSource("compare-images", before.toString("base64"), after.toString("base64")));
   const writeEvidence = (result, metadata) => {
     writeFileSync(path.join(evidenceDir, "before.png"), fullPageScreenshots[0]);
     writeFileSync(path.join(evidenceDir, "after.png"), fullPageScreenshots[1]);
@@ -10628,7 +10679,12 @@ test("M5.2.C-E1d：真实Edge深色dashboard在聚光淡入稳定后取整页基
     const port = await listenOnFreePort(server);
     const origin = `http://127.0.0.1:${port}`;
     const { chromium, executablePath } = browserRuntime;
-    browser = await chromium.launch({ executablePath, headless: true });
+    // Finish compositing the full document before each capture. Offscreen gradient tiles can otherwise alternate.
+    browser = await chromium.launch({
+      executablePath,
+      headless: true,
+      args: ["--disable-gpu", "--run-all-compositor-stages-before-draw"],
+    });
     context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
     await context.route("**/*", async (route) => {
       const requestUrl = new URL(route.request().url());
@@ -10636,8 +10692,12 @@ test("M5.2.C-E1d：真实Edge深色dashboard在聚光淡入稳定后取整页基
       blockedRemoteRequests.push(requestUrl.href);
       return route.abort();
     });
-    await context.addInitScript(buildPreferenceSeedSource({ theme: "light", skinId: "classic" }));
-    const page = await context.newPage();
+    // Character skins use this spotlight in production. Classic renders its own glass on the same panel.
+    await context.addInitScript(
+      buildPreferenceSeedSource({ theme: "light", skinId: "chatgpt", showCharacters: false }),
+    );
+    page = await context.newPage();
+    await page.clock.setFixedTime(new Date());
     installBrowserColorObserver(page);
     await openPaletteDashboard(page, origin);
     await page.waitForSelector("#timelineChart", { timeout: 20000 });
@@ -10647,6 +10707,14 @@ test("M5.2.C-E1d：真实Edge深色dashboard在聚光淡入稳定后取整页基
     }
     await page.waitForFunction(
       () => document.documentElement.dataset.theme === "dark" && !document.documentElement.dataset.themeTransition,
+    );
+    await page.evaluate(async () => {
+      await document.fonts.ready;
+    });
+    assert.equal(await page.locator("html").getAttribute("data-skin"), "chatgpt");
+    assert.equal(
+      await page.locator("#detailPanel").evaluate((panel) => getComputedStyle(panel, "::before").backdropFilter),
+      "none",
     );
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.evaluate(async () => {
@@ -10719,10 +10787,8 @@ test("M5.2.C-E1d：真实Edge深色dashboard在聚光淡入稳定后取整页基
     });
     const role = ROLE_CATALOG.find((entry) => entry.id === "input.placeholder");
     assert.ok(role?.states.includes("dashboard-default"));
-    // Keep the revealed gradient on one compositing layer through measurement and restoration.
     await page.addStyleTag({
       content: `
-        #detailPanel::after { will-change: opacity; }
         #modelComparisonSearch::placeholder,
         #repositoryComparisonSearch::placeholder {
           color: #232b32 !important;
@@ -10735,7 +10801,11 @@ test("M5.2.C-E1d：真实Edge深色dashboard在聚光淡入稳定后取整页基
       evaluate: (source, argument) => {
         if (!revealResumed && String(source).startsWith("// skinProbe: spotlight-stability")) {
           revealResumed = true;
-          return page.evaluate(`(() => { window.__e1dTransition.play(); return (\n${source}\n); })()`);
+          // Let the probe register the paused transition after its first two paint frames.
+          return page.evaluate(`(() => {
+            requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(() => window.__e1dTransition.play())));
+            return (\n${source}\n);
+          })()`);
         }
         return page.evaluate(source, argument);
       },
@@ -10747,9 +10817,22 @@ test("M5.2.C-E1d：真实Edge深色dashboard在聚光淡入稳定后取整页基
       }),
       screenshot: async (options) => {
         // Verify painted pixels, rather than assuming an ended transition has already rasterized.
+        const baseline = fullPageScreenshots[0];
         const png =
           options?.fullPage === true
-            ? await captureSettledPage(() => page.screenshot(options), fullPageCaptureAttempts, { timeoutMs: 10_000 })
+            ? await captureSettledPage(
+                async () => {
+                  lastFullPageScreenshot = await page.screenshot(options);
+                  return lastFullPageScreenshot;
+                },
+                fullPageCaptureAttempts,
+                {
+                  timeoutMs: 10_000,
+                  matchesBaseline:
+                    baseline &&
+                    (async (frame) => baseline.equals(frame) || (await compareScreenshots(baseline, frame)).identical),
+                },
+              )
             : await page.screenshot(options);
         if (options?.fullPage === true) fullPageScreenshots.push(png);
         return png;
@@ -10786,6 +10869,7 @@ test("M5.2.C-E1d：真实Edge深色dashboard在聚光淡入稳定后取整页基
     measurementStates = { before: await readMeasurementState() };
     const result = await measureBrowserRoles({
       page: measurementPage,
+      spotlightTimeoutMs: 3000,
       candidate: null,
       mode: "dark",
       stateId: "dashboard-default",
@@ -10843,6 +10927,20 @@ test("M5.2.C-E1d：真实Edge深色dashboard在聚光淡入稳定后取整页基
       placeholderRecord.ratio < placeholderRecord.threshold,
       `低对比placeholder ratio ${placeholderRecord.ratio} 必须小于实际threshold ${placeholderRecord.threshold}`,
     );
+  } catch (error) {
+    const failureDir = path.join(evidenceDir, "failure");
+    mkdirSync(failureDir);
+    const baseline = fullPageScreenshots[0];
+    if (baseline) writeFileSync(path.join(failureDir, "before.png"), baseline);
+    if (lastFullPageScreenshot) writeFileSync(path.join(failureDir, "last.png"), lastFullPageScreenshot);
+    const comparison =
+      baseline && lastFullPageScreenshot
+        ? await compareScreenshots(baseline, lastFullPageScreenshot).catch(() => null)
+        : null;
+    const failure = { message: error.message, comparison, fullPageCaptureAttempts, measurementStates };
+    writeFileSync(path.join(failureDir, "diagnostic.json"), JSON.stringify(failure, null, 2));
+    t.diagnostic(JSON.stringify({ message: error.message, comparison, fullPageCaptureAttempts }));
+    throw error;
   } finally {
     await context?.close();
     await browser?.close();
@@ -12623,8 +12721,7 @@ test("M3.4：必需源文件清单覆盖实际加载的页面/样式文件——
     assert.ok(REQUIRED_SOURCE_FILES.includes(file), `必需清单遗漏 ${file}（页面/样式文件必须在核验范围内）`);
   }
   const timelineFile = "public/timeline-utils.js";
-  assert.equal(REQUIRED_SOURCE_FILES.length, 26);
-  assert.equal(new Set(REQUIRED_SOURCE_FILES).size, 26);
+  assert.equal(new Set(REQUIRED_SOURCE_FILES).size, REQUIRED_SOURCE_FILES.length);
   for (const file of [
     "scripts/skin-palette/focus-outline-pixels.mjs",
     "scripts/skin-palette/focus-outline-browser.mjs",
@@ -13228,7 +13325,9 @@ function createStableFullPageNodePage({
     body,
     querySelectorAll(selector) {
       if (selector === "input,textarea,[contenteditable]") return [guardInput];
-      return selector === "*" ? allElements : [];
+      // This fixture contains layout elements only; none is inside a glass filter's resource SVG.
+      if (selector === "*" || selector === "*:not(svg.lg-defs[aria-hidden='true'] *)") return allElements;
+      throw new Error(`Unsupported stable page fixture selector: ${selector}`);
     },
   };
   const visualViewport = {
@@ -14425,6 +14524,7 @@ function assertHoverFixedCleanup(fixture) {
 test("D21-C7-B2：悬停单目标保持固定视口、正式身份和文字方法", async () => {
   const fixture = createHoverFixedFixture();
   const result = await fixture.run();
+  assert.equal(result.diagnostics.restoration.statePixelScope.kind, "viewport");
   assert.equal(result.records.length, 1);
   const record = result.records[0];
   assert.equal(record.candidateId, "official-source");

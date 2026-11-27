@@ -1,0 +1,417 @@
+/* The existing controls keep their hit areas and focus rings; only their artwork moves. */
+:where(html[data-skin="classic"]) .topbar-actions [data-motion-content] {
+  pointer-events: none;
+  transform-origin: center;
+}
+
+:where(html[data-skin="classic"]) .language-toggle > [data-motion-content] {
+  translate: 0 -1px;
+  transform: none;
+}
+
+[data-glass-surface],
+[data-motion-indicator] {
+  display: none;
+  pointer-events: none;
+}
+
+:where(html[data-skin="classic"]) :is(#presetButtons, #timelineModes) {
+  position: relative;
+}
+
+:where(html[data-skin="classic"])
+  .shell
+  :is(#presetButtons, #timelineModes)
+  > :is(button, .recent-segment)
+  + :is(button, .recent-segment)::before {
+  left: -4px;
+  width: 1px;
+  background: linear-gradient(transparent, var(--glass-rim-shade), transparent);
+  box-shadow: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  :where(html[data-skin="classic"])
+    :is(#presetButtons, #timelineModes)[data-motion-ready]
+    > [data-motion-indicator]:not([hidden]) {
+    display: block;
+    position: absolute;
+    inset-block: 7px;
+    left: 0;
+  }
+
+  :where(html[data-skin="classic"])
+    .shell
+    :is(#presetButtons, #timelineModes)[data-motion-ready]
+    > :is(.active, [aria-pressed="true"]) {
+    border-color: transparent;
+    background: transparent;
+    box-shadow: none;
+  }
+}
+
+:where(html[data-skin="classic"])
+  .shell
+  :is(#presetButtons, #timelineModes)
+  > button:not(.active, [aria-pressed="true"]):hover {
+  border-color: transparent;
+  color: var(--blue);
+  transform: none;
+}
+
+/* A single environment behind the whole board stays continuous across adjoining panes. */
+html[data-skin="classic"] {
+  --glass-halo: color-mix(in srgb, var(--blue) 32%, var(--bg));
+  --glass-ambient: color-mix(in srgb, var(--control-hover) 48%, var(--bg));
+  --glass-environment-light: color-mix(in srgb, var(--ceramic-top) 72%, white);
+  --glass-rim-light: color-mix(in srgb, white 72%, transparent);
+  --glass-rim-shade: color-mix(in srgb, var(--blue) 25%, transparent);
+  --glass-divider: linear-gradient(to right, transparent, var(--glass-rim-shade), transparent);
+  --glass-cast: color-mix(in srgb, var(--ink) 16%, transparent);
+  --glass-face: linear-gradient(
+    141deg,
+    color-mix(in srgb, var(--neo-surface) 54%, transparent),
+    color-mix(in srgb, var(--neo-surface) 24%, transparent) 54%,
+    color-mix(in srgb, var(--neo-surface) 64%, transparent)
+  );
+  --glass-lens: linear-gradient(
+    153deg,
+    color-mix(in srgb, var(--blue) 13%, var(--neo-surface)),
+    color-mix(in srgb, var(--neo-surface) 34%, transparent) 51%,
+    color-mix(in srgb, var(--blue) 15%, var(--neo-surface))
+  );
+  --glass-well: color-mix(in srgb, var(--bg) 62%, transparent);
+  --glass-table: color-mix(in srgb, var(--bg) 70%, var(--neo-surface));
+  --glass-window: color-mix(in srgb, var(--neo-surface) 81%, transparent);
+  --glass-window-rim: color-mix(in srgb, var(--blue) 35%, transparent);
+  --glass-window-reflection: linear-gradient(
+    to right,
+    transparent,
+    var(--glass-rim-light) 22%,
+    var(--glass-rim-light) 48%,
+    var(--glass-rim-shade) 78%,
+    transparent
+  );
+  --glass-window-depth: 0 18px 38px -18px rgb(0 0 0 / 30%);
+}
+
+html[data-skin="classic"][data-theme="dark"] {
+  --glass-environment-light: color-mix(in srgb, var(--blue) 33%, var(--bg));
+  --glass-rim-light: color-mix(in srgb, var(--blue) 32%, transparent);
+  --glass-rim-shade: color-mix(in srgb, var(--blue) 21%, transparent);
+  --glass-cast: color-mix(in srgb, black 27%, transparent);
+  --glass-well: color-mix(in srgb, var(--bg) 78%, transparent);
+  --glass-window: color-mix(in srgb, var(--neo-surface) 84%, transparent);
+}
+
+:root[data-skin="classic"] {
+  --bg: #e0eaf0;
+  --ink: #162f40;
+  --muted: #415967;
+  --blue: #00687b;
+  --record: var(--blue);
+  --chart-text: var(--muted);
+  --neo-surface: #e8f0f4;
+  --ceramic-top: #f6fbfd;
+  --ceramic-bottom: #d8e7ee;
+  --ceramic-well: #dce8ee;
+  --ceramic-rim: #ffffffe0;
+  --ceramic-shade: #58718733;
+  --neo-edge: #718d9e55;
+  --neo-raised: inset 0 1px 0 var(--ceramic-rim), 0 4px 14px #29495c12;
+  --neo-raised-small: inset 0 1px 0 var(--ceramic-rim), 0 2px 5px #29495c1a;
+  --neo-inset: inset 0 1px 3px var(--ceramic-shade), 0 1px 0 var(--ceramic-rim);
+  --neo-inset-small: inset 0 1px 2px var(--ceramic-shade);
+  --glass-halo: #a4dce3;
+  --glass-ambient: #c2cce6;
+}
+
+:root[data-skin="classic"][data-theme="dark"] {
+  --bg: #111e2a;
+  --ink: #eff8fb;
+  --muted: #b2c8d4;
+  --blue: #8ee4ec;
+  --neo-surface: #243a48;
+  --ceramic-top: #344c5a;
+  --ceramic-bottom: #203642;
+  --ceramic-well: #192d39;
+  --ceramic-rim: #d5f4ff36;
+  --ceramic-shade: #050d1575;
+  --neo-edge: #b0d9e938;
+  --neo-raised: inset 0 1px 0 var(--ceramic-rim), 0 4px 14px #050c1640;
+  --neo-raised-small: inset 0 1px 0 var(--ceramic-rim), 0 2px 5px #050c164d;
+  --glass-halo: #20444c;
+  --glass-ambient: #2b364d;
+}
+
+html[data-skin="classic"] > body {
+  --glass-wallpaper-base: var(--bg);
+  background:
+    radial-gradient(ellipse 91% 33% at 107% 5%, transparent 49%, var(--glass-environment-light) 52%, transparent 58%),
+    radial-gradient(ellipse 94% 40% at -17% 69%, transparent 61%, var(--glass-halo) 67%, transparent 75%),
+    radial-gradient(ellipse 77% 30% at 84% 96%, var(--glass-ambient), transparent),
+    radial-gradient(ellipse 62% 45% at 6% 35%, var(--glass-ambient), transparent),
+    radial-gradient(ellipse 73% 35% at 95% 9%, var(--glass-halo), transparent), var(--glass-wallpaper-base);
+}
+
+html[data-skin="classic"][data-theme="dark"] > body {
+  --glass-wallpaper-base: color-mix(in srgb, var(--bg) 90%, black);
+}
+
+/* Keep the wallpaper highlights below the glass and its white rim. */
+html[data-skin="classic"][data-theme="light"] > body {
+  --glass-wallpaper-base: color-mix(in srgb, var(--bg) 74%, var(--muted));
+  --glass-halo: color-mix(in srgb, var(--blue) 21%, var(--glass-wallpaper-base));
+  --glass-ambient: color-mix(in srgb, var(--control-hover) 32%, var(--glass-wallpaper-base));
+  --glass-environment-light: color-mix(in srgb, var(--ceramic-top) 30%, var(--glass-wallpaper-base));
+}
+
+:where(html[data-skin="classic"]) .shell :is([data-glass-frame], [data-glass-frame-list] > .comparison-item) {
+  position: relative;
+  background: var(--glass-face);
+  border-color: var(--glass-rim-light) var(--glass-rim-shade) var(--glass-rim-shade);
+  box-shadow: 0 8px 20px -14px var(--glass-cast);
+}
+
+:where(html[data-skin="classic"]) .shell .topbar-actions > [data-glass-control],
+:where(html[data-skin="classic"]) .shell :is(#presetButtons, #timelineModes) > [data-motion-indicator],
+:where(html[data-skin="classic"])
+  .shell
+  :is(#presetButtons, #timelineModes):not([data-motion-ready])
+  > :is(.active, [aria-pressed="true"]) {
+  --glass-frame-rim-inset: 6px;
+  position: relative;
+  border: 1px solid var(--glass-rim-shade);
+  border-top-color: var(--glass-rim-light);
+  border-radius: 10px;
+  background: var(--glass-lens);
+  box-shadow:
+    inset 0 -1px 0 var(--glass-rim-shade),
+    0 3px 8px -4px var(--glass-cast);
+}
+
+:where(html[data-skin="classic"]) .shell :is(#presetButtons, #timelineModes) > [data-motion-indicator] {
+  position: absolute;
+}
+
+:where(html[data-skin="classic"]) .shell .topbar-actions > [data-glass-control] {
+  border-radius: 13px;
+  transform: none;
+}
+
+:where(html[data-skin="classic"]) .shell .topbar-actions > [data-glass-control]:disabled {
+  opacity: 0.55;
+}
+
+:where(html[data-skin="classic"]) .shell .topbar-actions > [data-glass-control] > [data-motion-content] {
+  position: relative;
+  z-index: 1;
+}
+
+/* The legend sits along the bottom of the chart, above artwork that can match a series colour. */
+:where(html[data-skin="classic"]) .shell .chart-panel[data-glass-frame] {
+  background: var(--glass-face), linear-gradient(to top, var(--neo-surface) 1rem, transparent 4rem);
+}
+
+:where(html[data-skin="classic"])
+  :where(
+    [data-glass-frame],
+    [data-glass-window],
+    [data-glass-frame-list] > .comparison-item,
+    .topbar-actions > [data-glass-control],
+    [data-motion-indicator]
+  )::before {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  z-index: 0;
+  inset-block-start: 0;
+  inset-inline: var(--glass-frame-rim-inset, 12px);
+  height: 14px;
+  mask-image: linear-gradient(to right, transparent, black 10px, black calc(100% - 10px), transparent);
+}
+
+html[data-skin="classic"][data-frame-refraction]
+  :where(
+    [data-glass-frame],
+    [data-glass-window],
+    [data-glass-frame-list] > .comparison-item,
+    .topbar-actions > [data-glass-control],
+    [data-motion-indicator]
+  )::before {
+  backdrop-filter: url("#mg-frame-static");
+}
+
+html[data-skin="classic"][data-frame-refraction] [data-glass-frame-active]:not([data-glass-window])::before {
+  backdrop-filter: url("#mg-frame-active");
+}
+
+:where(html[data-skin="classic"]) [data-glass-window]::before {
+  height: 10px;
+  background: var(--glass-window-reflection) top / 100% 1px no-repeat;
+  opacity: 0.75;
+}
+
+html[data-skin="classic"]:not([data-frame-refraction])
+  :where(
+    [data-glass-frame],
+    [data-glass-frame-list] > .comparison-item,
+    .topbar-actions > [data-glass-control],
+    [data-motion-indicator]
+  )::before {
+  background: radial-gradient(ellipse 64% 15px at 36% -6px, var(--glass-rim-light) 14%, transparent 97%);
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html[data-skin="classic"]:not([data-frame-refraction])
+    :where(
+      [data-glass-frame],
+      [data-glass-frame-list] > .comparison-item,
+      .topbar-actions > [data-glass-control],
+      [data-motion-indicator]
+    )::before {
+    transition: opacity 120ms ease-out;
+  }
+}
+
+@media (hover: hover) {
+  html[data-skin="classic"]:not([data-frame-refraction])
+    :where(
+      [data-glass-frame],
+      [data-glass-frame-list] > .comparison-item,
+      .topbar-actions > [data-glass-control]:enabled
+    ):hover::before,
+  html[data-skin="classic"]:not([data-frame-refraction])
+    :is(#presetButtons, #timelineModes):hover
+    > [data-motion-indicator]::before {
+    opacity: 0.7;
+  }
+}
+
+html[data-skin="classic"]:not([data-frame-refraction])
+  :where(
+    [data-glass-frame],
+    [data-glass-frame-list] > .comparison-item,
+    .topbar-actions > [data-glass-control]:enabled
+  ):is(:active, :focus-visible, :has(:focus-visible))::before,
+html[data-skin="classic"]:not([data-frame-refraction])
+  :is(#presetButtons, #timelineModes):focus-within
+  > [data-motion-indicator]::before {
+  opacity: 1;
+}
+
+:where(html[data-skin="classic"]) .shell :is(.metric > strong, .comparison-item > strong) {
+  background: color-mix(in srgb, var(--bg) 34%, transparent);
+  box-shadow: none;
+}
+
+:where(html[data-skin="classic"][data-theme="light"]) .metric > span:not(.metric-new) {
+  color: color-mix(in srgb, var(--muted) 76%, var(--ink));
+}
+
+:where(html[data-skin="classic"])
+  .shell
+  :is(
+    #presetButtons,
+    #timelineModes,
+    .timeline-chart-well,
+    .auto-refresh-well,
+    .date-range-button,
+    .cost-estimate-note,
+    .comparison-table-scroll
+  ),
+:where(html[data-skin="classic"]) .shell #presetButtons .recent-combobox {
+  border-color: var(--glass-rim-shade);
+  background: var(--glass-well);
+  box-shadow: none;
+}
+
+:where(html[data-skin="classic"]) .shell .date-range-button .date-range-icon {
+  background: var(--glass-lens);
+  border-color: var(--glass-rim-light) var(--glass-rim-shade) var(--glass-rim-shade);
+  box-shadow: none;
+}
+
+:where(html[data-skin="classic"]) .shell .date-range-button:is(:active, [aria-expanded="true"]) .date-range-icon {
+  background: var(--glass-well);
+}
+
+:where(html[data-skin="classic"]) .shell .date-range-button:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+:where(html[data-skin="classic"]) .shell #presetButtons .recent-combobox:focus-within {
+  border-color: var(--blue);
+}
+
+:where(html[data-skin="classic"])
+  .shell
+  :is(.home-list, .comparison-table-frame, .comparison-table-frame .comparison-table th),
+:where(html[data-skin="classic"]) .shell .comparison-table-frame::before {
+  background: var(--glass-table);
+  border-color: var(--glass-rim-shade);
+  box-shadow: none;
+}
+
+:where(html[data-skin="classic"]) .shell .comparison-table-frame::after {
+  box-shadow: inset 0 0 0 1px var(--glass-rim-shade);
+}
+
+:where(html[data-skin="classic"]) .shell .home-list .home-row + .home-row::before {
+  height: 1px;
+  background: var(--glass-divider);
+  box-shadow: none;
+}
+
+:where(html[data-skin="classic"]) .shell :is(.panel-action, .home-remove) {
+  background: var(--glass-lens);
+  border-color: var(--glass-window-rim);
+  box-shadow: none;
+}
+
+:where(html[data-skin="classic"]) .shell :is(.panel-action, .home-remove):enabled:hover {
+  border-color: var(--blue);
+}
+
+:where(html[data-skin="classic"]) .shell :is(.period-comparison-heading input, .bar-track, #autoRefreshErrorText) {
+  background: var(--glass-well);
+  border-color: var(--glass-window-rim);
+  box-shadow: none;
+}
+
+/* Small overlays can follow the pointer or refresh state without running a filter. */
+:where(html[data-skin="classic"]) :is(#usageTooltip, #quotaPresetStatus, #autoRefreshErrorDetails) {
+  background: var(--glass-table);
+  border-color: var(--glass-window-rim);
+  box-shadow: var(--glass-window-depth);
+}
+
+html[data-skin="classic"] #skinToggle:has(.lg-host)::before {
+  content: none;
+}
+
+:root[data-skin="classic"] #skinToggle > [data-glass-surface] {
+  display: block;
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+:root[data-skin="classic"] [data-glass-surface]:not(.lg-host) {
+  -webkit-backdrop-filter: blur(5px);
+  backdrop-filter: blur(5px);
+}
+
+@media (forced-colors: active) {
+  :where(html[data-skin="classic"]) .shell .topbar > h1 {
+    color: CanvasText;
+    background: none;
+    text-shadow: none;
+  }
+
+  :where(html[data-skin="classic"]) .shell :is(#presetButtons, #timelineModes) > :is(.active, [aria-pressed="true"]) {
+    border-color: Highlight;
+  }
+}

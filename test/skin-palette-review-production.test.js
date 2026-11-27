@@ -13,6 +13,7 @@ import {
   derivePaletteDeclarationsFromTokens,
 } from "../public/skins.js";
 import { SKIN_PALETTES } from "../public/skin-palettes.js";
+import { REQUIRED_SOURCE_FILES } from "../scripts/skin-palette/assess.mjs";
 import { buildSkinBootstrapSource } from "../scripts/skin-palette/bootstrap-source.mjs";
 import { buildProductionBootstrapSource } from "../scripts/skin-palette/production-bootstrap-source.mjs";
 import { verifyProductionSourceTransition } from "../scripts/skin-palette/production-source-transition.mjs";
@@ -682,6 +683,7 @@ function hashBytes(bytes) {
 }
 
 const SOURCE_PREIMAGE_FILES = ["public/skin-palettes.js", "public/skin-picker.js", "public/skin-bootstrap.js"];
+const IMMUTABLE_SOURCE_FILES = SOURCE_FILES.filter((file) => !SOURCE_PREIMAGE_FILES.includes(file));
 
 function makeProductionSourceTransitionInputs({ useCurrentPalette = false } = {}) {
   const beforeSourceBytes = Object.fromEntries(
@@ -2556,7 +2558,6 @@ test("selected bootstrap bytes use actual palette values and the canonical expli
 test("production source transition accepts only complete constructor bytes and returns independent hashes", () => {
   const inputs = makeProductionSourceTransitionInputs();
   const actualPickerBefore = fs.readFileSync(path.join(REPO_ROOT, "public", "skin-picker.js"));
-  assert.equal(SOURCE_FILES.length, 31, "the authoritative capture source registry includes timeline-utils.js");
   assert.ok(SOURCE_FILES.includes("public/timeline-utils.js"));
   const originalHashes = { ...inputs.beforeSourceHashes };
   const originalSnapshot = cloneRecordWithBuffers(inputs.sourceSnapshot);
@@ -2628,26 +2629,34 @@ test("production transitions reject semantically equivalent edits to all three g
   }
 });
 
-test("any of the other 28 registered sources must remain byte-identical", () => {
+test("every registered source outside the three constructors must remain byte-identical", () => {
   const inputs = makeProductionSourceTransitionInputs();
-  const unchangedSources = SOURCE_FILES.filter((file) => !SOURCE_PREIMAGE_FILES.includes(file));
-  assert.equal(unchangedSources.length, 28);
+  const expectedImmutableFiles = [
+    ...REQUIRED_SOURCE_FILES,
+    "public/i18n.js",
+    "scripts/skin-palette/bootstrap-source.mjs",
+    "scripts/skin-palette/preview-server.mjs",
+    "scripts/skin-palette/capture.mjs",
+  ].filter((file) => !SOURCE_PREIMAGE_FILES.includes(file));
+  assert.deepEqual(IMMUTABLE_SOURCE_FILES.toSorted(), expectedImmutableFiles.toSorted());
   for (const file of [
+    "public/waifu-glass-dialogs.css",
+    "public/waifu-glass-feature-windows.css",
     "scripts/skin-palette/focus-outline-pixels.mjs",
     "scripts/skin-palette/focus-outline-browser.mjs",
   ]) {
     assert.equal(
-      unchangedSources.filter((entry) => entry === file).length,
+      IMMUTABLE_SOURCE_FILES.filter((entry) => entry === file).length,
       1,
       `${file} must be immutable in transition`,
     );
   }
   assert.ok(
-    unchangedSources.includes("public/timeline-utils.js"),
+    IMMUTABLE_SOURCE_FILES.includes("public/timeline-utils.js"),
     "timeline-utils.js is immutable during production transition",
   );
 
-  for (const file of unchangedSources) {
+  for (const file of IMMUTABLE_SOURCE_FILES) {
     const afterSourceBytes = cloneRecordWithBuffers(inputs.afterSourceBytes);
     afterSourceBytes[file] = Buffer.concat([afterSourceBytes[file], Buffer.from("\n", "utf8")]);
     const result = verifyProductionSourceTransition({ ...inputs, afterSourceBytes });
@@ -4395,7 +4404,6 @@ test("rejects run and output directory junctions before reading outside validati
 
 test("verifies the default fixed source list and rejects post-capture palette drift", async () => {
   await withProductionRun(async ({ candidate, outDir }) => {
-    assert.equal(SOURCE_FILES.length, 31);
     const timelineFile = "public/timeline-utils.js";
     assert.ok(SOURCE_FILES.includes(timelineFile));
     const current = collectSourceHashes(SOURCE_FILES, (relativePath) =>
@@ -4927,7 +4935,6 @@ test("source-origin contracts reject malformed source maps, loader records, and 
 });
 
 test("reads every registered current source and hashes the exact returned bytes from the default repository root", async () => {
-  assert.equal(SOURCE_FILES.length, 31);
   const result = await readProductionCurrentSources();
   assert.deepEqual(Object.keys(result).sort(), ["rootDir", "sourceBytes", "sourceHashes"]);
   assert.equal(result.rootDir, await fs.promises.realpath(REPO_ROOT));
@@ -8165,7 +8172,6 @@ test("D7b accepts the fixed two-candidate manifest shape without mutation or fil
   const assets = enumerateSourceAssets();
   const before = structuredClone({ manifest, candidateSet });
 
-  assert.equal(SOURCE_FILES.length, 31);
   assert.equal(assets.length, 32);
   assert.equal(GENERATED_ASSET_TOOL_FILES.length, 4);
   assert.equal(Object.keys(manifest.after.sourceHashes).length, SOURCE_FILES.length);
@@ -9660,13 +9666,9 @@ test("D9a preserves D4a constructor errors for all three generated sources", () 
   }
 });
 
-test("D9a never permits changes to the other 28 sources even when both summaries follow them", () => {
+test("D9a rejects changes to every immutable source even when both summaries follow them", () => {
   const inputs = makeDeclaredSourceTransitionInputs();
-  const unchangedSources = SOURCE_FILES.filter((file) => !SOURCE_PREIMAGE_FILES.includes(file));
-  assert.equal(unchangedSources.length, 28);
-  assert.ok(unchangedSources.includes("public/timeline-utils.js"));
-
-  for (const file of unchangedSources) {
+  for (const file of IMMUTABLE_SOURCE_FILES) {
     const candidate = copyDeclaredSourceTransitionInputs(inputs);
     const changed = Buffer.concat([candidate.currentSources.sourceBytes[file], Buffer.from("\n")]);
     candidate.currentSources.sourceBytes[file] = changed;

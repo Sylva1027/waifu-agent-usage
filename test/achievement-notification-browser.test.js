@@ -33,6 +33,7 @@ async function setup(t, options = {}) {
         window.achievementTestEvents = [];
         window.achievementTestStreams = [];
         window.achievementTestConnections = 0;
+        window.achievementTestStreamReadyAt = null;
         window.achievementTestIntervals = [];
         const NativeEventSource = window.EventSource;
         window.EventSource = class extends NativeEventSource {
@@ -40,6 +41,9 @@ async function setup(t, options = {}) {
             super(url, options);
             window.achievementTestStreams.push(String(url));
             this.addEventListener("open", () => window.achievementTestConnections++);
+            this.addEventListener("ready", () => {
+              window.achievementTestStreamReadyAt = performance.now();
+            });
             this.addEventListener("achievement-state", (event) => {
               window.achievementTestEvents.push(JSON.parse(event.data));
             });
@@ -79,9 +83,12 @@ async function setup(t, options = {}) {
 }
 
 async function visit(page, fixture) {
-  await page.goto(fixture.url);
-  await page.locator("#achievementNotice").waitFor({ state: "attached" });
-  await page.waitForFunction(() => document.querySelector("#totalTokens").textContent !== "-");
+  await page.goto(fixture.url, { waitUntil: "domcontentloaded" });
+  // A ready snapshot populates the closed dialog with rows or the completed empty state.
+  await page
+    .locator("#achievementList .achievement-row, #achievementList .empty-state h3")
+    .first()
+    .waitFor({ state: "attached" });
   await page.waitForFunction(() => window.achievementTestEvents.length > 0);
 }
 
@@ -142,8 +149,8 @@ async function viewRecent(page, fixture, shown) {
   assert.equal(await page.evaluate(() => document.activeElement.id), "achievementToggle");
 }
 
-// Pause actual production requests/responses; award JSON always comes from the real server.
-async function hold(t, page, path, { response = false } = {}) {
+// Pause an actual production request.
+async function hold(t, page, path) {
   const entered = Promise.withResolvers();
   const release = Promise.withResolvers();
   const finished = Promise.withResolvers();
@@ -152,11 +159,9 @@ async function hold(t, page, path, { response = false } = {}) {
     if (held) return route.continue();
     held = true;
     try {
-      const upstream = response ? await route.fetch() : null;
-      entered.resolve(response ? await upstream.json() : route.request().postDataJSON());
+      entered.resolve(route.request().postDataJSON());
       await release.promise;
-      if (upstream) await route.fulfill({ response: upstream });
-      else await route.continue();
+      await route.continue();
     } finally {
       finished.resolve();
     }
@@ -335,6 +340,20 @@ test("two independent pages including watch=0 share persistent unread state acro
   assert.equal(readRestart.seenAwardRevision, readRestart.awardRevision);
   await visit(a.page, fixture);
   await notice(a.page, false);
+  // The usage report and the SSE ready event can both refresh achievements during startup.
+  await a.page.waitForFunction(() => {
+    const readyAt = window.achievementTestStreamReadyAt;
+    if (readyAt === null || document.querySelector("#totalTokens")?.textContent === "-") return false;
+    const entries = performance.getEntriesByType("resource");
+    const usage = entries.findLast(({ name }) => new URL(name).pathname === "/api/usage");
+    return (
+      usage &&
+      entries.some(
+        ({ name, startTime }) =>
+          new URL(name).pathname === "/api/achievements" && startTime >= Math.max(usage.responseEnd, readyAt),
+      )
+    );
+  });
   const timers = await a.page.evaluate(() => ({
     intervals: window.achievementTestIntervals,
     streams: window.achievementTestStreams,
@@ -345,7 +364,6 @@ test("two independent pages including watch=0 share persistent unread state acro
     "only the existing relative check-time and pricing intervals remain",
   );
   assert.deepEqual(timers.streams, ["/api/usage-events?watch=0"]);
-  await a.page.waitForTimeout(250);
   const counts = a.requests.filter(({ path }) => path === "/api/achievements").length;
   await a.page.waitForTimeout(1_200);
   assert.equal(
@@ -386,19 +404,57 @@ test("a delayed real GET cannot roll back a newer event or acknowledge an unseen
   const { fixture, newPage } = await setup(t);
   const initial = await fixture.snapshot();
   await acknowledge(fixture, initial);
-  const { page } = await newPage();
+  const { page, requests } = await newPage();
   await visit(page, fixture);
   await notice(page, false);
-  const gate = await hold(t, page, "/api/achievements", { response: true });
+  // Hold the real response at the page's fetch boundary. The follow-up GET then
+  // uses the normal browser transport even if it starts as the stale read returns.
+  await page.evaluate(() => {
+    const networkFetch = window.fetch;
+    const captured = Promise.withResolvers();
+    const release = Promise.withResolvers();
+    window.achievementTestHeldRead = { snapshot: captured.promise, release: release.resolve };
+    window.fetch = async (resource, options) => {
+      if (resource !== "/api/achievements") return networkFetch(resource, options);
+      window.fetch = networkFetch;
+      try {
+        const response = await networkFetch(resource, options);
+        captured.resolve(await response.clone().json());
+        await release.promise;
+        return response;
+      } catch (error) {
+        captured.reject(error);
+        throw error;
+      }
+    };
+  });
   await page.locator("#achievementToggle").click();
-  const stale = await gate.entered;
+  const stale = await page.evaluate(() => window.achievementTestHeldRead.snapshot);
   assert.equal(stale.awardRevision, initial.awardRevision);
-  const newer = await fixture.addGold();
-  assert.ok(newer.awardRevision > stale.awardRevision);
-  await eventAt(page, newer);
   await page.keyboard.press("Escape");
   await page.locator("#achievementDialog").waitFor({ state: "hidden" });
-  await gate.release();
+  const requestMark = requests.length;
+  const [published, newer] = await Promise.all([
+    page.waitForResponse(async (response) => {
+      if (new URL(response.url()).pathname !== "/api/achievements" || !response.ok()) return false;
+      const snapshot = await response.json();
+      return snapshot.profileId === stale.profileId && snapshot.awardRevision > stale.awardRevision;
+    }),
+    (async () => {
+      const upgrade = await fixture.addGold();
+      assert.ok(upgrade.awardRevision > stale.awardRevision);
+      await eventAt(page, upgrade);
+      await page.evaluate(() => window.achievementTestHeldRead.release());
+      return upgrade;
+    })(),
+  ]).catch((error) => {
+    const reads = requests.slice(requestMark).filter(({ path }) => path === "/api/achievements");
+    t.diagnostic(`Achievement GETs after the held response: ${reads.length}`);
+    throw error;
+  });
+  const delivered = await published.json();
+  assert.equal(delivered.awardRevision, newer.awardRevision);
+  assert.equal(delivered.seenAwardRevision, initial.awardRevision);
   await notice(page, true);
   assert.equal((await fixture.snapshot()).seenAwardRevision, initial.awardRevision);
   await viewRecent(page, fixture, newer);
