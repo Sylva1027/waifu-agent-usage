@@ -19,17 +19,14 @@ async function setup(t, options = {}) {
   });
   await fixture.ready();
   browser = await runtime.chromium.launch({ executablePath: runtime.executablePath, headless: true });
-  const newPage = async ({ autoRefresh = false } = {}) => {
+  const newPage = async ({ autoRefresh = false, skinId = "chatgpt" } = {}) => {
     const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" });
     await context.addInitScript(
-      ({ key, autoRefresh }) => {
+      ({ key, autoRefresh, skinId }) => {
         localStorage.setItem("codexUsageAutoRefresh", autoRefresh ? "on" : "off");
         localStorage.setItem("codexUsageLocale", "zh-CN");
         localStorage.setItem("codexUsageTheme", "dark");
-        localStorage.setItem(
-          key,
-          JSON.stringify({ version: 1, skinId: "chatgpt", showCharacters: true, opacity: 0.5 }),
-        );
+        localStorage.setItem(key, JSON.stringify({ version: 1, skinId, showCharacters: true, opacity: 0.5 }));
         window.achievementTestEvents = [];
         window.achievementTestStreams = [];
         window.achievementTestConnections = 0;
@@ -55,7 +52,7 @@ async function setup(t, options = {}) {
           return interval(callback, ms, ...args);
         };
       },
-      { key: SKIN_PREFERENCE_KEY, autoRefresh },
+      { key: SKIN_PREFERENCE_KEY, autoRefresh, skinId },
     );
     const page = await context.newPage();
     page.setDefaultTimeout(10_000);
@@ -542,8 +539,9 @@ test("an accepted award plays one local visual and a modal cancels an outstandin
   timeout: 60_000,
 }, async (t) => {
   const { fixture, newPage } = await setup(t);
-  const live = await newPage(),
-    delayed = await newPage();
+  // Run the award animation without also starting an unrelated ambient WebGL scene in both tabs.
+  const live = await newPage({ skinId: "classic" }),
+    delayed = await newPage({ skinId: "classic" });
   const modulePath = "/waifu-achievement-notice-effect.js";
   for (const { page, requests } of [live, delayed]) {
     await page.emulateMedia({ reducedMotion: "no-preference" });
