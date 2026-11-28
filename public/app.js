@@ -283,6 +283,7 @@ async function toggleTheme() {
       await document.startViewTransition(() => setTheme(theme)).finished;
     } else {
       // Keep the old palette, animation frame and canvas pixels visible throughout the fade.
+      document.dispatchEvent(new Event("waifu:theme-snapshot"));
       overlay = document.createElement("div");
       const snapshot = root.cloneNode(true);
       const animations = root.getAnimations({ subtree: true });

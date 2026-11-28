@@ -39,6 +39,7 @@ export function mount({ root, characters }) {
   const reduced = matchMedia("(prefers-reduced-motion: reduce)");
   let raf = 0;
   let lastFrame = -1;
+  let renderedTime = null;
   const resize = new ResizeObserver(() => {
     lastFrame = -1;
   });
@@ -103,6 +104,7 @@ export function mount({ root, characters }) {
       if (canvas) canvas.hidden = true;
     }
     lastFrame = -1;
+    renderedTime = null;
   }
 
   function paintSilk() {
@@ -118,6 +120,7 @@ export function mount({ root, characters }) {
         if (!canvas.hidden) study.draw(time, 1, theme);
       }
       lastFrame = frame;
+      renderedTime = time;
     }
     if (clock.playState === "running" && !document.hidden && document.hasFocus()) {
       raf = requestAnimationFrame(paintSilk);
@@ -220,6 +223,17 @@ export function mount({ root, characters }) {
   for (const event of ["focus", "blur"]) window.addEventListener(event, playback, { signal });
   document.addEventListener("visibilitychange", playback, { signal });
   document.addEventListener("waifu:achievement-earned", illuminate, { signal });
+  document.addEventListener(
+    "waifu:theme-snapshot",
+    () => {
+      if (renderedTime === null) return;
+      // WebGL clears its drawing buffer after presentation. Redraw only for the fallback copy.
+      for (const { canvas, study } of panels) {
+        if (canvas && !canvas.hidden && study) study.draw(renderedTime, 1, theme);
+      }
+    },
+    { signal },
+  );
   reduced.addEventListener(
     "change",
     () => {
