@@ -57,6 +57,6 @@ if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.ar
   server.listen(port, host, () => {
     const address = server.address();
     const actualPort = typeof address === "object" && address ? address.port : port;
-    console.log(`Waifu Agent Usage dashboard: ${formatUsageServerUrl(host, actualPort)}`);
+    console.log(`Waifu Usage dashboard: ${formatUsageServerUrl(host, actualPort)}`);
   });
 }

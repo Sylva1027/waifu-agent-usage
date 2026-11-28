@@ -270,7 +270,7 @@ test("dashboard/gateway bind edition and real entry; stop/restart preserve forei
       "no matching services must not clear another edition",
     );
     const restarted = await successful(LITE, ["restart", ...liteArgs], f.home, probe.env);
-    assert.match(restarted, /Agent Usage Lite gateway restarted/);
+    assert.match(restarted, /Agent Usage gateway restarted/);
     assert.ok((await readServices(f.state)).some((entry) => entry.pid === foreign.pid));
     assert.equal((await fetch(`${foreignUrl}/api/summary?preset=all`)).status, 200);
     await successful(LITE, ["stop", "--state-file", f.state], f.home, probe.env);

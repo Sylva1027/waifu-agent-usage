@@ -1,8 +1,8 @@
-# Waifu Agent Usage
+# Waifu Usage
 
 简体中文 · [English](README.en.md)
 
-Waifu Agent Usage 是由 Sylva1027 独立维护的本地 AI 编程用量看板。汇总多个 AI 编程工具的用量，看清 Token 消耗、模型分布和使用趋势；通过角色皮肤、分享卡片与成就，让每天的使用记录也能有自己的风格。
+Waifu Usage 是由 Sylva1027 独立维护的本地 AI 编程用量看板。汇总多个 AI 编程工具的用量，看清 Token 消耗、模型分布和使用趋势；通过角色皮肤、分享卡片与成就，让每天的使用记录也能有自己的风格。
 
 ![Claude 浅色英文与 ChatGPT 浅色中文看板，示例数据](docs/images/dashboard-bilingual.png)
 
@@ -23,14 +23,14 @@ Waifu Agent Usage 是由 Sylva1027 独立维护的本地 AI 编程用量看板�
 
 ## 下载
 
-- [**Waifu 完整版**](https://github.com/Sylva1027/waifu-agent-usage/releases/download/v1.0a/1.0a-waifu.zip) · 包含费用估算、角色皮肤、分享与成就。
-- [**Lite 轻量版**](https://github.com/Sylva1027/waifu-agent-usage/releases/download/v1.0a/1.0a-lite.zip) · 专注用量统计与趋势，简洁的深色界面，保留历史管理。
+- [**Waifu Usage（完整版）**](https://github.com/Sylva1027/waifu-usage/releases/download/v1.0b/1.0b-waifu.zip) · 包含费用估算、角色皮肤、分享与成就。
+- [**Agent Usage（轻量版）**](https://github.com/Sylva1027/waifu-usage/releases/download/v1.0b/1.0b-lite.zip) · 专注用量统计与趋势，简洁的深色界面，保留历史管理。
 
-[查看所有版本](https://github.com/Sylva1027/waifu-agent-usage/releases)
+[查看所有版本](https://github.com/Sylva1027/waifu-usage/releases)
 
 ### 手动安装
 
-准备好 [Node.js](https://nodejs.org/en/download) 23.8 或更高版本，下载所选版本，解压后在目录中打开终端。两版均已在 Windows x64、Ubuntu 24.04 x64 和 macOS 15（Apple Silicon）上验收。
+准备好 [Node.js](https://nodejs.org/en/download) 23.8 或更高版本，下载所选版本，解压后在目录中打开终端。支持的运行环境见[开始使用](docs/01-getting-started.md)。
 
 ```bash
 node src/cli.js dashboard
@@ -44,10 +44,10 @@ Waifu 和 Lite 都可以用 PowerShell 7 创建桌面快捷方式，之后双击
 <summary>让 Agent 帮你安装</summary>
 
 ```text
-请在我的电脑上安装并启动 Waifu Agent Usage：
-https://github.com/Sylva1027/waifu-agent-usage
+请在我的电脑上安装并启动以下仓库的用量看板：
+https://github.com/Sylva1027/waifu-usage
 
-1. 询问我想要完整体验的 Waifu，还是专注用量统计的 Lite。
+1. 询问我要 Waifu Usage（完整版），还是 Agent Usage（轻量版）。
    从 Releases 下载所选版本的最新正式 ZIP 运行包。
 2. 检查 Node.js 是否满足 package.json 中的 engines.node 要求。
    需要安装时，从 https://nodejs.org/ 安装符合要求的 LTS 版本，并用 node -v 确认。

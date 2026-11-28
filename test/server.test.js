@@ -214,7 +214,7 @@ test("server serves the dashboard and usage API", async () => {
     const hourlyJson = await hourly.json();
 
     assert.equal(page.status, 200);
-    assert.match(await page.text(), /Agent Usage/);
+    assert.match(await page.text(), /<title>Waifu Usage<\/title>/);
     assert.equal(api.status, 200);
     assert.equal(json.summary.totals.total, 123);
     assert.equal(json.quota.asOf, json.summary.quota.asOf);
@@ -1350,7 +1350,7 @@ test("server starts directly when its script path contains spaces", async () => 
       const timer = setTimeout(() => reject(new Error(`Timed out waiting for server startup: ${text}`)), 5_000);
       child.stdout.on("data", (chunk) => {
         text += chunk.toString();
-        if (text.includes("Waifu Agent Usage dashboard:")) {
+        if (text.includes("Waifu Usage dashboard:")) {
           clearTimeout(timer);
           resolve(text);
         }

@@ -2,7 +2,7 @@
 
 [简体中文](00-index.md) · English
 
-Waifu Agent Usage v1.0 offers the full Waifu experience and Lite for focused usage statistics and trends.
+Waifu Usage is the full edition. Agent Usage (Lite) focuses on usage statistics and trends.
 
 ## Installation and everyday use
 

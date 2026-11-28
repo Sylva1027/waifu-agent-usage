@@ -2,7 +2,7 @@
 
 简体中文 · [English](03-development.en.md)
 
-项目使用 Node.js ESM、SQLite 和浏览器原生 JavaScript。v1.0a 的包版本为 `1.0.1`，发布标识 `releaseVersion` 为 `1.0a`，下载标签为 `v1.0a`。
+项目使用 Node.js ESM、SQLite 和浏览器原生 JavaScript。v1.0b 的包版本为 `1.0.2`，发布标识 `releaseVersion` 为 `1.0b`，下载标签为 `v1.0b`。
 
 ## 环境与启动
 
@@ -25,7 +25,7 @@ node src/cli-lite.js run --port 3766 --home-dir ./output/lite-home --state-file 
 
 `--host` 或 `HOST` 可以绑定局域网地址或主机名。通配绑定时，CLI 打印本机访问地址，局域网客户端使用服务机器的实际地址和监听端口。局域网直连没有账户认证，开放绑定限于受信任网络。反向代理需先校验浏览器端来源，再按后端监听地址和端口转发 Host 与 Origin。
 
-主命令为 `waifu-agent-usage`，`codex-usage` 和 `cud` 保留兼容别名。既有 `.codex-usage` 数据目录、`CODEX_USAGE_*` 环境变量与浏览器偏好继续沿用。
+主命令为 `waifu-usage`，也可继续使用 `waifu-agent-usage`、`codex-usage` 和 `cud`。既有 `.codex-usage` 数据目录、`CODEX_USAGE_*` 环境变量与浏览器偏好继续沿用。
 
 ## 代码入口
 
@@ -84,17 +84,17 @@ npm.cmd run native:check
 
 助手利用已有 NTFS 变更日志加速来源核验，并提供归档读取租约。缺少来源证明时回退到内容核验；显式归档压实需要可用的文件租约。助手不会启用系统 journal。更多构建参数见[助手说明](../native/windows-source-proof/README.md)。
 
-## 打包 v1.0a
+## 打包
 
 在完成检查并准备好匹配的 Windows 助手后执行：
 
 ```powershell
 npm.cmd run native:check
-npm.cmd run package:release -- output/releases-v1.0a
-npm.cmd run package:check -- output/releases-v1.0a --browser
+npm.cmd run package:release -- output/releases-v1.0b
+npm.cmd run package:check -- output/releases-v1.0b --browser
 ```
 
-输出目录须为 `output/` 下尚不存在的新目录。`releaseVersion: "1.0a"` 对应 `1.0a-waifu.zip` 和 `1.0a-lite.zip`。包内 `version` 为 `1.0.1`。
+输出目录须为 `output/` 下尚不存在的新目录。`releaseVersion: "1.0b"` 对应 `1.0b-waifu.zip` 和 `1.0b-lite.zip`。包内 `version` 为 `1.0.2`。
 
 打包脚本收集实际依赖、各版页面资源、许可和 Windows 助手，不包含用户数据、开发依赖或作者 PNG。生成的 `release-manifest.json` 保存 ZIP 与逐文件 SHA-256。`package:check` 校验实际解包内容并运行隔离 HTTP 检查，`--browser` 追加浏览器检查；省略该参数只运行包与 HTTP 检查。
 

@@ -313,7 +313,7 @@ async function pickDirectoryWithSystemDialog(signal) {
   try {
     const { stdout } = await execFileAsync(
       "osascript",
-      ["-e", 'POSIX path of (choose folder with prompt "选择要导入的 Waifu Agent Usage 目录")'],
+      ["-e", 'POSIX path of (choose folder with prompt "选择要导入的记录目录")'],
       { signal },
     );
     return stdout.trim();
@@ -1516,7 +1516,7 @@ export function createUsageServer(options = {}, definition) {
               sendJson(response, 413, {
                 code: "FULL_DETAIL_UNAVAILABLE",
                 error:
-                  "Full detail report is disabled in low-memory gateway mode. Restart with waifu-agent-usage gateway --memory-mb 512.",
+                  "Full detail report is disabled in low-memory gateway mode. Restart with waifu-usage gateway --memory-mb 512.",
                 quota: summary.quota,
               });
               return null;

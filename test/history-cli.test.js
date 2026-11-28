@@ -551,7 +551,7 @@ test("history archive dry-run reports the plan without changing the source", asy
       const rejected = runCli(root, args);
       assert.equal(rejected.status, 1);
       assert.equal(rejected.stdout, "");
-      assert.match(rejected.stderr, /^Usage: waifu-agent-usage history archive <sourceDB> --dry-run$/m);
+      assert.match(rejected.stderr, /^Usage: waifu-usage history archive <sourceDB> --dry-run$/m);
     }
     assert.deepEqual(readFileSync(source.databaseFile), sourceBytes);
     assert.deepEqual(readFileSync(`${source.databaseFile}-wal`), sourceWalBytes);

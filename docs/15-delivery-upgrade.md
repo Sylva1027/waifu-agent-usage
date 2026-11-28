@@ -2,11 +2,13 @@
 
 简体中文 · [English](15-delivery-upgrade.en.md)
 
-v1.0a 提供 **Waifu** 与 **Lite**，包内 `version` 为 `1.0.1`。两版沿用既有用量数据目录和来源配置。
+v1.0b 提供 **Waifu Usage**（完整版）与 **Agent Usage**（轻量版），包内 `version` 为 `1.0.2`。两版沿用既有用量数据目录和来源配置。
 
-- [下载 1.0a-waifu.zip](https://github.com/Sylva1027/waifu-agent-usage/releases/download/v1.0a/1.0a-waifu.zip)
-- [下载 1.0a-lite.zip](https://github.com/Sylva1027/waifu-agent-usage/releases/download/v1.0a/1.0a-lite.zip)
-- [v1.0a Release](https://github.com/Sylva1027/waifu-agent-usage/releases/tag/v1.0a)
+从 v1.0a 换用这一版时，先停掉当前实例，再用同一版别的新 ZIP 替换程序文件，然后按原参数启动。
+
+- [下载 1.0b-waifu.zip](https://github.com/Sylva1027/waifu-usage/releases/download/v1.0b/1.0b-waifu.zip)
+- [下载 1.0b-lite.zip](https://github.com/Sylva1027/waifu-usage/releases/download/v1.0b/1.0b-lite.zip)
+- [v1.0b Release](https://github.com/Sylva1027/waifu-usage/releases/tag/v1.0b)
 
 运行要求为 Node.js `>=23.8`。两份 ZIP 均可直接运行，无需安装 npm 依赖或编译。首次安装和验收平台见[开始使用](01-getting-started.md)。
 
@@ -59,4 +61,4 @@ Lite 新历史包使用无价目的 v3，两版继续读取既有 v1／v2／v3�
 
 ## 从源码构建
 
-依赖、Windows 助手和双版本运行包的构建命令见[开发指南](03-development.md#打包-v10)。运行包包含匹配的助手与构建回执；源码开发者可按[Windows 助手说明](03-development.md#windows-助手)显式构建和校验。
+依赖、Windows 助手和双版本运行包的构建命令见[开发指南](03-development.md#打包)。运行包包含匹配的助手与构建回执；源码开发者可按[Windows 助手说明](03-development.md#windows-助手)显式构建和校验。

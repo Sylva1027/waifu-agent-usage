@@ -1,17 +1,18 @@
 {
-  "name": "waifu-agent-usage",
-  "version": "1.0.1",
-  "releaseVersion": "1.0a",
+  "name": "waifu-usage",
+  "version": "1.0.2",
+  "releaseVersion": "1.0b",
   "private": true,
-  "description": "A local AI coding usage dashboard with Lite and Waifu editions, independently maintained by Sylva1027.",
+  "description": "A local AI coding usage dashboard with Waifu Usage and Agent Usage editions, independently maintained by Sylva1027.",
   "author": "Sylva1027",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Sylva1027/waifu-agent-usage.git"
+    "url": "https://github.com/Sylva1027/waifu-usage.git"
   },
   "license": "MIT",
   "type": "module",
   "bin": {
+    "waifu-usage": "./src/cli.js",
     "waifu-agent-usage": "./src/cli.js",
     "codex-usage": "./src/cli.js",
     "cud": "./src/cli.js"
