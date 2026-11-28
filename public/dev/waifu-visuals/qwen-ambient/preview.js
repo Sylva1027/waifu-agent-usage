@@ -45,6 +45,7 @@ let started = null;
 let timer = 0;
 let nextTick = 0;
 let placement;
+let viewport;
 let canvasRect;
 let rightRect;
 let rightCrop;
@@ -95,6 +96,9 @@ function placeCanvas(target, left, top, right, bottom) {
 function layout() {
   if (!ready) return;
   const { clientWidth: width, clientHeight: height } = root;
+  const dpr = window.devicePixelRatio;
+  if (viewport?.width === width && viewport.height === height && viewport.dpr === dpr) return;
+  viewport = { width, height, dpr };
   // Track the binding in source coordinates as the viewport narrows.
   const narrow = Math.min(1, Math.max(0, (1.5 - width / height) / 0.5));
   placement = Math.max(Math.min(width, 760), height * 1.14);
@@ -134,7 +138,7 @@ function layout() {
 }
 
 function canRun() {
-  return !reducedMotion.matches && ready && !document.hidden && document.hasFocus();
+  return !reducedMotion.matches && ready && !root.dataset.themeTransition && !document.hidden && document.hasFocus();
 }
 
 function freeze() {
@@ -187,9 +191,10 @@ function syncPlayback() {
 
 async function syncMaterial() {
   const next = root.dataset.skin === "qwen" ? root.dataset.theme || "light" : "";
-  if (mode === next) return;
+  if (mode === next) return syncPlayback();
   mode = next;
   const version = ++loadVersion;
+  viewport = undefined;
   ready = false;
   freeze();
   elapsed = nextTick = 0;
@@ -233,7 +238,10 @@ async function syncMaterial() {
 }
 
 const themeObserver = new MutationObserver(syncMaterial);
-themeObserver.observe(root, { attributes: true, attributeFilter: ["data-skin", "data-theme"] });
+themeObserver.observe(root, {
+  attributes: true,
+  attributeFilter: ["data-skin", "data-theme", "data-theme-transition"],
+});
 reducedMotion.addEventListener("change", () => {
   if (reducedMotion.matches) {
     freeze();
