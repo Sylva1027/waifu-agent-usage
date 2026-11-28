@@ -13,14 +13,14 @@
   background: var(--paper-color) var(--paper-base) center / auto 100% repeat-x;
 }
 
-:root[data-theme="dark"] #claude-ambient {
+html[data-theme="dark"] #claude-ambient {
   --paper-color: #382c23;
   --paper-base: url("./art/paper-dark.webp");
   --paper-left: url("./art/left-dark.webp");
   --paper-right: url("./art/right-dark.webp");
 }
 
-:root[data-skin="claude"] #claude-ambient {
+html[data-skin="claude"] #claude-ambient {
   display: block;
 }
 

@@ -12,12 +12,12 @@
   pointer-events: none;
 }
 
-:root[data-theme="dark"] #deepseek-ambient {
+html[data-theme="dark"] #deepseek-ambient {
   --water: url("./art/background-dark.webp");
   --water-glints: url("./art/glints-dark.webp");
 }
 
-:root[data-skin="deepseek"] #deepseek-ambient {
+html[data-skin="deepseek"] #deepseek-ambient {
   display: block;
 }
 

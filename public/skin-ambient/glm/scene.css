@@ -2,7 +2,7 @@
   display: none;
 }
 
-:root[data-skin="glm"] #glm-ambient {
+html[data-skin="glm"] #glm-ambient {
   display: block;
   position: fixed;
   inset: 0;
@@ -16,7 +16,7 @@
   --lamp-glint: #d7e6ff;
 }
 
-:root[data-skin="glm"][data-theme="light"] #glm-ambient {
+html[data-skin="glm"][data-theme="light"] #glm-ambient {
   background-color: #d2d9e7;
   background-image: url("./jacquard-light.webp");
   --weave-ink: #5d7193;
@@ -68,32 +68,32 @@
   opacity: 0;
 }
 
-:root[data-theme="light"] .glm-band {
+html[data-theme="light"] .glm-band {
   container-type: inline-size;
   --facet-x: 0.08cqw;
 }
-:root[data-theme="light"] .glm-band[data-side="right"] {
+html[data-theme="light"] .glm-band[data-side="right"] {
   --weave-ink: #485f85;
 }
-:root[data-theme="light"] .glm-band[data-pattern="upper"] {
+html[data-theme="light"] .glm-band[data-pattern="upper"] {
   --dye-strength: 0.8;
   --lamp-glint: #e6f2fa;
 }
-:root[data-theme="light"] .glm-band[data-pattern$="lower"] {
+html[data-theme="light"] .glm-band[data-pattern$="lower"] {
   --dye-strength: 0.875;
   --lamp-glint: #edf6fd;
 }
-:root[data-theme="light"] .glm-band[data-side="right"][data-pattern="upper"] {
+html[data-theme="light"] .glm-band[data-side="right"][data-pattern="upper"] {
   --facet-x: -0.08cqw;
 }
-:root[data-theme="light"] .glm-rails {
+html[data-theme="light"] .glm-rails {
   /* Expose the upper face of each yarn and retain its dyed edge at peak light. */
   mask:
     var(--emitter) center / 100% 100% no-repeat subtract,
     var(--weave) var(--facet-x) 0.12cqw / 100% 100% no-repeat;
 }
 
-:root[data-theme="light"] .glm-lamp::after {
+html[data-theme="light"] .glm-lamp::after {
   content: "";
   position: absolute;
   inset: 0;

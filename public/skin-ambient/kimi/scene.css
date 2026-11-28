@@ -19,11 +19,11 @@
   );
 }
 
-:root:not([data-skin="kimi"]) #kimi-ambient {
+html:not([data-skin="kimi"]) #kimi-ambient {
   display: none;
 }
 
-:root[data-theme="dark"] #kimi-ambient {
+html[data-theme="dark"] #kimi-ambient {
   --engraving-rim: #587074;
   --engraving-shadow: #0c1518;
   --engraving-fill: linear-gradient(165deg, #496467, #3b595e 55%, #466569);

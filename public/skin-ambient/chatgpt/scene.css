@@ -13,10 +13,10 @@
   z-index: 0;
   background-color: var(--backing);
 }
-:root:not([data-skin="chatgpt"]) #chatgpt-ambient {
+html:not([data-skin="chatgpt"]) #chatgpt-ambient {
   display: none;
 }
-:root[data-theme="dark"] #chatgpt-ambient {
+html[data-theme="dark"] #chatgpt-ambient {
   --nacre: url("/assets/achievement-share/chatgpt/background-dark.webp");
   --backing: #19161d;
   --blue: rgb(125 180 235 / 66%);
@@ -84,10 +84,10 @@
 #chatgpt-ambient .wing[data-silk="ready"] .lip {
   opacity: 0;
 }
-:root[data-theme="dark"] #chatgpt-ambient .left .lip {
+html[data-theme="dark"] #chatgpt-ambient .left .lip {
   mask-image: url("./art/left-rim-dark.webp");
 }
-:root[data-theme="dark"] #chatgpt-ambient .right .lip {
+html[data-theme="dark"] #chatgpt-ambient .right .lip {
   mask-image: url("./art/right-rim-dark.webp");
 }
 #chatgpt-ambient .reflection {
@@ -115,7 +115,7 @@
       radial-gradient(ellipse 22vh 26vh at var(--face-inset) 34%, var(--veil) 8%, transparent),
       radial-gradient(ellipse 22vh 26vh at calc(100% - var(--face-inset)) 34%, var(--veil) 8%, transparent);
   }
-  :root[data-theme="dark"] body:has(#skinCharacters[data-skin-characters="on"]) #chatgpt-ambient::after {
+  html[data-theme="dark"] body:has(#skinCharacters[data-skin-characters="on"]) #chatgpt-ambient::after {
     --veil: rgb(34 30 39 / 48%);
   }
 }

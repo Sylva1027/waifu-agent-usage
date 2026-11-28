@@ -115,25 +115,32 @@ async function checkOriginalHint(page, text, screenshot) {
         return { x, y, width, height };
       }),
     );
-  await page.locator("#openShareImage").click();
-  await dialog.waitFor({ state: "visible" });
-  await dialog.locator("img").evaluate((image) => image.decode());
-  assert.ok(await hint.isVisible());
-  assert.equal(await hint.textContent(), text);
-  const initial = await bounds();
-  if (screenshot) await page.screenshot({ path: screenshot });
-  await hint.waitFor({ state: "hidden", timeout: 5000 });
-  assert.deepEqual(await bounds(), initial, "The temporary hint does not move or resize the image viewer");
-  await page.keyboard.press("Escape");
-  await dialog.waitFor({ state: "hidden" });
-  assert.ok(await page.locator("#shareDialog").isVisible(), "Escape only closes the original image viewer");
-  assert.ok(await page.locator("#openShareImage").evaluate((button) => button === document.activeElement));
-  await page.locator("#openShareImage").click();
-  await dialog.waitFor({ state: "visible" });
-  assert.ok(await hint.isVisible(), "Reopening the image shows the hint again");
-  await page.keyboard.press("Escape");
-  await dialog.waitFor({ state: "hidden" });
-  assert.ok(await hint.isHidden());
+  // Advance the hint timer separately from image decoding and screenshot work.
+  await page.clock.pauseAt(await page.evaluate(() => Date.now()));
+  try {
+    await page.locator("#openShareImage").click();
+    await dialog.waitFor({ state: "visible" });
+    await dialog.locator("img").evaluate((image) => image.decode());
+    assert.ok(await hint.isVisible());
+    assert.equal(await hint.textContent(), text);
+    const initial = await bounds();
+    if (screenshot) await page.screenshot({ path: screenshot });
+    await page.clock.fastForward(5000);
+    assert.ok(await hint.isHidden());
+    assert.deepEqual(await bounds(), initial, "The temporary hint does not move or resize the image viewer");
+    await page.keyboard.press("Escape");
+    await dialog.waitFor({ state: "hidden" });
+    assert.ok(await page.locator("#shareDialog").isVisible(), "Escape only closes the original image viewer");
+    assert.ok(await page.locator("#openShareImage").evaluate((button) => button === document.activeElement));
+    await page.locator("#openShareImage").click();
+    await dialog.waitFor({ state: "visible" });
+    assert.ok(await hint.isVisible(), "Reopening the image shows the hint again");
+    await page.keyboard.press("Escape");
+    await dialog.waitFor({ state: "hidden" });
+    assert.ok(await hint.isHidden());
+  } finally {
+    await page.clock.resume();
+  }
 }
 
 test("production share dialog preserves the PNG, layout, snapshot and skin across its controls", async (t) => {

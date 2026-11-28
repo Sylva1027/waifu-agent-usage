@@ -13,17 +13,17 @@
   background-repeat: no-repeat;
 }
 
-:root:not([data-skin="grok"]) #grok-ambient {
+html:not([data-skin="grok"]) #grok-ambient {
   display: none;
 }
 
-:root[data-theme="dark"] #grok-ambient {
+html[data-theme="dark"] #grok-ambient {
   --grok-desk: url("./desk-dark.webp");
   background-color: #20231d;
   background-image: var(--grok-desk);
 }
 
-:root[data-theme="dark"] #grok-ambient::after {
+html[data-theme="dark"] #grok-ambient::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -49,16 +49,17 @@
   pointer-events: none;
 }
 
-:root[data-theme="light"] .grok-board-repair {
+.grok-board-repair {
+  z-index: 0;
+}
+
+html[data-theme="light"] .grok-board-repair {
   left: 1838px;
   top: 147px;
   width: auto;
   height: auto;
 }
 
-.grok-board-repair {
-  z-index: 0;
-}
 .grok-pawn {
   z-index: 2;
 }

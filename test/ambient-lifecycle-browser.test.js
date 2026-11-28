@@ -38,7 +38,7 @@ test("ChatGPT keeps the current static plate through context loss and restores i
   const preview = await openPreview(t, startChatgptAmbientPreview);
   if (!preview) return;
   const { page, url } = preview;
-  await page.goto(url + "?theme=dark");
+  await page.goto(`${url}?theme=dark`, { waitUntil: "domcontentloaded" });
   const wing = page.locator("#chatgpt-ambient .wing.left");
   await page.waitForSelector('#chatgpt-ambient .left[data-silk="ready"]', { state: "attached" });
   const loss = await wing

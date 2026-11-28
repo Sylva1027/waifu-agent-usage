@@ -16,22 +16,22 @@
   background: linear-gradient(158deg, #f9edf4, #f3e6ee);
 }
 
-:root[data-skin="gemini"] #gemini-ambient-wall,
-:root[data-skin="gemini"] #gemini-ambient[data-ready="true"] {
+html[data-skin="gemini"] #gemini-ambient-wall,
+html[data-skin="gemini"] #gemini-ambient[data-ready="true"] {
   display: block;
 }
 
-:root[data-theme="dark"] #gemini-ambient-wall {
+html[data-theme="dark"] #gemini-ambient-wall {
   --gemini-original: url("/assets/achievement-share/gemini/background-dark.webp");
   background: linear-gradient(158deg, #2a1e2a, #211521);
 }
 
 /* The side-view artwork has lighter ink than the front-view artwork. */
-:root[data-skin="gemini"] #skinCharacters img[data-view="side"] {
+html[data-skin="gemini"] #skinCharacters img[data-view="side"] {
   filter: drop-shadow(0 0 0 rgb(0 0 0 / 80%));
 }
 
-:root[data-skin="gemini"][data-theme="dark"] #skinCharacters img[data-view="side"] {
+html[data-skin="gemini"][data-theme="dark"] #skinCharacters img[data-view="side"] {
   filter: drop-shadow(0 0 0 rgb(255 255 255 / 70%));
 }
 
