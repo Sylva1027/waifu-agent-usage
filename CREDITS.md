@@ -2,9 +2,9 @@
 
 ## 项目来源与维护 / Origins and maintenance
 
-Waifu Agent Usage 由 [Sylva1027](https://github.com/Sylva1027) 独立维护。项目最初基于 [Codex Usage](https://github.com/DhWU-coder/codex-usage)，此后围绕多 Agent 数据接入、统计架构、历史保留、Lite／Waifu 双版本和个性化体验持续独立开发。
+Waifu Usage 由 [Sylva1027](https://github.com/Sylva1027) 独立维护。项目最初基于 [Codex Usage](https://github.com/DhWU-coder/codex-usage)，此后围绕多 Agent 数据接入、统计架构、历史保留、Lite／Waifu 双版本和个性化体验持续独立开发。
 
-Waifu Agent Usage is independently maintained by [Sylva1027](https://github.com/Sylva1027). The project began with [Codex Usage](https://github.com/DhWU-coder/codex-usage) and has since been independently developed around support for multiple agents, usage architecture, history retention, Lite and Waifu editions, and personalization.
+Waifu Usage is independently maintained by [Sylva1027](https://github.com/Sylva1027). The project began with [Codex Usage](https://github.com/DhWU-coder/codex-usage) and has since been independently developed around support for multiple agents, usage architecture, history retention, Lite and Waifu editions, and personalization.
 
 感谢 Codex Usage 原作者 wudonghao（[DhWU-coder](https://github.com/DhWU-coder)）提供的基础，以及提交历史中记录的各位贡献者。
 

@@ -48,7 +48,7 @@ async function imageReady(page) {
       watermarkCount: card.querySelectorAll(".share-watermark").length,
     };
   });
-  assert.equal(result.watermark, "waifu-agent-usage");
+  assert.equal(result.watermark, "waifu-usage");
   assert.equal(result.watermarkCount, 1);
   return result;
 }

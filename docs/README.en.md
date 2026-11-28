@@ -1,8 +1,8 @@
-# Waifu Agent Usage documentation
+# Waifu Usage documentation
 
 [简体中文](README.md) · English
 
-Version 1.0 offers the full Waifu edition and lightweight Lite. Start with [getting started](01-getting-started.en.md).
+Choose between Waifu Usage (full) and Agent Usage (Lite). Start with [getting started](01-getting-started.en.md).
 
 - [Project introduction](../README.en.md)
 - [Getting started](01-getting-started.en.md): download, startup, and source import.

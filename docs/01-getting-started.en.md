@@ -2,12 +2,12 @@
 
 [简体中文](01-getting-started.md) · English
 
-Both v1.0a ZIPs were verified on Windows x64, Ubuntu 24.04 x64, and macOS 15 on Apple Silicon. The package version is `1.0.1`.
+Both editions ship as ZIPs for Windows x64, Ubuntu 24.04 x64, and macOS 15 on Apple Silicon. The package version is `1.0.2`.
 
-- **[Waifu](https://github.com/Sylva1027/waifu-agent-usage/releases/download/v1.0a/1.0a-waifu.zip):** usage and trends, cost estimates, light and dark themes, character skins, sharing, and achievements.
-- **[Lite](https://github.com/Sylva1027/waifu-agent-usage/releases/download/v1.0a/1.0a-lite.zip):** usage and trends, source management, quota windows, and history management in a simple dark interface.
+- **[Waifu Usage (full)](https://github.com/Sylva1027/waifu-usage/releases/download/v1.0b/1.0b-waifu.zip):** usage and trends, cost estimates, light and dark themes, character skins, sharing, and achievements.
+- **[Agent Usage (Lite)](https://github.com/Sylva1027/waifu-usage/releases/download/v1.0b/1.0b-lite.zip):** usage and trends, source management, quota windows, and history management in a simple dark interface.
 
-[View the v1.0a release](https://github.com/Sylva1027/waifu-agent-usage/releases/tag/v1.0a).
+[View the v1.0b release](https://github.com/Sylva1027/waifu-usage/releases/tag/v1.0b).
 
 ## Install and start
 
@@ -27,11 +27,11 @@ To run in the foreground, use `node src/cli.js run` and open the URL it prints. 
 
 ## Windows desktop shortcut
 
-Open PowerShell 7 (`pwsh`) in the permanent installation folder. Both runtime packages use `src/cli.js` for `$entryFile`. For Lite from source, use `src/cli-lite.js`. For Lite, set `$shortcutName` to `Agent Usage Lite.lnk`.
+Open PowerShell 7 (`pwsh`) in the permanent installation folder. Both runtime packages use `src/cli.js` for `$entryFile`. For Lite from source, use `src/cli-lite.js`. For Lite, set `$shortcutName` to `Agent Usage.lnk`.
 
 ```powershell
 $entryFile = 'src/cli.js'
-$shortcutName = 'Waifu Agent Usage.lnk'
+$shortcutName = 'Waifu Usage.lnk'
 $appDir = (Resolve-Path -LiteralPath .).ProviderPath
 $cliEntry = (Resolve-Path -LiteralPath (Join-Path $appDir $entryFile) -ErrorAction Stop).ProviderPath
 $nodePath = (Get-Command node.exe -CommandType Application -ErrorAction Stop | Select-Object -First 1).Path

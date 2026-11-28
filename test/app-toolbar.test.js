@@ -65,7 +65,8 @@ test("title, range, refresh, and timezone controls use separate compact groups",
   const toolbar = html.match(/<section class="toolbar"[\s\S]*?<\/section>/)?.[0];
   assert.ok(header);
   assert.ok(toolbar);
-  assert.match(header, /<h1>Agent Usage<\/h1>/);
+  assert.match(html, /<title>Waifu Usage<\/title>/);
+  assert.match(header, /<h1>Waifu Usage<\/h1>/);
   assert.match(header, /class="topbar-actions"/);
   assert.doesNotMatch(header, /autoRefresh|lastSuccessfulCheck|calendarZoneSelect/);
 

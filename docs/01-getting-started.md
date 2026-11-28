@@ -2,12 +2,12 @@
 
 简体中文 · [English](01-getting-started.en.md)
 
-v1.0a 的两份 ZIP 均在 Windows x64、Ubuntu 24.04 x64 和 macOS 15（Apple Silicon）验收通过。包内 `version` 为 `1.0.1`。
+两个版本均提供适用于 Windows x64、Ubuntu 24.04 x64 和 macOS 15（Apple Silicon）的 ZIP 运行包。包内 `version` 为 `1.0.2`。
 
-- **[Waifu 完整版](https://github.com/Sylva1027/waifu-agent-usage/releases/download/v1.0a/1.0a-waifu.zip)**：用量、趋势、费用估算、深浅主题、角色皮肤、分享和成就。
-- **[Lite 轻量版](https://github.com/Sylva1027/waifu-agent-usage/releases/download/v1.0a/1.0a-lite.zip)**：用量与趋势、来源管理、额度窗口和历史管理，采用简洁的深色界面。
+- **[Waifu Usage（完整版）](https://github.com/Sylva1027/waifu-usage/releases/download/v1.0b/1.0b-waifu.zip)**：用量、趋势、费用估算、深浅主题、角色皮肤、分享和成就。
+- **[Agent Usage（轻量版）](https://github.com/Sylva1027/waifu-usage/releases/download/v1.0b/1.0b-lite.zip)**：用量与趋势、来源管理、额度窗口和历史管理，采用简洁的深色界面。
 
-[查看 v1.0a Release](https://github.com/Sylva1027/waifu-agent-usage/releases/tag/v1.0a)。
+[查看 v1.0b Release](https://github.com/Sylva1027/waifu-usage/releases/tag/v1.0b)。
 
 ## 安装与启动
 
@@ -27,11 +27,11 @@ node src/cli.js dashboard
 
 ## Windows 桌面快捷方式
 
-在固定安装目录打开 PowerShell 7（`pwsh`）。两版运行包的 `$entryFile` 都是 `src/cli.js`，使用 Lite 源码时改为 `src/cli-lite.js`。为 Lite 创建快捷方式时，将 `$shortcutName` 改为 `Agent Usage Lite.lnk`。
+在固定安装目录打开 PowerShell 7（`pwsh`）。两版运行包的 `$entryFile` 都是 `src/cli.js`，使用 Lite 源码时改为 `src/cli-lite.js`。为 Lite 创建快捷方式时，将 `$shortcutName` 改为 `Agent Usage.lnk`。
 
 ```powershell
 $entryFile = 'src/cli.js'
-$shortcutName = 'Waifu Agent Usage.lnk'
+$shortcutName = 'Waifu Usage.lnk'
 $appDir = (Resolve-Path -LiteralPath .).ProviderPath
 $cliEntry = (Resolve-Path -LiteralPath (Join-Path $appDir $entryFile) -ErrorAction Stop).ProviderPath
 $nodePath = (Get-Command node.exe -CommandType Application -ErrorAction Stop | Select-Object -First 1).Path

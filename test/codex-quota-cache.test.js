@@ -313,7 +313,7 @@ trace({ kind: "start", codexHome: process.env.CODEX_HOME, argv: process.argv.sli
 const reader = createInterface({ input: process.stdin });
 reader.on("line", (line) => {
   const message = JSON.parse(line);
-  trace({ kind: "method", method: message.method });
+  trace({ kind: "method", method: message.method, clientInfo: message.params?.clientInfo });
   if (message.id === undefined) return;
   let result = {};
   if (message.method === "account/read") {
@@ -360,6 +360,11 @@ reader.on("line", (line) => {
     const start = firstTrace.find((entry) => entry.kind === "start");
     assert.equal(start.codexHome, path.join(root, ".codex"));
     assert(start.argv.includes("--listen") && start.argv.includes("stdio://"));
+    assert.deepEqual(firstTrace.find((entry) => entry.method === "initialize").clientInfo, {
+      name: "waifu-agent-usage",
+      title: "Agent Usage",
+      version: "0.8.0",
+    });
     const sqliteHomeArgument = start.argv[start.argv.indexOf("-c") + 1];
     assert.equal(existsSync(JSON.parse(sqliteHomeArgument.slice("sqlite_home=".length))), false);
     assert.deepEqual(

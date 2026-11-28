@@ -207,6 +207,8 @@ async function checkLitePage(browser, url, locale, viewport) {
     await page.locator('[data-preset="all"]').click();
     await page.waitForFunction(() => Number.parseFloat(document.querySelector("#totalTokens")?.textContent) > 0);
     assert.equal(await page.locator("html").getAttribute("data-edition"), "lite");
+    assert.equal(await page.title(), "Agent Usage");
+    assert.equal(await page.locator(".topbar > h1").textContent(), "Agent Usage");
     assert.equal(await page.locator("html").getAttribute("data-theme"), "dark");
     assert.equal(await page.locator(".metrics > .metric").count(), 6);
     assert.equal(
@@ -285,6 +287,8 @@ async function checkWaifuPage(browser, url, edition, locale, viewport) {
   async function ready() {
     await page.waitForFunction(() => Number.parseFloat(document.querySelector("#totalTokens")?.textContent) > 0);
     assert.equal(await page.locator("html").getAttribute("data-edition"), edition);
+    assert.equal(await page.title(), "Waifu Usage");
+    assert.equal(await page.locator(".topbar > h1").textContent(), "Waifu Usage");
   }
   async function dashboardBooted() {
     await page.waitForFunction(async (edition) => {

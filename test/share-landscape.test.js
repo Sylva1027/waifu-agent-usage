@@ -208,7 +208,7 @@ test("formal share window keeps layout preferences, snapshot and latest PNG acro
   };
   const portrait = await open();
   assert.deepEqual(portrait.dimensions, [1080, 1440]);
-  assert.equal(portrait.watermark, "waifu-agent-usage");
+  assert.equal(portrait.watermark, "waifu-usage");
   assert.equal(portrait.watermarkCount, 1);
   const expectedArtwork = async (view, theme) =>
     createHash("sha256")
@@ -286,7 +286,7 @@ test("formal share window keeps layout preferences, snapshot and latest PNG acro
     if (/\/api\/(usage|summary)(?:\?|$)/.test(request.url())) requests++;
   });
   const landscape = await choose("landscape");
-  assert.equal(landscape.watermark, "waifu-agent-usage");
+  assert.equal(landscape.watermark, "waifu-usage");
   assert.equal(landscape.watermarkCount, 1);
   assert.equal(landscape.artwork, await expectedArtwork("side", landscape.theme));
   assert.notEqual(landscape.artwork, portrait.artwork);

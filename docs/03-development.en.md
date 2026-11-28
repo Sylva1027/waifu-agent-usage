@@ -2,7 +2,7 @@
 
 [简体中文](03-development.md) · English
 
-The project uses Node.js ESM, SQLite, and native browser JavaScript. For v1.0a, package version is `1.0.1`, `releaseVersion` is `1.0a`, and the download tag is `v1.0a`.
+The project uses Node.js ESM, SQLite, and native browser JavaScript. For v1.0b, package version is `1.0.2`, `releaseVersion` is `1.0b`, and the download tag is `v1.0b`.
 
 ## Environment and startup
 
@@ -25,7 +25,7 @@ Parallel instances need separate ports, data roots, and service registration fil
 
 Use `--host` or `HOST` to bind to a LAN address or hostname. With a wildcard bind, the CLI prints a loopback URL. LAN clients use the server machine's address and listening port. Direct LAN connections have no account authentication, so limit open bindings to trusted networks. Reverse proxies should validate the browser origin before forwarding Host and Origin for the backend address and port.
 
-The primary command is `waifu-agent-usage`; `codex-usage` and `cud` remain compatible aliases. Existing `.codex-usage` data, `CODEX_USAGE_*` environment variables, and browser preferences continue to work.
+The primary command is `waifu-usage`. You can also use `waifu-agent-usage`, `codex-usage`, or `cud`. Existing `.codex-usage` data, `CODEX_USAGE_*` environment variables, and browser preferences continue to work.
 
 ## Code entry points
 
@@ -84,17 +84,17 @@ The outputs are `native/windows-source-proof/bin/windows-source-proof.exe` and t
 
 The helper uses an existing NTFS change journal to accelerate source verification and provides archive read leases. Without source proof, verification falls back to content checks; explicit archive compaction requires available file leases. The helper does not enable the system journal. See the [helper guide](../native/windows-source-proof/README.md) for build options.
 
-## Package v1.0a
+## Packaging
 
 After checks pass and the matching Windows helper is ready:
 
 ```powershell
 npm.cmd run native:check
-npm.cmd run package:release -- output/releases-v1.0a
-npm.cmd run package:check -- output/releases-v1.0a --browser
+npm.cmd run package:release -- output/releases-v1.0b
+npm.cmd run package:check -- output/releases-v1.0b --browser
 ```
 
-The output must be a new directory under `output/`. The `releaseVersion: "1.0a"` setting produces `1.0a-waifu.zip` and `1.0a-lite.zip`. The package `version` is `1.0.1`.
+The output must be a new directory under `output/`. The `releaseVersion: "1.0b"` setting produces `1.0b-waifu.zip` and `1.0b-lite.zip`. The package `version` is `1.0.2`.
 
 The packager collects actual dependencies, edition assets, the license, and the Windows helper; it excludes user data, development dependencies, and authoring PNGs. `release-manifest.json` records ZIP and per-file SHA-256 hashes. `package:check` verifies the extracted packages and runs isolated HTTP checks; `--browser` adds browser checks.
 

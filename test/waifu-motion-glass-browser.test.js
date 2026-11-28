@@ -249,7 +249,7 @@ async function checkDashboardFrames(page, scenario) {
     assert.equal(part.edge.includes("#mg-frame-"), supported);
   }
   assert.equal(await page.locator("#mg-frame-active, #mg-frame-static").count(), supported ? 2 : 0);
-  const title = page.getByRole("heading", { name: "Agent Usage", exact: true });
+  const title = page.getByRole("heading", { name: "Waifu Usage", exact: true });
   const assertTitle = async () => {
     const [face, surface, stroke, shade] = await title.evaluate((node) => {
       const style = getComputedStyle(node);
@@ -625,6 +625,9 @@ test("Waifu motion follows native input and classic glass owns the active filter
     try {
       await listenOnFetchPort(liteServer);
       await page.goto(`http://127.0.0.1:${liteServer.address().port}`);
+      assert.equal(await page.title(), "Agent Usage");
+      assert.equal(await page.locator(".topbar > h1").textContent(), "Agent Usage");
+      assert.equal(await page.locator(".topbar > h1 > .logo-a").textContent(), "A");
       await page.locator('[data-preset="all"]').click();
       await page.locator('[data-timeline-mode="model"]').press("Enter");
       assert.equal(

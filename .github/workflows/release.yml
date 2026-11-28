@@ -22,7 +22,7 @@ jobs:
       release-candidate: true
 
   package:
-    name: Verify Waifu and Lite ZIPs
+    name: Verify Waifu Usage and Agent Usage ZIPs
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -76,7 +76,7 @@ jobs:
           npm.cmd run native:build
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           npm.cmd run native:check
-      - name: Package and accept actual Waifu and Lite ZIPs
+      - name: Package and accept the Waifu Usage and Agent Usage ZIPs
         timeout-minutes: 10
         run: |
           npm.cmd run package:release -- "$env:RELEASE_DIR"
@@ -84,7 +84,7 @@ jobs:
           npm.cmd run package:check -- "$env:RELEASE_DIR" --browser
       - uses: actions/upload-artifact@v4
         with:
-          name: waifu-agent-usage-waifu-lite-windows-${{ github.sha }}
+          name: waifu-usage-windows-${{ github.sha }}
           path: |
             ${{ env.RELEASE_DIR }}/*.zip
             ${{ env.RELEASE_DIR }}/release-manifest.json
@@ -115,7 +115,7 @@ jobs:
           cache: npm
       - uses: actions/download-artifact@v4
         with:
-          name: waifu-agent-usage-waifu-lite-windows-${{ github.sha }}
+          name: waifu-usage-windows-${{ github.sha }}
           path: ${{ env.RELEASE_DIR }}
       - name: Install ZIP extractor
         if: runner.os == 'Linux'
@@ -125,7 +125,7 @@ jobs:
       - run: npm ci
       - name: Install Playwright and Chromium
         uses: ./.github/actions/setup-chromium
-      - name: Accept the Windows-built Waifu and Lite ZIPs
+      - name: Accept the Windows-built Waifu Usage and Agent Usage ZIPs
         timeout-minutes: 10
         run: npm run package:check -- "$RELEASE_DIR" --browser
       - uses: actions/upload-artifact@v4

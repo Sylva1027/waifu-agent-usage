@@ -337,7 +337,7 @@ test("cli stop waits for accepted shutdown cleanup beyond five seconds", async (
     const url = await waitForServerUrl(child);
     await writeFile(stateFile, JSON.stringify({ services: [{ pid: child.pid, url, shutdownToken: "fixture-token" }] }));
     const output = await runCli(["stop", "--state-file", stateFile], isolatedEnv(homeDir));
-    assert.match(output, /Stopped 1 Waifu Agent Usage service/);
+    assert.match(output, /Stopped 1 Waifu Usage service/);
     assert.equal(await waitForExit(child), 0);
     assert.deepEqual(JSON.parse(await readFile(stateFile, "utf8")).services, []);
   } finally {
@@ -381,7 +381,7 @@ test("cli stop shuts down a service on a port blocked by fetch", async () => {
     await assert.rejects(fetch(url), (error) => error.cause?.message === "bad port");
     await writeServices(stateFile, [{ pid: child.pid, url, shutdownToken: "fixture-token" }]);
     const output = await runCli(["stop", "--state-file", stateFile], isolatedEnv(homeDir));
-    assert.match(output, /Stopped 1 Waifu Agent Usage service/);
+    assert.match(output, /Stopped 1 Waifu Usage service/);
     assert.equal(await exited, 0);
     assert.deepEqual(await readServices(stateFile), []);
   } finally {
@@ -414,9 +414,9 @@ test("cli restart stops existing services and starts a new gateway", async () =>
       ["restart", "--host", "127.0.0.1", "--port", "0", "--home-dir", homeDir, "--state-file", stateFile],
       isolatedEnv(homeDir),
     );
-    assert.match(restartOutput, /Stopped 1 Waifu Agent Usage service/);
+    assert.match(restartOutput, /Stopped 1 Waifu Usage service/);
     const restartMatch = restartOutput.match(
-      /Waifu Agent Usage gateway restarted: (http:\/\/127\.0\.0\.1:\d+) \(pid (\d+)\)/,
+      /Waifu Usage gateway restarted: (http:\/\/127\.0\.0\.1:\d+) \(pid (\d+)\)/,
     );
     assert.ok(restartMatch, restartOutput);
     const restartUrl = restartMatch[1];
@@ -549,7 +549,7 @@ test("cli dashboard reuses the fallback address when its default port is occupie
   }
 });
 
-test("waifu-agent-usage -d opens the dashboard", async () => {
+test("cli -d opens the dashboard", async () => {
   const homeDir = await makeFixtureHome();
   const stateFile = path.join(homeDir, "services.json");
 
@@ -558,7 +558,7 @@ test("waifu-agent-usage -d opens the dashboard", async () => {
       ["-d", "--no-open", "--host", "127.0.0.1", "--port", "0", "--home-dir", homeDir, "--state-file", stateFile],
       isolatedEnv(homeDir),
     );
-    assert.match(output, /Waifu Agent Usage dashboard/);
+    assert.match(output, /Waifu Usage dashboard/);
     assert.match(output, /http:\/\/127\.0\.0\.1:(\d+)/);
   } finally {
     await runCli(["stop", "--state-file", stateFile], isolatedEnv(homeDir));
@@ -606,7 +606,7 @@ test("cli stop terminates all running usage services from the state file", async
       });
     });
 
-    assert.match(stopOutput, /Stopped 2 Waifu Agent Usage service/);
+    assert.match(stopOutput, /Stopped 2 Waifu Usage service/);
     const exitCodes = await Promise.all(children.map((child) => waitForExit(child)));
     assert.deepEqual(exitCodes, [0, 0]);
   } finally {

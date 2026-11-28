@@ -13,7 +13,7 @@ const resources = new Map();
 const stylesUrl = new URL("./styles.css", import.meta.url).href;
 const landscapeStylesUrl = new URL("./share-landscape.css", import.meta.url).href;
 // Inline the approved mark so standalone exports do not depend on the dialog DOM.
-const WATERMARK_HTML = `<div class="share-watermark"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 21v-3c-4 1-4-2-5-2m13 5v-4c0-1-.4-1.7-1-2 3-.4 6-1.4 6-6a5 5 0 0 0-1.5-3.5c.2-1 .2-2-.5-3-1.5 0-3 1-3.5 1.5a13 13 0 0 0-7 0C8 3.5 6.5 2.5 5 2.5c-.7 1-.7 2-.5 3A5 5 0 0 0 3 9c0 4.6 3 5.6 6 6-.6.3-1 1-1 2" /></svg><span>waifu-agent-usage</span></div>`;
+const WATERMARK_HTML = `<div class="share-watermark"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 21v-3c-4 1-4-2-5-2m13 5v-4c0-1-.4-1.7-1-2 3-.4 6-1.4 6-6a5 5 0 0 0-1.5-3.5c.2-1 .2-2-.5-3-1.5 0-3 1-3.5 1.5a13 13 0 0 0-7 0C8 3.5 6.5 2.5 5 2.5c-.7 1-.7 2-.5 3A5 5 0 0 0 3 9c0 4.6 3 5.6 6 6-.6.3-1 1-1 2" /></svg><span>waifu-usage</span></div>`;
 
 function asDataUrl(blob) {
   return new Promise((resolve, reject) => {

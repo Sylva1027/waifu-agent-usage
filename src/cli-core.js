@@ -289,7 +289,7 @@ export async function runCli({
   historyOptions = {},
 }) {
   entryFile = realpathSync(entryFile);
-  const displayName = edition === "lite" ? "Agent Usage Lite" : "Waifu Agent Usage";
+  const displayName = edition === "lite" ? "Agent Usage" : "Waifu Usage";
   const sameEntry = (service) => {
     if (service.edition !== edition || typeof service.entryFile !== "string") return false;
     try {
@@ -301,23 +301,25 @@ export async function runCli({
     }
   };
   const withBackup = (file, work) => (features ? features.withAchievementBackup(file, work) : work({}));
-  const USAGE = `Usage:
-  waifu-agent-usage summary [--json] [--home-dir <dir>]
-  waifu-agent-usage json [--home-dir <dir>]
-  waifu-agent-usage dashboard [--host <host>] [--port <port>] [--home-dir <dir>]
-  waifu-agent-usage -d [--host <host>] [--port <port>] [--home-dir <dir>]
-  waifu-agent-usage gateway [--host <host>] [--port <port>] [--home-dir <dir>] [--memory-mb <mb>]
-  waifu-agent-usage restart [--host <host>] [--port <port>] [--home-dir <dir>] [--memory-mb <mb>]
-  waifu-agent-usage run [--host <host>] [--port <port>] [--home-dir <dir>]
-  waifu-agent-usage stop
-  waifu-agent-usage history verify <databaseFile>
-  waifu-agent-usage history backup <sourceDB> <newPackageDB>
-  waifu-agent-usage history compact <sourceDB> <maintenanceDirectory> [--rollback]
-  waifu-agent-usage history export <sourceDB> <newDirectory> [--home-dir <dir>]
-  waifu-agent-usage history import <publishedBundleDir> <newImportDir>
-  waifu-agent-usage history restore <packageDB|bundleDir> <newDB|newDir> [--home-dir <dir>]${features?.restoreUsageSuffix || ""}
-  waifu-agent-usage history archive <sourceDB> --dry-run
-  waifu-agent-usage history archive <sourceDB> --commit <verifiedCandidateDB> --backup <newBundleDir> [--home-dir <dir>]`;
+  const USAGE = `${displayName}
+
+Usage:
+  waifu-usage summary [--json] [--home-dir <dir>]
+  waifu-usage json [--home-dir <dir>]
+  waifu-usage dashboard [--host <host>] [--port <port>] [--home-dir <dir>]
+  waifu-usage -d [--host <host>] [--port <port>] [--home-dir <dir>]
+  waifu-usage gateway [--host <host>] [--port <port>] [--home-dir <dir>] [--memory-mb <mb>]
+  waifu-usage restart [--host <host>] [--port <port>] [--home-dir <dir>] [--memory-mb <mb>]
+  waifu-usage run [--host <host>] [--port <port>] [--home-dir <dir>]
+  waifu-usage stop
+  waifu-usage history verify <databaseFile>
+  waifu-usage history backup <sourceDB> <newPackageDB>
+  waifu-usage history compact <sourceDB> <maintenanceDirectory> [--rollback]
+  waifu-usage history export <sourceDB> <newDirectory> [--home-dir <dir>]
+  waifu-usage history import <publishedBundleDir> <newImportDir>
+  waifu-usage history restore <packageDB|bundleDir> <newDB|newDir> [--home-dir <dir>]${features?.restoreUsageSuffix || ""}
+  waifu-usage history archive <sourceDB> --dry-run
+  waifu-usage history archive <sourceDB> --commit <verifiedCandidateDB> --backup <newBundleDir> [--home-dir <dir>]`;
 
   async function waitForRegisteredService(filePath, pid, timeoutMs = 10000) {
     const deadline = Date.now() + timeoutMs;
@@ -691,7 +693,7 @@ export async function runCli({
   async function verifyHistoryCommand(args) {
     const [subcommand, databaseFile, ...extra] = args;
     if (subcommand !== "verify" || !databaseFile || extra.length > 0) {
-      console.error("Usage: waifu-agent-usage history verify <databaseFile>");
+      console.error("Usage: waifu-usage history verify <databaseFile>");
       process.exitCode = 1;
       return;
     }
@@ -723,7 +725,7 @@ export async function runCli({
   async function backupHistoryCommand(args) {
     const [subcommand, sourceFile, destinationFile, ...extra] = withoutOption(args, "--home-dir");
     if (subcommand !== "backup" || !sourceFile || !destinationFile || extra.length > 0) {
-      console.error("Usage: waifu-agent-usage history backup <sourceDB> <newPackageDB> [--home-dir <dir>]");
+      console.error("Usage: waifu-usage history backup <sourceDB> <newPackageDB> [--home-dir <dir>]");
       process.exitCode = 1;
       return;
     }
@@ -756,7 +758,7 @@ export async function runCli({
     const [subcommand, packageFile, destinationFile, ...extra] = filtered;
     if (subcommand !== "restore" || !packageFile || !destinationFile || extra.length > 0) {
       console.error(
-        `Usage: waifu-agent-usage history restore <packageDB|bundleDir> <newDB|newDir> [--home-dir <dir>]${features?.restoreUsageSuffix || ""}`,
+        `Usage: waifu-usage history restore <packageDB|bundleDir> <newDB|newDir> [--home-dir <dir>]${features?.restoreUsageSuffix || ""}`,
       );
       process.exitCode = 1;
       return;
@@ -800,7 +802,7 @@ export async function runCli({
   async function exportHistoryCommand(args) {
     const [subcommand, sourceFile, destinationDirectory, ...extra] = withoutOption(args, "--home-dir");
     if (subcommand !== "export" || !sourceFile || !destinationDirectory || extra.length > 0) {
-      console.error("Usage: waifu-agent-usage history export <sourceDB> <newDirectory> [--home-dir <dir>]");
+      console.error("Usage: waifu-usage history export <sourceDB> <newDirectory> [--home-dir <dir>]");
       process.exitCode = 1;
       return;
     }
@@ -837,7 +839,7 @@ export async function runCli({
   async function importHistoryCommand(args) {
     const [subcommand, sourceDirectory, destinationDirectory, ...extra] = args;
     if (subcommand !== "import" || !sourceDirectory || !destinationDirectory || extra.length > 0) {
-      console.error("Usage: waifu-agent-usage history import <publishedBundleDir> <newImportDir>");
+      console.error("Usage: waifu-usage history import <publishedBundleDir> <newImportDir>");
       process.exitCode = 1;
       return;
     }
@@ -860,7 +862,7 @@ export async function runCli({
   async function compactHistoryCommand(args) {
     const [, sourceFile, directory, ...extra] = args;
     if (!sourceFile || !directory || extra.some((arg) => arg !== "--rollback") || extra.length > 1) {
-      console.error("Usage: waifu-agent-usage history compact <sourceDB> <maintenanceDirectory> [--rollback]");
+      console.error("Usage: waifu-usage history compact <sourceDB> <maintenanceDirectory> [--rollback]");
       process.exitCode = 1;
       return;
     }
@@ -895,7 +897,7 @@ export async function runCli({
       const dryRun = archiveArgs.length === 1 && archiveArgs[0] === "--dry-run";
       if (!dryRun) {
         if (!hasFlag(archiveArgs, "--commit") && !hasFlag(archiveArgs, "--backup")) {
-          console.error("Usage: waifu-agent-usage history archive <sourceDB> --dry-run");
+          console.error("Usage: waifu-usage history archive <sourceDB> --dry-run");
           process.exitCode = 1;
           return;
         }
@@ -907,7 +909,7 @@ export async function runCli({
         );
         if (!candidateFile || !backupDirectory || remaining.length > 0) {
           console.error(
-            "Usage: waifu-agent-usage history archive <sourceDB> --commit <verifiedCandidateDB> --backup <newBundleDir> [--home-dir <dir>]",
+            "Usage: waifu-usage history archive <sourceDB> --commit <verifiedCandidateDB> --backup <newBundleDir> [--home-dir <dir>]",
           );
           process.exitCode = 1;
           return;

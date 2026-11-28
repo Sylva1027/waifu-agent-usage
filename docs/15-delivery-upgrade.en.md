@@ -2,11 +2,13 @@
 
 [简体中文](15-delivery-upgrade.md) · English
 
-Version 1.0a offers **Waifu** and **Lite**, both with package version `1.0.1`. Both continue to use the existing usage data directory and source configuration.
+Version 1.0b offers **Waifu Usage** (full) and **Agent Usage** (Lite), both with package version `1.0.2`. Both continue to use the existing usage data directory and source configuration.
 
-- [Download 1.0a-waifu.zip](https://github.com/Sylva1027/waifu-agent-usage/releases/download/v1.0a/1.0a-waifu.zip)
-- [Download 1.0a-lite.zip](https://github.com/Sylva1027/waifu-agent-usage/releases/download/v1.0a/1.0a-lite.zip)
-- [v1.0a release](https://github.com/Sylva1027/waifu-agent-usage/releases/tag/v1.0a)
+To switch from v1.0a, stop the current instance, replace the program files using the new ZIP for the same edition, and restart with your existing options.
+
+- [Download 1.0b-waifu.zip](https://github.com/Sylva1027/waifu-usage/releases/download/v1.0b/1.0b-waifu.zip)
+- [Download 1.0b-lite.zip](https://github.com/Sylva1027/waifu-usage/releases/download/v1.0b/1.0b-lite.zip)
+- [v1.0b release](https://github.com/Sylva1027/waifu-usage/releases/tag/v1.0b)
 
 Both ZIPs are ready to run with Node.js `>=23.8`. See [getting started](01-getting-started.en.md) for first-time setup and verified platforms.
 
@@ -59,4 +61,4 @@ Archive compaction rollback switches references back using the current main data
 
 ## Build from source
 
-See [development](03-development.en.md#package-v10) for dependencies, the Windows helper, and both packages. Release packages include the matching helper and build receipt; source developers can [build and check it](03-development.en.md#windows-helper).
+See [development](03-development.en.md#packaging) for dependencies, the Windows helper, and both packages. Release packages include the matching helper and build receipt; source developers can [build and check it](03-development.en.md#windows-helper).

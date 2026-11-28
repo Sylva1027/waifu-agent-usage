@@ -441,7 +441,7 @@ export async function readOfficialCodexQuota(options = {}) {
 
   try {
     await call("initialize", {
-      clientInfo: { name: "waifu-agent-usage", title: "Waifu Agent Usage", version: "0.8.0" },
+      clientInfo: { name: "waifu-agent-usage", title: "Agent Usage", version: "0.8.0" },
       capabilities: { experimentalApi: true },
     });
     child.stdin.write(`${JSON.stringify({ method: "initialized", params: {} })}\n`);

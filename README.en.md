@@ -1,8 +1,8 @@
-# Waifu Agent Usage
+# Waifu Usage
 
 [简体中文](README.md) · English
 
-Waifu Agent Usage is a local AI coding usage dashboard independently maintained by Sylva1027. Bring usage from your AI coding tools into one place, see where your tokens go, follow usage trends, and make it your own with character skins, share cards, and achievements.
+Waifu Usage is a local AI coding usage dashboard independently maintained by Sylva1027. Bring usage from your AI coding tools into one place, see where your tokens go, follow usage trends, and make it your own with character skins, share cards, and achievements.
 
 ![Claude light dashboard in English and ChatGPT light dashboard in Chinese, sample data](docs/images/dashboard-bilingual.png)
 
@@ -23,14 +23,14 @@ Planned integration: [Google Antigravity](https://antigravity.google/).
 
 ## Download
 
-- [**Waifu**](https://github.com/Sylva1027/waifu-agent-usage/releases/download/v1.0a/1.0a-waifu.zip) · The full experience, including cost estimates, character skins, sharing, and achievements.
-- [**Lite**](https://github.com/Sylva1027/waifu-agent-usage/releases/download/v1.0a/1.0a-lite.zip) · Focused usage tracking and trends in a simple dark interface, with history management.
+- [**Waifu Usage (full)**](https://github.com/Sylva1027/waifu-usage/releases/download/v1.0b/1.0b-waifu.zip) · The full experience, including cost estimates, character skins, sharing, and achievements.
+- [**Agent Usage (Lite)**](https://github.com/Sylva1027/waifu-usage/releases/download/v1.0b/1.0b-lite.zip) · Focused usage tracking and trends in a simple dark interface, with history management.
 
-[All releases](https://github.com/Sylva1027/waifu-agent-usage/releases)
+[All releases](https://github.com/Sylva1027/waifu-usage/releases)
 
 ### Manual installation
 
-Install [Node.js](https://nodejs.org/en/download) 23.8 or newer, then download and extract your chosen edition. Both ZIPs were verified on Windows x64, Ubuntu 24.04 x64, and macOS 15 on Apple Silicon. Open a terminal in the extracted folder and run the command below.
+Install [Node.js](https://nodejs.org/en/download) 23.8 or newer, then download and extract your chosen edition. Open a terminal in the extracted folder and run the command below.
 
 ```bash
 node src/cli.js dashboard
@@ -44,10 +44,10 @@ Use PowerShell 7 to create a desktop shortcut for Waifu or Lite, then double-cli
 <summary>Let your agent install it</summary>
 
 ```text
-Please install and start Waifu Agent Usage on my computer:
-https://github.com/Sylva1027/waifu-agent-usage
+Please install and start a usage dashboard from this repository:
+https://github.com/Sylva1027/waifu-usage
 
-1. Ask whether I want the full Waifu experience or Lite for focused usage tracking.
+1. Ask whether I want Waifu Usage (full) or Agent Usage (Lite).
    Download the latest stable ZIP for that edition from Releases.
 2. Check that Node.js meets engines.node in package.json.
    If installation is needed, get a compatible LTS version from https://nodejs.org/ and confirm it with node -v.
