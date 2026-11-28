@@ -9,6 +9,7 @@ const grokPreference = JSON.stringify({ ...DEFAULT_SKIN_PREFERENCE, skinId: "gro
 
 function previewHtml(html) {
   return html
+    .replace('data-edition="waifu"', 'data-edition="waifu" data-skin-ambient="off"')
     .replace("<head>", `<head>
     <script>
       try {

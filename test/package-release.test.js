@@ -60,6 +60,12 @@ test("Waifu closure keeps all achievement badges, share artwork, and dashboard s
   assert.equal(badges.length, 96);
   assert.equal(new Set(badges.map((file) => file.split("/")[3])).size, 42);
   assert.equal(files.filter((file) => file.startsWith("public/assets/skins/")).length, 32);
+  assert.ok(files.includes("public/skin-ambient.js"));
+  for (const { id } of SKINS.filter((skin) => !skin.isClassic)) {
+    assert.ok(files.includes(`public/skin-ambient/${id}/scene.js`), id);
+    assert.ok(files.includes(`public/skin-ambient/${id}/scene.css`), id);
+  }
+  assert.doesNotMatch(files.join("\n"), /^public\/skin-ambient\/.*preview/m);
   const shareArt = SKINS.filter((skin) => !skin.isClassic).flatMap(({ id }) =>
     SKIN_MODES.flatMap((mode) => {
       const { background, figure } = achievementShareArt(id, mode);

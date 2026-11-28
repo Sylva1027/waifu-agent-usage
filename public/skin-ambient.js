@@ -1,7 +1,35 @@
 const scenes = {
+  chatgpt: {
+    load: () => import("./skin-ambient/chatgpt/scene.js"),
+    style: new URL("./skin-ambient/chatgpt/scene.css", import.meta.url).href,
+  },
+  claude: {
+    load: () => import("./skin-ambient/claude/scene.js"),
+    style: new URL("./skin-ambient/claude/scene.css", import.meta.url).href,
+  },
+  deepseek: {
+    load: () => import("./skin-ambient/deepseek/scene.js"),
+    style: new URL("./skin-ambient/deepseek/scene.css", import.meta.url).href,
+  },
+  gemini: {
+    load: () => import("./skin-ambient/gemini/scene.js"),
+    style: new URL("./skin-ambient/gemini/scene.css", import.meta.url).href,
+  },
   glm: {
     load: () => import("./skin-ambient/glm/scene.js"),
     style: new URL("./skin-ambient/glm/scene.css", import.meta.url).href,
+  },
+  grok: {
+    load: () => import("./skin-ambient/grok/scene.js"),
+    style: new URL("./skin-ambient/grok/scene.css", import.meta.url).href,
+  },
+  kimi: {
+    load: () => import("./skin-ambient/kimi/scene.js"),
+    style: new URL("./skin-ambient/kimi/scene.css", import.meta.url).href,
+  },
+  qwen: {
+    load: () => import("./skin-ambient/qwen/scene.js"),
+    style: new URL("./skin-ambient/qwen/scene.css", import.meta.url).href,
   },
 };
 

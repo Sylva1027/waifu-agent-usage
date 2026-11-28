@@ -9,6 +9,7 @@ const kimiPreference = JSON.stringify({ ...DEFAULT_SKIN_PREFERENCE, skinId: "kim
 
 function previewHtml(html) {
   return html
+    .replace('data-edition="waifu"', 'data-edition="waifu" data-skin-ambient="off"')
     .replace("<head>", `<head>
     <script>
       try {
