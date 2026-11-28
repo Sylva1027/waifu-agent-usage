@@ -91,9 +91,9 @@ test("Waifu closure keeps all achievement badges, share artwork, and dashboard s
   ])
     assert.ok(files.includes(file), file);
   assert.doesNotMatch(files.join("\n"), /target\/|node_modules\/|^(?:test|docs|scripts|output)\//m);
-  assert.deepEqual(
-    files.filter((file) => file.endsWith(".png")).sort(),
-    ["dark", "light"].map((mode) => `public${achievementShareArt("claude", mode).background}`),
+  assert.equal(
+    files.some((file) => file.endsWith(".png")),
+    false,
   );
   assert.doesNotMatch(files.join("\n"), /^public\/dev\//m);
   assert.equal(files.includes("src/cli-lite.js"), false);

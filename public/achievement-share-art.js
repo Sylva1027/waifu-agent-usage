@@ -12,11 +12,11 @@ const artwork = {
   },
   claude: {
     light: {
-      background: "/assets/achievement-share/claude/background-light.png",
+      background: "/assets/achievement-share/claude/background-light.webp",
       figure: "/assets/achievement-share/claude/relief-light.webp",
     },
     dark: {
-      background: "/assets/achievement-share/claude/background-dark.png",
+      background: "/assets/achievement-share/claude/background-dark.webp",
       figure: "/assets/achievement-share/claude/relief-dark.webp",
     },
   },
