@@ -3096,6 +3096,7 @@ async function bootDashboard() {
     });
     state.skinRuntime.restore();
     state.skinRuntime.apply();
+    if (!paletteStudioPreview) void import("./skin-ambient.js").then(({ startSkinAmbient }) => startSkinAmbient());
     if (!paletteStudioPreview)
       void import("./achievement-events.js")
         .then((events) => events.recordAchievementSkin(state.skinRuntime.getPreference().skinId))
