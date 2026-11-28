@@ -30,54 +30,68 @@ const panels = reflections.map((reflection) => {
   const wing = reflection.closest(".wing");
   const side = wing.classList.contains("right") ? "right" : "left";
   const surface = wing.querySelector(".surface");
-  const canvas = document.createElement("canvas");
-  canvas.className = "silk";
-  canvas.hidden = true;
-  surface.append(canvas);
-  resize.observe(surface);
-  const panel = { side, wing, canvas, draw: null, load: null };
-  canvas.addEventListener("webglcontextlost", () => {
-    canvas.hidden = true;
-    panel.draw = null;
-    delete wing.dataset.silk;
-  });
-  return panel;
+  return { side, wing, surface, canvas: null, study: null };
 });
 
-async function loadPanel(panel, mode, version) {
-  panel.load ??= createStudy(panel.canvas, panel.side, mode).catch((err) => {
-    panel.load = null;
-    throw err;
-  });
-  try {
-    const draw = await panel.load;
-    await draw.prepare(mode);
-    if (version !== generation) return;
-    panel.draw = draw;
-    panel.wing.dataset.silk = "ready";
-  } catch {
-    if (version === generation) {
-      panel.draw = null;
-      delete panel.wing.dataset.silk;
-    }
+function preparePanel(panel) {
+  if (!plate || reduced.matches) return;
+  const { wing, surface } = panel;
+  if (!panel.canvas) {
+    const canvas = document.createElement("canvas");
+    panel.canvas = canvas;
+    canvas.className = "silk";
+    canvas.hidden = true;
+    surface.append(canvas);
+    resize.observe(surface);
+    canvas.addEventListener("webglcontextlost", (event) => {
+      if (panel.canvas !== canvas) return;
+      event.preventDefault();
+      canvas.hidden = true;
+      panel.study = null;
+      delete wing.dataset.silk;
+    });
+    canvas.addEventListener("webglcontextrestored", () => {
+      if (panel.canvas !== canvas) return;
+      preparePanel(panel);
+      lastFrame = -1;
+      playback();
+    });
   }
+  try {
+    panel.study ??= createStudy(panel.canvas, panel.side);
+    panel.study.prepare(theme, plate);
+    wing.dataset.silk = "ready";
+  } catch {
+    panel.canvas.hidden = true;
+    delete wing.dataset.silk;
+  }
+}
+function releasePanel(panel) {
+  resize.unobserve(panel.surface);
+  panel.canvas?.remove();
+  panel.canvas = null;
+  panel.study?.dispose();
+  panel.study = null;
+  delete panel.wing.dataset.silk;
 }
 function hideSilk() {
   cancelAnimationFrame(raf);
-  for (const { canvas } of panels) canvas.hidden = true;
+  for (const { canvas } of panels) {
+    if (canvas) canvas.hidden = true;
+  }
   lastFrame = -1;
 }
 function paintSilk() {
-  if (!theme || !pass || !ready) return;
+  if (!plate || !pass) return;
   // Map an in-flight theme change onto the same pass without restarting or extending it.
   const clock = pass[1];
   const time = (rightDuration * Number(clock.currentTime ?? 0)) / clock.effect.getComputedTiming().endTime;
   const frame = Math.floor(time * 24);
   if (frame !== lastFrame) {
-    for (const { canvas, draw, side } of panels) {
-      if (!draw) continue;
+    for (const { canvas, study, side, wing } of panels) {
+      if (!wing.dataset.silk) continue;
       canvas.hidden = side === "right" ? time < 1 : time >= leftDuration;
-      if (!canvas.hidden) draw(time, 1, theme);
+      if (!canvas.hidden) study.draw(time, 1, theme);
     }
     lastFrame = frame;
   }
@@ -86,7 +100,7 @@ function paintSilk() {
 }
 const reduced = matchMedia("(prefers-reduced-motion: reduce)");
 let theme = "",
-  ready = false,
+  plate = null,
   generation = 0;
 let pass;
 function stop() {
@@ -98,7 +112,7 @@ function stop() {
 function playback() {
   cancelAnimationFrame(raf);
   if (!pass) return;
-  const visible = ready && !document.hidden && document.hasFocus() && !root.dataset.themeTransition;
+  const visible = plate && !document.hidden && document.hasFocus() && !root.dataset.themeTransition;
   for (const animation of pass) {
     if (!visible && animation.playState === "running") animation.pause();
     if (visible && animation.playState === "paused") animation.play();
@@ -132,10 +146,12 @@ function sync() {
   }
   theme = next;
   hideSilk();
-  ready = false;
+  plate = null;
+  for (const { wing } of panels) delete wing.dataset.silk;
   const version = ++generation;
   if (!theme) {
     stop();
+    panels.forEach(releasePanel);
     return;
   }
   playback();
@@ -147,13 +163,13 @@ function sync() {
   const assets = urls.map((src) => {
     const image = new Image();
     image.src = src;
-    return image.decode();
+    return image.decode().then(() => image);
   });
-  assets.push(...panels.map((panel) => loadPanel(panel, theme, version)));
   Promise.all(assets)
-    .then(() => {
+    .then(([background]) => {
       if (version === generation) {
-        ready = true;
+        plate = background;
+        panels.forEach(preparePanel);
         playback();
       }
     })
@@ -169,6 +185,11 @@ for (const event of ["focus", "blur"]) window.addEventListener(event, playback);
 document.addEventListener("visibilitychange", playback);
 document.addEventListener("waifu:achievement-earned", illuminate);
 reduced.addEventListener("change", () => {
-  if (reduced.matches) stop();
+  if (reduced.matches) {
+    stop();
+    panels.forEach(releasePanel);
+  } else {
+    panels.forEach(preparePanel);
+  }
 });
 sync();

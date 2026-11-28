@@ -21,7 +21,9 @@ const active = () => root.dataset.skin === "glm";
 const bands = [];
 let animations = [];
 let pending = false;
-let ready = false;
+let generation = 0;
+const resizeObserver = new ResizeObserver(alignPortraits);
+const portraitObserver = new MutationObserver(alignPortraits);
 let previousActive = false;
 
 function buildBand([name, side, height]) {
@@ -76,6 +78,7 @@ function buildBand([name, side, height]) {
 }
 
 function alignPortraits() {
+  if (!art.isConnected) return;
   const masks = [];
   if (portraits.dataset.skin === "glm" && Number(getComputedStyle(portraits).opacity) > 0) {
     for (const img of portraits.querySelectorAll('img[data-loaded="1"]')) {
@@ -137,12 +140,59 @@ function stop() {
   animations = [];
 }
 
+async function mountBands(request) {
+  const assets = [
+    "occlusion-front",
+    "occlusion-side",
+    ...Object.keys(patterns).flatMap((name) => ["weave", "rail", "led"].map((part) => name + "-" + part)),
+  ];
+  try {
+    await Promise.all(
+      assets.map((name) => {
+        const image = new Image();
+        image.src = asset(name);
+        return image.decode();
+      }),
+    );
+  } catch {
+    // Keep the static jacquard when a required band or portrait mask is missing.
+    return;
+  }
+  if (request !== generation) return;
+  bands.push(...layout.map(buildBand));
+  layer.append(art);
+  alignPortraits();
+  resizeObserver.observe(layer);
+  portraitObserver.observe(portraits, {
+    attributes: true,
+    childList: true,
+    subtree: true,
+    attributeFilter: ["style", "data-loaded", "data-skin", "data-skin-characters", "data-face-centered"],
+  });
+  sync();
+}
+
 function sync() {
   const enabled = active();
-  if (!enabled || reduced.matches) stop();
-  else if (!previousActive) pending = true;
-  previousActive = enabled;
-  if (!enabled || reduced.matches || !ready) return;
+  if (enabled !== previousActive) {
+    previousActive = enabled;
+    generation++;
+    if (enabled) {
+      pending = !reduced.matches;
+      mountBands(generation);
+    } else {
+      stop();
+      resizeObserver.disconnect();
+      portraitObserver.disconnect();
+      art.remove();
+      art.replaceChildren();
+      art.style.removeProperty("mask");
+      bands.length = 0;
+    }
+  }
+  if (!enabled) return;
+  if (reduced.matches) return stop();
+  if (!bands.length) return;
   const paused = document.hidden || !document.hasFocus() || root.hasAttribute("data-theme-transition");
   if (pending && !paused) {
     pending = false;
@@ -154,13 +204,6 @@ function sync() {
   }
 }
 
-new ResizeObserver(alignPortraits).observe(layer);
-new MutationObserver(alignPortraits).observe(portraits, {
-  attributes: true,
-  childList: true,
-  subtree: true,
-  attributeFilter: ["style", "data-loaded", "data-skin", "data-skin-characters", "data-face-centered"],
-});
 new MutationObserver(sync).observe(root, {
   attributes: true,
   attributeFilter: ["data-skin", "data-theme", "data-theme-transition"],
@@ -174,21 +217,4 @@ document.addEventListener("waifu:achievement-earned", () => {
   sync();
 });
 
-sync();
-const assets = [
-  "occlusion-front",
-  "occlusion-side",
-  ...Object.keys(patterns).flatMap((name) => ["weave", "rail", "led"].map((part) => name + "-" + part)),
-];
-await Promise.all(
-  assets.map((name) => {
-    const image = new Image();
-    image.src = asset(name);
-    return image.decode();
-  }),
-);
-bands.push(...layout.map(buildBand));
-alignPortraits();
-layer.append(art);
-ready = true;
 sync();

@@ -227,62 +227,63 @@ function link(gl) {
     const sh = gl.createShader(kind);
     gl.shaderSource(sh, code);
     gl.compileShader(sh);
-    if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(sh));
+    if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
+      const error = new Error(gl.getShaderInfoLog(sh));
+      gl.deleteShader(sh);
+      gl.deleteProgram(p);
+      throw error;
+    }
     gl.attachShader(p, sh);
     gl.deleteShader(sh);
   }
   gl.linkProgram(p);
-  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) {
+    const error = new Error(gl.getProgramInfoLog(p));
+    gl.deleteProgram(p);
+    throw error;
+  }
   return p;
 }
-export async function createStudy(canvas, side = "left", initialTheme = "dark") {
+export function createStudy(canvas, side = "left") {
   const gl = canvas.getContext("webgl", { alpha: true, antialias: false, premultipliedAlpha: true });
-  if (!gl) throw new Error("WebGL unavailable");
+  if (!gl || gl.isContextLost()) throw new Error("WebGL unavailable");
   const p = link(gl);
   gl.useProgram(p);
   gl.disable(gl.DITHER);
   const materials = new Map();
-  function prepare(theme) {
-    if (materials.has(theme)) return materials.get(theme).ready;
-    const mat = { mesh: makeMesh(side, theme), texture: null };
-    const image = new Image();
-    image.src = `/assets/achievement-share/chatgpt/background-${theme}.webp`;
-    mat.ready = image
-      .decode()
-      .then(() => {
-        mat.texture = gl.createTexture();
-        gl.bindTexture(gl.TEXTURE_2D, mat.texture);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
-      })
-      .catch((err) => {
-        materials.delete(theme);
-        throw err;
-      });
-    materials.set(theme, mat);
-    return mat.ready;
-  }
-  await prepare(initialTheme);
   const lightSilk = gl.getUniformLocation(p, "lightSilk");
   const material = gl.getUniformLocation(p, "pearl");
   gl.uniform1f(gl.getUniformLocation(p, "orientation"), side === "right" ? -1 : 1);
-  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, gl.createBuffer());
-  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, materials.get(initialTheme).mesh.elements, gl.STATIC_DRAW);
-  gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+  const indices = gl.createBuffer();
+  const vertices = gl.createBuffer();
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indices);
+  gl.bindBuffer(gl.ARRAY_BUFFER, vertices);
   for (const [i, field] of ["position", "texcoord", "slope", "compression"].entries()) {
     const loc = gl.getAttribLocation(p, field);
     gl.enableVertexAttribArray(loc);
     gl.vertexAttribPointer(loc, field === "compression" ? 1 : 2, gl.FLOAT, false, 28, i * 8);
   }
-  let valid = true;
-  canvas.addEventListener("webglcontextlost", () => {
-    valid = false;
-    canvas.hidden = true;
-  });
-  function draw(seconds, withPearl = 1, theme = initialTheme) {
-    if (!valid) return;
+  function prepare(theme, image) {
+    if (gl.isContextLost()) throw new Error("WebGL context lost");
+    if (materials.has(theme)) return;
+    const mesh = makeMesh(side, theme);
+    if (materials.size === 0) gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, mesh.elements, gl.STATIC_DRAW);
+    const texture = gl.createTexture();
+    if (!texture) throw new Error("WebGL texture unavailable");
+    try {
+      gl.bindTexture(gl.TEXTURE_2D, texture);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+      if (gl.getError() !== gl.NO_ERROR) throw new Error("WebGL texture upload failed");
+    } catch (error) {
+      gl.deleteTexture(texture);
+      throw error;
+    }
+    materials.set(theme, { mesh, texture });
+  }
+  function draw(seconds, withPearl = 1, theme = "dark") {
     const { mesh, texture } = materials.get(theme);
     // The photographic plate is 1254px square. Higher backing resolutions add no detail.
     const dpr = Math.min(devicePixelRatio, 1254 / Math.max(1, canvas.clientWidth, canvas.clientHeight));
@@ -299,6 +300,14 @@ export async function createStudy(canvas, side = "left", initialTheme = "dark") 
     gl.bufferData(gl.ARRAY_BUFFER, mesh.update(seconds), gl.DYNAMIC_DRAW);
     gl.drawElements(gl.TRIANGLES, mesh.elements.length, gl.UNSIGNED_SHORT, 0);
   }
-  draw.prepare = prepare;
-  return draw;
+  function dispose() {
+    for (const { texture } of materials.values()) gl.deleteTexture(texture);
+    materials.clear();
+    gl.deleteBuffer(indices);
+    gl.deleteBuffer(vertices);
+    gl.useProgram(null);
+    gl.deleteProgram(p);
+    gl.getExtension("WEBGL_lose_context")?.loseContext();
+  }
+  return { prepare, draw, dispose };
 }

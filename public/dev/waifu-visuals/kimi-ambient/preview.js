@@ -5,6 +5,7 @@ const layer = document.querySelector("#kimi-ambient");
 const reduced = matchMedia("(prefers-reduced-motion: reduce)");
 let theme = "";
 let score;
+let scoreLoad;
 let animations = [];
 let pendingTime = null;
 let generation = 0;
@@ -53,10 +54,14 @@ async function syncTheme() {
   theme = next;
   score = undefined;
   layer.replaceChildren();
-  if (!theme) return;
+  if (!theme) {
+    scoreLoad = undefined;
+    return;
+  }
   if (!reduced.matches) pendingTime = elapsed;
   try {
-    const art = await loadScore();
+    scoreLoad ??= loadScore();
+    const art = await scoreLoad;
     if (version !== generation) return;
     score = art;
     layer.replaceChildren(...art.nodes);
@@ -64,6 +69,7 @@ async function syncTheme() {
     syncPlayback();
   } catch (error) {
     if (generation === version) {
+      scoreLoad = undefined;
       stop();
       console.error("Kimi score artwork failed to load", error);
     }

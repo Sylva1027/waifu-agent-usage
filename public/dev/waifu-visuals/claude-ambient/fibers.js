@@ -6,10 +6,17 @@ export function createFiberLayer(paper) {
   const canvas = document.createElement("canvas");
   canvas.className = "claude-paper-fibers";
   canvas.hidden = true;
+  canvas.width = canvas.height = 0;
   paper.append(canvas);
   let layout, image, ctx;
   let currentPose = 0;
   return {
+    clear() {
+      image = null;
+      ctx = null;
+      canvas.hidden = true;
+      if (canvas.width) canvas.width = canvas.height = 0;
+    },
     setAtlas(theme, atlas) {
       layout = theme === "light" ? lightLayout : darkLayout;
       image = atlas;

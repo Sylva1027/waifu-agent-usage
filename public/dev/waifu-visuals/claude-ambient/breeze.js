@@ -4,7 +4,6 @@ import { firstPose, lastPose, patches, plate, tile } from "./breeze-patches.js";
 const root = document.documentElement;
 const paper = document.querySelector("#claude-ambient .claude-paper-left");
 const fibers = createFiberLayer(document.querySelector("#claude-ambient .claude-paper-right"));
-const atlases = new Map();
 async function loadAtlas(name, theme) {
   const image = new Image();
   image.src = new URL(`./art/${name}-${theme}.webp`, import.meta.url).href;
@@ -39,6 +38,7 @@ let deadline = 0;
 let remaining = 300;
 let ready = false;
 let theme = null;
+let generation = 0;
 let active = false;
 
 function paint() {
@@ -89,31 +89,26 @@ function playback() {
   }, remaining);
 }
 
-function selectTheme(next) {
+async function selectTheme(next) {
+  const request = ++generation;
   theme = next;
   ready = false;
   pause();
   paper.style.removeProperty("--breeze-atlas");
+  fibers.clear();
   if (!next) return stop();
   requestBreeze();
-  if (!atlases.has(next)) {
-    const assets = Promise.all([loadAtlas("breeze", next), loadAtlas("fibers", next).catch(() => null)]);
-    atlases.set(next, assets);
-    assets.catch(() => atlases.delete(next));
+  try {
+    const [left, right] = await Promise.all([loadAtlas("breeze", next), loadAtlas("fibers", next).catch(() => null)]);
+    if (request !== generation) return;
+    if (right) fibers.setAtlas(next, right);
+    paper.style.setProperty("--breeze-atlas", `url("${left.src}")`);
+    ready = true;
+    paint();
+    playback();
+  } catch {
+    if (request === generation) stop();
   }
-  atlases
-    .get(next)
-    .then(([left, right]) => {
-      if (theme !== next) return;
-      fibers.setAtlas(next, right);
-      paper.style.setProperty("--breeze-atlas", `url("${left.src}")`);
-      ready = true;
-      paint();
-      playback();
-    })
-    .catch(() => {
-      if (theme === next) stop();
-    });
 }
 
 function sync() {
