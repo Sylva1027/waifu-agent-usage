@@ -6,25 +6,43 @@ import { resolveBrowserRuntime } from "../scripts/skin-palette/capture.mjs";
 import { createUsageServer } from "../src/server.js";
 import { createPaletteFixture, createPaletteServerOptions } from "../test-support/skin-palette-fixture.mjs";
 
-async function sampleFrame(page) {
+// Background, panel and both fixed characters must all follow the same fade.
+const scenePoints = [
+  [5, 5],
+  [960, 350],
+  [200, 700],
+  [1720, 700],
+];
+
+async function sampleFrame(page, points = scenePoints) {
   const png = await page.screenshot();
-  return page.evaluate(async (base64) => {
-    const image = new Image();
-    image.src = `data:image/png;base64,${base64}`;
-    await image.decode();
-    const canvas = document.createElement("canvas");
-    canvas.width = image.width;
-    canvas.height = image.height;
-    const context = canvas.getContext("2d");
-    context.drawImage(image, 0, 0);
-    // Background, panel and both fixed characters must all follow the same fade.
-    return [
-      [5, 5],
-      [960, 350],
-      [200, 700],
-      [1720, 700],
-    ].flatMap(([x, y]) => Array.from(context.getImageData(x, y, 1, 1).data).slice(0, 3));
-  }, png.toString("base64"));
+  return page.evaluate(
+    async ({ base64, points }) => {
+      const image = new Image();
+      image.src = `data:image/png;base64,${base64}`;
+      await image.decode();
+      const canvas = document.createElement("canvas");
+      canvas.width = image.width;
+      canvas.height = image.height;
+      const context = canvas.getContext("2d");
+      context.drawImage(image, 0, 0);
+      return points.flatMap(([x, y]) => Array.from(context.getImageData(x, y, 1, 1).data).slice(0, 3));
+    },
+    { base64: png.toString("base64"), points },
+  );
+}
+
+function pauseFallbackFade() {
+  document.startViewTransition = undefined;
+  const animate = Element.prototype.animate;
+  Element.prototype.animate = function (...args) {
+    const animation = animate.apply(this, args);
+    if (this.getAttribute("aria-hidden") === "true" && animation.effect.getTiming().duration > 0) {
+      animation.pause();
+      window.themeAnimations = [animation];
+    }
+    return animation;
+  };
 }
 
 test("theme frames preserve the old scene and fade in both directions, including the fallback", async (t) => {
@@ -42,11 +60,9 @@ test("theme frames preserve the old scene and fade in both directions, including
     await fixture.close();
   });
   await listenOnFetchPort(server);
-  browser = await runtime.chromium.launch({
-    executablePath: runtime.executablePath,
-    headless: true,
-    args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
-  });
+  const url = `http://127.0.0.1:${server.address().port}/`;
+  const browserOptions = { executablePath: runtime.executablePath, headless: true };
+  browser = await runtime.chromium.launch(browserOptions);
 
   for (const fallback of [false, true]) {
     const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
@@ -60,18 +76,7 @@ test("theme frames preserve the old scene and fade in both directions, including
           key,
           JSON.stringify({ version: 1, skinId: "deepseek", showCharacters: true, opacity: 0.5 }),
         );
-        if (fallback) {
-          document.startViewTransition = undefined;
-          const animate = Element.prototype.animate;
-          Element.prototype.animate = function (...args) {
-            const animation = animate.apply(this, args);
-            if (this.getAttribute("aria-hidden") === "true" && animation.effect.getTiming().duration > 0) {
-              animation.pause();
-              window.themeAnimations = [animation];
-            }
-            return animation;
-          };
-        } else {
+        if (!fallback) {
           const start = document.startViewTransition.bind(document);
           document.startViewTransition = (...args) => {
             const transition = start(...args);
@@ -87,7 +92,8 @@ test("theme frames preserve the old scene and fade in both directions, including
       },
       { key: SKIN_PREFERENCE_KEY, fallback },
     );
-    await page.goto(`http://127.0.0.1:${server.address().port}/`);
+    if (fallback) await page.addInitScript(pauseFallbackFade);
+    await page.goto(url);
     await page.waitForSelector("#homeList .home-row");
     await page.locator('#presetButtons button[data-preset="all"]').click();
     await page.waitForSelector("#detailList .bar-row");
@@ -142,34 +148,53 @@ test("theme frames preserve the old scene and fade in both directions, including
       assert.equal(await page.locator("html").getAttribute("data-theme"), target);
       assert.equal(await page.locator("#themeToggle").isEnabled(), true);
     }
-    if (fallback) {
-      await page.emulateMedia({ reducedMotion: "no-preference" });
-      await page.locator("#skinToggle").click();
-      await page.locator('#skinDialog [data-skin-id="chatgpt"]').click();
-      await page.keyboard.press("Escape");
-      await page.mouse.move(0, 0);
-      await page.evaluate(() => window.scrollTo(0, 0));
-      await page.waitForFunction(() => {
-        const scene = document.querySelector("#chatgpt-ambient");
-        const canvas = scene?.querySelector(".left canvas");
-        if (!canvas || canvas.hidden) return false;
-        for (const animation of scene.getAnimations({ subtree: true })) animation.pause();
-        return true;
-      });
-      const before = await sampleFrame(page);
-      await page.evaluate(() => {
-        window.themeAnimations = null;
-        document.querySelector("#themeToggle").click();
-      });
-      await page.waitForFunction(() => window.themeAnimations?.length);
-      await page.evaluate(() => {
-        window.themeAnimations[0].currentTime = 0;
-      });
-      assert.deepEqual((await sampleFrame(page)).slice(0, 3), before.slice(0, 3), "The WebGL plate survives the fade");
-      await page.evaluate(() => window.themeAnimations[0].finish());
-      await page.waitForFunction(() => !document.documentElement.dataset.themeTransition);
-    }
     assert.deepEqual(errors, []);
     await page.close();
   }
+
+  await t.test("the fallback preserves an active ChatGPT WebGL frame", async () => {
+    await browser.close();
+    browser = await runtime.chromium.launch({
+      ...browserOptions,
+      args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
+    });
+    const page = await browser.newPage({ viewport: { width: 960, height: 720 }, reducedMotion: "no-preference" });
+    const errors = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    await page.addInitScript(pauseFallbackFade);
+    await page.addInitScript((key) => {
+      localStorage.setItem("codexUsageTheme", "light");
+      localStorage.setItem("codexUsageAutoRefresh", "off");
+      localStorage.setItem(key, JSON.stringify({ version: 1, skinId: "chatgpt", showCharacters: false, opacity: 0.5 }));
+      // Catch the first visible draw even if the runner would miss the sweep while polling.
+      const observer = new MutationObserver(() => {
+        const scene = document.querySelector("#chatgpt-ambient");
+        if (!scene?.querySelector('.left[data-silk="ready"] canvas:not([hidden])')) return;
+        for (const animation of scene.getAnimations({ subtree: true })) animation.pause();
+        window.silkFrameReady = true;
+        observer.disconnect();
+      });
+      observer.observe(document, { subtree: true, childList: true, attributes: true, attributeFilter: ["hidden"] });
+    }, SKIN_PREFERENCE_KEY);
+    await page.bringToFront();
+    await page.goto(url, { waitUntil: "domcontentloaded" });
+    await page.waitForFunction(() => window.silkFrameReady);
+    const webglPoints = [
+      [5, 5],
+      [100, 200],
+      [10, 600],
+    ];
+    const before = await sampleFrame(page, webglPoints);
+    await page.locator("#themeToggle").click();
+    await page.waitForFunction(() => window.themeAnimations?.length);
+    await page.evaluate(() => {
+      window.themeAnimations[0].currentTime = 0;
+    });
+    assert.deepEqual(await sampleFrame(page, webglPoints), before, "The WebGL plate survives the fade");
+    await page.evaluate(() => window.themeAnimations[0].finish());
+    await page.waitForFunction(() => !document.documentElement.dataset.themeTransition);
+    assert.equal(await page.locator("html").getAttribute("data-theme"), "dark");
+    assert.deepEqual(errors, []);
+    await page.close();
+  });
 });
