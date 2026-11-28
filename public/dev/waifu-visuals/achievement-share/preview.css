@@ -608,10 +608,10 @@ body[data-preview-skin="qwen"] .card[data-mode="dark"] {
   --raw: url(../../../assets/skins/dark/Qwen-side-dark-lineart.webp);
 }
 .card[data-skin="claude"][data-mode="light"] .room {
-  background: center / cover no-repeat url("../../../assets/achievement-share/claude/background-light.png");
+  background: center / cover no-repeat url("../../../assets/achievement-share/claude/background-light.webp");
 }
 .card[data-skin="claude"][data-mode="dark"] .room {
-  background: center / cover no-repeat url("../../../assets/achievement-share/claude/background-dark.png");
+  background: center / cover no-repeat url("../../../assets/achievement-share/claude/background-dark.webp");
 }
 .card[data-skin="glm"][data-mode="light"] .room {
   background: center / 100% 100% no-repeat url("../../../assets/achievement-share/glm/background-light.webp");
