@@ -6821,7 +6821,7 @@ function waitForBrowserUsageResponse(page, predicate, timeout) {
     (response) => {
       try {
         const url = new URL(response.url());
-        return url.pathname === "/api/usage" && predicate(url);
+        return url.pathname === "/api/usage" && predicate(url, response);
       } catch {
         return false;
       }
@@ -6959,7 +6959,11 @@ export async function captureOnlineFreezeRegression({
 
     const firstLiveResponse = waitForBrowserUsageResponse(
       ctx.page,
-      (url) => url.searchParams.get("preset") === "all" && !url.searchParams.has("snapshot"),
+      async (url, response) => {
+        if (url.searchParams.get("preset") !== "all" || url.searchParams.has("snapshot")) return false;
+        // A poll already in flight can return the baseline before the appended record is visible.
+        return !response.ok() || extractUsageTotalTokens(await readUsageResponse(response)) !== initialTotal;
+      },
       stateTimeoutMs,
     );
     const firstEvent = buildOnlineFreezeEvent(template, "live", 100_000);
