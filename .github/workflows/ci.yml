@@ -57,10 +57,13 @@ jobs:
     needs: changes
     # Keep the required check visible when classification fails.
     if: ${{ !cancelled() }}
+    name: ${{ matrix.suite == 'browser' && format('Windows browser regressions (Node {0})', matrix.node-version) || format('test ({0})', matrix.node-version) }}
     runs-on: windows-latest
     strategy:
+      fail-fast: false
       matrix:
         node-version: ["${{ (github.event_name == 'workflow_dispatch' && inputs.node-version) || ((inputs.release-candidate || github.event_name == 'schedule') && '26' || '24') }}"]
+        suite: ${{ fromJSON(github.event_name != 'pull_request' && needs.changes.outputs.docs-only != 'true' && '["core","browser"]' || '["core"]') }}
     steps:
       - name: Require change classification
         if: needs.changes.result != 'success' && needs.changes.result != 'skipped'
@@ -76,7 +79,7 @@ jobs:
         if: needs.changes.outputs.docs-only != 'true'
         run: npm.cmd ci --prefer-offline
       - name: Check types, lint and formatting
-        if: needs.changes.outputs.docs-only != 'true'
+        if: matrix.suite == 'core' && needs.changes.outputs.docs-only != 'true'
         run: |
           npm.cmd run typecheck
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -101,7 +104,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           npm.cmd run native:check
       - name: Run Windows CLI and achievement integration tests
-        if: needs.changes.outputs.docs-only != 'true'
+        if: matrix.suite == 'core' && needs.changes.outputs.docs-only != 'true'
         timeout-minutes: 10
         # These suites launch subprocesses or a desktop browser throughout the test.
         run: >-
@@ -139,14 +142,25 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           node scripts/test.mjs --test-reporter=spec '--test-name-pattern=E1d|D21-C7-B2：悬停单目标保持固定视口' test/skin-palette-quality.test.js
       - name: Run full Windows suite
-        if: github.event_name != 'pull_request' && needs.changes.outputs.docs-only != 'true'
+        if: matrix.suite == 'core' && github.event_name != 'pull_request' && needs.changes.outputs.docs-only != 'true'
         timeout-minutes: 30
         run: >-
           node scripts/test.mjs
           --test-reporter=spec --test-reporter=./scripts/test-file-timing.mjs
           --test-reporter-destination=stdout --test-reporter-destination=stdout
           --test-concurrency=4 --test-timeout=720000
-          'test/**/!(cli|cli-editions|achievement-integration-browser|achievement-notification-api|achievement-notification-browser).test.js'
+          'test/**/!(cli|cli-editions|achievement-integration-browser|achievement-notification-api|achievement-notification-browser|achievement-dialog-browser|skin-palette-preview|skin-palette-quality|ui-geometry).test.js'
+      - name: Run Windows browser regressions
+        if: matrix.suite == 'browser' && needs.changes.outputs.docs-only != 'true'
+        timeout-minutes: 40
+        # Keep large browser matrices off the Windows runner executing source and SQLite tests.
+        run: >-
+          node scripts/test.mjs
+          --test-reporter=spec --test-reporter=./scripts/test-file-timing.mjs
+          --test-reporter-destination=stdout --test-reporter-destination=stdout
+          --test-concurrency=1 --test-timeout=720000
+          test/achievement-dialog-browser.test.js test/skin-palette-preview.test.js
+          test/skin-palette-quality.test.js test/ui-geometry.test.js
       - name: Upload failed E1d screenshot comparison
         if: failure()
         uses: actions/upload-artifact@v4
@@ -156,7 +170,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
       - name: Run explicit Windows native acceptance
-        if: needs.changes.outputs.docs-only != 'true' && (github.event_name != 'pull_request' || needs.changes.outputs.native == 'true')
+        if: matrix.suite == 'core' && needs.changes.outputs.docs-only != 'true' && (github.event_name != 'pull_request' || needs.changes.outputs.native == 'true')
         timeout-minutes: 10
         env:
           Q6_TEST_HELPER: ${{ github.workspace }}/native/windows-source-proof/bin/windows-source-proof.exe

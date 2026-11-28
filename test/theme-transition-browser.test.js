@@ -42,7 +42,11 @@ test("theme frames preserve the old scene and fade in both directions, including
     await fixture.close();
   });
   await listenOnFetchPort(server);
-  browser = await runtime.chromium.launch({ executablePath: runtime.executablePath, headless: true });
+  browser = await runtime.chromium.launch({
+    executablePath: runtime.executablePath,
+    headless: true,
+    args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
+  });
 
   for (const fallback of [false, true]) {
     const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
@@ -137,6 +141,33 @@ test("theme frames preserve the old scene and fade in both directions, including
       await page.waitForFunction(() => !document.documentElement.dataset.themeTransition);
       assert.equal(await page.locator("html").getAttribute("data-theme"), target);
       assert.equal(await page.locator("#themeToggle").isEnabled(), true);
+    }
+    if (fallback) {
+      await page.emulateMedia({ reducedMotion: "no-preference" });
+      await page.locator("#skinToggle").click();
+      await page.locator('#skinDialog [data-skin-id="chatgpt"]').click();
+      await page.keyboard.press("Escape");
+      await page.mouse.move(0, 0);
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.waitForFunction(() => {
+        const scene = document.querySelector("#chatgpt-ambient");
+        const canvas = scene?.querySelector(".left canvas");
+        if (!canvas || canvas.hidden) return false;
+        for (const animation of scene.getAnimations({ subtree: true })) animation.pause();
+        return true;
+      });
+      const before = await sampleFrame(page);
+      await page.evaluate(() => {
+        window.themeAnimations = null;
+        document.querySelector("#themeToggle").click();
+      });
+      await page.waitForFunction(() => window.themeAnimations?.length);
+      await page.evaluate(() => {
+        window.themeAnimations[0].currentTime = 0;
+      });
+      assert.deepEqual((await sampleFrame(page)).slice(0, 3), before.slice(0, 3), "The WebGL plate survives the fade");
+      await page.evaluate(() => window.themeAnimations[0].finish());
+      await page.waitForFunction(() => !document.documentElement.dataset.themeTransition);
     }
     assert.deepEqual(errors, []);
     await page.close();

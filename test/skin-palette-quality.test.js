@@ -10680,11 +10680,11 @@ test("M5.2.C-E1d：真实Edge深色dashboard在聚光淡入稳定后取整页基
     const port = await listenOnFreePort(server);
     const origin = `http://127.0.0.1:${port}`;
     const { chromium, executablePath } = browserRuntime;
-    // Finish compositing the full document before each capture. Offscreen gradient tiles can otherwise alternate.
+    // Rasterize the full document for both captures so offscreen bevels use the same pixel rounding.
     browser = await chromium.launch({
       executablePath,
       headless: true,
-      args: ["--disable-gpu", "--run-all-compositor-stages-before-draw"],
+      args: ["--disable-gpu", "--run-all-compositor-stages-before-draw", "--disable-partial-raster"],
     });
     context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
     await context.route("**/*", async (route) => {
@@ -10713,6 +10713,10 @@ test("M5.2.C-E1d：真实Edge深色dashboard在聚光淡入稳定后取整页基
       await document.fonts.ready;
     });
     assert.equal(await page.locator("html").getAttribute("data-skin"), "chatgpt");
+    await page.waitForFunction(() => {
+      const background = document.querySelector("#chatgpt-ambient");
+      return background && background.getAnimations({ subtree: true }).length === 0;
+    });
     assert.equal(
       await page.locator("#detailPanel").evaluate((panel) => getComputedStyle(panel, "::before").backdropFilter),
       "none",

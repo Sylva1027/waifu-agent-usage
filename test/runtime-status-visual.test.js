@@ -150,7 +150,13 @@ test("runtime status preserves real dashboard frames, live feedback and keyboard
     await page.locator(".toolbar").screenshot({ path: path.join(evidence, `${key}-toolbar.png`) });
   };
   const session = async (viewport, locale, theme, skin, before = false) => {
-    const context = await browser.newContext({ viewport, deviceScaleFactor: 1, timezoneId: "Asia/Shanghai" });
+    const context = await browser.newContext({
+      viewport,
+      deviceScaleFactor: 1,
+      timezoneId: "Asia/Shanghai",
+      // The ambient browser suite exercises ChatGPT's WebGL animation separately.
+      reducedMotion: skin === "chatgpt" ? "reduce" : "no-preference",
+    });
     await context.addInitScript(
       ({ locale, theme, skin, skinKey }) => {
         localStorage.setItem("codexUsageLocale", locale);
@@ -188,12 +194,14 @@ test("runtime status preserves real dashboard frames, live feedback and keyboard
         }
         return route.continue();
       });
-    const initialPricing = page.waitForResponse(
-      (response) => new URL(response.url()).pathname === "/api/pricing/refresh",
-    );
-    await page.goto(url, { waitUntil: "domcontentloaded" });
-    // Initial pricing starts after boot has bound the dashboard controls.
-    await initialPricing;
+    await Promise.all([
+      page.waitForResponse((response) => new URL(response.url()).pathname === "/api/usage" && response.ok()),
+      page.goto(url, { waitUntil: "domcontentloaded" }),
+    ]);
+    await page.waitForFunction(async () => {
+      const { state } = await import("/app-state.js");
+      return state.metadata && !state.runtimeTasks?.length;
+    });
     assert.equal(await page.locator("html").getAttribute("data-skin"), skin);
     await page.locator('#presetButtons button[data-preset="all"]').click();
     await page.waitForFunction(() => Number.parseFloat(document.querySelector("#totalTokens")?.textContent) > 0);

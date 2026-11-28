@@ -3719,8 +3719,10 @@ test("M4.3 menu-recent-open：打开和恢复不触发延迟筛选响应污染�
   await page.route(/\/api\/pricing\/refresh(?:\?|$)/, (route) =>
     route.fulfill({ json: { changed: false, statusChanged: false } }),
   );
-  await page.goto(preview.url);
-  await page.waitForFunction(() => Boolean(window.__skinTestHook));
+  await Promise.all([
+    page.waitForResponse((response) => response.ok() && new URL(response.url()).pathname === "/api/usage"),
+    page.goto(preview.url),
+  ]);
   await page.click('#presetButtons button[data-preset="all"]');
   const appState = await page.evaluateHandle(async () => (await import("/app-state.js")).state);
   await page.waitForFunction(

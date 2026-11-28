@@ -1,0 +1,121 @@
+#chatgpt-ambient {
+  --overlap: clamp(58px, 9vw, 350px);
+  --wing: calc(50vw + var(--overlap));
+  --nacre: url("/assets/achievement-share/chatgpt/background-light.webp");
+  --backing: #f4f1ef;
+  --blue: rgb(133 197 255 / 85%);
+  --pink: rgb(255 189 223 / 83%);
+  --pearl: rgb(255 248 237 / 95%);
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+  background-color: var(--backing);
+}
+html:not([data-skin="chatgpt"]) #chatgpt-ambient {
+  display: none;
+}
+html[data-theme="dark"] #chatgpt-ambient {
+  --nacre: url("/assets/achievement-share/chatgpt/background-dark.webp");
+  --backing: #19161d;
+  --blue: rgb(125 180 235 / 66%);
+  --pink: rgb(219 149 210 / 63%);
+  --pearl: rgb(222 204 237 / 66%);
+}
+#chatgpt-ambient .wing {
+  position: absolute;
+  inset-block: 0;
+  width: var(--wing);
+  overflow: hidden;
+  background: var(--backing);
+}
+#chatgpt-ambient .left {
+  left: 0;
+}
+#chatgpt-ambient .right {
+  right: 0;
+  transform: rotate(180deg);
+  mask-image: linear-gradient(to right, #000 calc(100% - 2 * var(--overlap)), transparent);
+}
+#chatgpt-ambient .surface {
+  position: absolute;
+  width: max(100vh, var(--wing));
+  aspect-ratio: 1;
+  left: 0;
+  top: 45%;
+  transform: translateY(-45%);
+  background: var(--nacre) center / 100% 100% no-repeat;
+}
+#chatgpt-ambient .right .surface {
+  width: max(113vh, calc(var(--wing) * 1.1));
+  left: -5%;
+  top: 64%;
+  transform: translateY(-64%);
+}
+#chatgpt-ambient .silk {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+#chatgpt-ambient .surface:has(.silk:not([hidden])) {
+  background-image: none;
+}
+#chatgpt-ambient .lip {
+  position: absolute;
+  left: 0;
+  overflow: hidden;
+  mask-size: 100% 100%;
+  mask-repeat: no-repeat;
+}
+#chatgpt-ambient .left .lip {
+  top: calc(100% * 440 / 1254);
+  width: calc(100% * 581 / 1254);
+  height: calc(100% * 352 / 1254);
+  mask-image: url("./art/left-rim-light.webp");
+}
+#chatgpt-ambient .right .lip {
+  top: calc(100% * 175 / 1254);
+  width: calc(100% * 639 / 1254);
+  height: calc(100% * 373 / 1254);
+  mask-image: url("./art/right-rim-light.webp");
+}
+#chatgpt-ambient .wing[data-silk="ready"] .lip {
+  opacity: 0;
+}
+html[data-theme="dark"] #chatgpt-ambient .left .lip {
+  mask-image: url("./art/left-rim-dark.webp");
+}
+html[data-theme="dark"] #chatgpt-ambient .right .lip {
+  mask-image: url("./art/right-rim-dark.webp");
+}
+#chatgpt-ambient .reflection {
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  width: 36%;
+  transform: translateX(-101%);
+  background: linear-gradient(to right, transparent, var(--pink) 34%, var(--pearl) 51%, var(--blue) 68%, transparent);
+}
+#chatgpt-ambient .right .reflection {
+  background: linear-gradient(to left, transparent, var(--pink) 34%, var(--pearl) 51%, var(--blue) 68%, transparent);
+}
+
+/* The Waifu layout places each face halfway across its side gutter. Soften the
+   photographic contrast there while keeping the artwork visible beneath the ink. */
+@media (min-width: 721px) {
+  body:has(#skinCharacters[data-skin-characters="on"]) #chatgpt-ambient::after {
+    --face-inset: max(5.5vh, calc((100vw - 1440px) / 4));
+    --veil: rgb(222 215 229 / 58%);
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 22vh 26vh at var(--face-inset) 34%, var(--veil) 8%, transparent),
+      radial-gradient(ellipse 22vh 26vh at calc(100% - var(--face-inset)) 34%, var(--veil) 8%, transparent);
+  }
+  html[data-theme="dark"] body:has(#skinCharacters[data-skin-characters="on"]) #chatgpt-ambient::after {
+    --veil: rgb(34 30 39 / 48%);
+  }
+}

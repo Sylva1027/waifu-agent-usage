@@ -1,0 +1,99 @@
+#gemini-ambient-wall,
+#gemini-ambient {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  --gemini-image-width: max(740px, 112vh);
+  --gemini-board-edge: max(24px, calc((100vw - 1440px) * 0.5));
+  --gemini-right-inset: clamp(60px, 7vw, 162px);
+}
+
+#gemini-ambient-wall {
+  --gemini-original: url("/assets/achievement-share/gemini/background-light.webp");
+  background: linear-gradient(158deg, #f9edf4, #f3e6ee);
+}
+
+html[data-skin="gemini"] #gemini-ambient-wall,
+html[data-skin="gemini"] #gemini-ambient[data-ready="true"] {
+  display: block;
+}
+
+html[data-theme="dark"] #gemini-ambient-wall {
+  --gemini-original: url("/assets/achievement-share/gemini/background-dark.webp");
+  background: linear-gradient(158deg, #2a1e2a, #211521);
+}
+
+/* The side-view artwork has lighter ink than the front-view artwork. */
+html[data-skin="gemini"] #skinCharacters img[data-view="side"] {
+  filter: drop-shadow(0 0 0 rgb(0 0 0 / 80%));
+}
+
+html[data-skin="gemini"][data-theme="dark"] #skinCharacters img[data-view="side"] {
+  filter: drop-shadow(0 0 0 rgb(255 255 255 / 70%));
+}
+
+.gemini-ambient-scene {
+  position: absolute;
+  top: 0;
+  width: var(--gemini-image-width);
+  aspect-ratio: 25 / 24;
+  background-position: center;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+}
+
+#gemini-ambient-wall .gemini-ambient-scene {
+  background-image: var(--gemini-plate, none);
+  mask-composite: intersect;
+}
+
+#gemini-ambient-wall[data-unavailable] .gemini-ambient-scene {
+  background-image: var(--gemini-original);
+}
+
+.gemini-ambient-scene--left {
+  --gemini-image-width: max(720px, 96vh);
+  top: -4vh;
+  left: clamp(
+    calc(var(--gemini-image-width) * -0.26),
+    calc(var(--gemini-board-edge) - var(--gemini-image-width) * 0.43),
+    -38px
+  );
+}
+
+.gemini-ambient-scene--right {
+  right: calc(var(--gemini-right-inset) - var(--gemini-image-width) * 0.365);
+}
+
+/* The wall can fade into the background without making the foreground metal see-through. */
+#gemini-ambient-wall .gemini-ambient-scene--left {
+  mask-image: linear-gradient(to right, #000 49%, transparent 95%), linear-gradient(to bottom, #000 78%, transparent);
+}
+
+#gemini-ambient-wall .gemini-ambient-scene--right {
+  mask-image: linear-gradient(to right, transparent 52%, #000 61%), linear-gradient(to bottom, #000 76%, transparent);
+}
+
+.gemini-ambient-strand {
+  display: block;
+  position: absolute;
+}
+
+.gemini-ambient-segment,
+.gemini-ambient-part {
+  position: absolute;
+  inset: 0;
+}
+
+.gemini-ambient-part {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+#gemini-ambient-wall:not([data-ready="true"]) [data-shadow] {
+  display: none;
+}

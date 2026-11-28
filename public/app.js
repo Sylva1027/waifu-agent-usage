@@ -282,9 +282,27 @@ async function toggleTheme() {
     if (document.startViewTransition) {
       await document.startViewTransition(() => setTheme(theme)).finished;
     } else {
-      // Preserve the old canvas pixels as well as the old palette during the fade.
+      // Keep the old palette, animation frame and canvas pixels visible throughout the fade.
+      document.dispatchEvent(new Event("waifu:theme-snapshot"));
       overlay = document.createElement("div");
       const snapshot = root.cloneNode(true);
+      const animations = root.getAnimations({ subtree: true });
+      if (animations.length) {
+        const copies = snapshot.querySelectorAll("*");
+        const elements = new Map(Array.from(root.querySelectorAll("*"), (element, index) => [element, copies[index]]));
+        for (const { effect } of animations) {
+          const copy = elements.get(effect?.target);
+          if (!copy || effect.pseudoElement || effect.getComputedTiming().progress === null) continue;
+          const style = getComputedStyle(effect.target);
+          for (const frame of effect.getKeyframes()) {
+            const { offset, computedOffset, easing, composite, ...properties } = frame;
+            for (const property of Object.keys(properties)) {
+              if (property.startsWith("--")) copy.style.setProperty(property, style.getPropertyValue(property));
+              else copy.style[property] = style[property];
+            }
+          }
+        }
+      }
       snapshot.querySelectorAll("script").forEach((script) => {
         script.remove();
       });
@@ -295,7 +313,7 @@ async function toggleTheme() {
       snapshot.style.colorScheme = colors.colorScheme;
       const canvases = root.querySelectorAll("canvas");
       snapshot.querySelectorAll("canvas").forEach((canvas, index) => {
-        canvas.getContext("2d")?.drawImage(canvases[index], 0, 0);
+        if (canvas.width && canvas.height) canvas.getContext("2d")?.drawImage(canvases[index], 0, 0);
       });
       Object.assign(overlay.style, {
         position: "fixed",
@@ -322,6 +340,7 @@ async function toggleTheme() {
             link.onerror = resolve;
           }),
       );
+      // Scene selectors use html[data-theme] so they also match this clone inside the shadow tree.
       overlay.attachShadow({ mode: "closed" }).append(snapshot);
       const frozenStyles = document.createElement("style");
       frozenStyles.textContent = "*, *::before, *::after { transition: none !important; animation: none !important; }";
@@ -3096,6 +3115,7 @@ async function bootDashboard() {
     });
     state.skinRuntime.restore();
     state.skinRuntime.apply();
+    if (!paletteStudioPreview) void import("./skin-ambient.js").then(({ startSkinAmbient }) => startSkinAmbient());
     if (!paletteStudioPreview)
       void import("./achievement-events.js")
         .then((events) => events.recordAchievementSkin(state.skinRuntime.getPreference().skinId))

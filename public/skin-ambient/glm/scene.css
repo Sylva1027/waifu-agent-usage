@@ -1,0 +1,103 @@
+#glm-ambient {
+  display: none;
+}
+
+html[data-skin="glm"] #glm-ambient {
+  display: block;
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background: #191e2a url("./jacquard-dark.webp") center / cover no-repeat;
+  --weave-ink: #8194bc;
+  --rail-tail: #a8badd;
+  --rail-tip: #dfebff;
+  --lamp-glint: #d7e6ff;
+}
+
+html[data-skin="glm"][data-theme="light"] #glm-ambient {
+  background-color: #d2d9e7;
+  background-image: url("./jacquard-light.webp");
+  --weave-ink: #5d7193;
+  --rail-tail: #aec7e1;
+  --rail-tip: #f6fbff;
+  --lamp-glint: #f7fdff;
+}
+
+.glm-bands,
+.glm-band > div,
+.glm-band::before {
+  position: absolute;
+  inset: 0;
+}
+
+.glm-band {
+  position: absolute;
+  width: min(41.667vw, 74.074vh);
+  transform: translateY(-50%);
+}
+
+.glm-band::before {
+  content: "";
+  background: var(--weave-ink);
+  opacity: var(--dye-strength, 1);
+  mask: var(--weave) center / 100% 100% no-repeat;
+}
+
+.glm-rails {
+  --emitter: var(--rail);
+}
+.glm-lamps {
+  --emitter: var(--led);
+}
+.glm-rails,
+.glm-lamps {
+  mask: var(--emitter) center / 100% 100% no-repeat;
+}
+.glm-running-thread {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 23%;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, var(--rail-tail) 53%, var(--rail-tip) 76%, transparent);
+}
+.glm-lamp {
+  position: absolute;
+  background: var(--lamp-glint);
+  opacity: 0;
+}
+
+html[data-theme="light"] .glm-band {
+  container-type: inline-size;
+  --facet-x: 0.08cqw;
+}
+html[data-theme="light"] .glm-band[data-side="right"] {
+  --weave-ink: #485f85;
+}
+html[data-theme="light"] .glm-band[data-pattern="upper"] {
+  --dye-strength: 0.8;
+  --lamp-glint: #e6f2fa;
+}
+html[data-theme="light"] .glm-band[data-pattern$="lower"] {
+  --dye-strength: 0.875;
+  --lamp-glint: #edf6fd;
+}
+html[data-theme="light"] .glm-band[data-side="right"][data-pattern="upper"] {
+  --facet-x: -0.08cqw;
+}
+html[data-theme="light"] .glm-rails {
+  /* Expose the upper face of each yarn and retain its dyed edge at peak light. */
+  mask:
+    var(--emitter) center / 100% 100% no-repeat subtract,
+    var(--weave) var(--facet-x) 0.12cqw / 100% 100% no-repeat;
+}
+
+html[data-theme="light"] .glm-lamp::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: #5485b3;
+  /* The shifted yarn stencil tints the far edge of each lit stitch blue. */
+  mask: var(--weave) calc(var(--facet-x) - var(--cell-x)) calc(0.12cqw - var(--cell-y)) / 100cqw auto no-repeat;
+}

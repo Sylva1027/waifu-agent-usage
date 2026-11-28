@@ -1,0 +1,42 @@
+#qwen-ambient {
+  position: fixed;
+  z-index: 0;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+#qwen-ambient > .qwen-ambient-left {
+  position: absolute;
+  mask-image:
+    linear-gradient(to right, #000 77%, transparent 100%), linear-gradient(to bottom, #000 85%, transparent 100%);
+  mask-composite: intersect;
+}
+
+#qwen-ambient img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+#qwen-ambient .qwen-ambient-right {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  mask-image: linear-gradient(to right, transparent, #000 var(--qwen-overlap));
+  opacity: 0.86;
+}
+
+#qwen-ambient .qwen-ambient-right > img {
+  object-fit: cover;
+  object-position: right var(--qwen-right-position);
+}
+
+#qwen-ambient[data-mode="light"] .qwen-ambient-right {
+  opacity: 0.72;
+}
+
+#qwen-ambient canvas {
+  position: absolute;
+}
